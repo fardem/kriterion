@@ -1,0 +1,2325 @@
+/* Farben: neutrale Graustufen, Orange als Signal, Gold fuer Sterne. */
+:root {
+  /* Mindestkante der Kacheln im Bildstreifen; app.js setzt sie aus der
+     Einstellung (60 bis 150 px). */
+  --tile-min: 80px;
+  /* Das Schema gilt hier und nicht ueber das `<meta>` in index.html; davon
+     haengen Auswahlfelder, Rollbalken und Datumswaehler ab. */
+  color-scheme: dark;
+  --bg: #0e1012;
+  --surface: #16191c;
+  --surface-2: #1c2126;
+  --surface-3: #232930;
+  --line: #262c33;
+  --line-2: #1e2429;
+
+  --text: #e9ecef;
+  --text-2: #b3bac1;
+  --muted: #838c95;
+  --faint: #616a73;
+
+  /* Grundfarben als RGB-Tripel fuer `rgba()`, weil das Alpha je Stelle
+     wechselt. */
+  --accent-rgb: 255,122,26;
+  --gold-rgb: 255,197,49;
+  --green-rgb: 63,211,154;
+  --red-rgb: 240,85,92;
+
+  --accent: #ff7a1a;
+  --accent-hi: #ff9440;
+  /* Orange als Schrift; das helle Schema setzt einen dunkleren Ton. */
+  --accent-text: var(--accent);
+  --accent-text-hi: var(--accent-hi);
+  /* Rand einer gefuellten Orangeflaeche; das helle Schema setzt ihn dunkler. */
+  --accent-edge: var(--accent);
+  --accent-dim: rgba(var(--accent-rgb), .13);
+  --accent-line: rgba(var(--accent-rgb), .42);
+
+  --gold: #ffc531;
+  /* Blau: Aufgabe an der linken Kante eines Kommentars und Markierung eines
+     Accounts (`.mention`). */
+  --blue: #4d9de0;
+  --blue-rgb: 77,157,224;
+  --blue-dim: rgba(var(--blue-rgb), .16);
+  /* Gold leiser: voll gesaettigt gehoert Gold den Sternen. */
+  --gold-line: rgba(var(--gold-rgb), .52);
+  --star-off: #3a424a;
+
+  --green: #3fd39a;
+  --green-dim: rgba(var(--green-rgb), .13);
+  --red: #f0555c;
+  --red-dim: rgba(var(--red-rgb), .13);
+
+  /* ---- Farben einzelner Stellen ---- */
+
+  /* Rand unter dem Zeiger in zwei Stufen; --line-hover-2 ist die kraeftigere. */
+  --line-hover: #333b44;
+  --line-hover-2: #3a434c;
+  /* Zeichen, wo kein Bild ist. Eigene Variable: im hellen Schema weicht sie
+     von --line-hover ab. */
+  --placeholder: #333b44;
+  /* Die Zeitleiste liegt direkt auf --bg. Eigene Werte: hell misst --line-2
+     dort 1,02 : 1, und --line-2 traegt auch die Kartenraender. */
+  --timeline-line: var(--line-2);
+  --timeline-mid: var(--line);
+  --timeline-year: var(--faint);
+  /* Schrift auf gefuellter Flaeche; folgt der Flaeche, nicht dem Schema. */
+  --on-accent: #14161a;
+  --on-signal: #ffffff;
+  /* Grund hinter Fotos: --image-bg fuer Kacheln, --image-bg-2 (dunkler) fuer
+     `.viewer` und den Vergleich. */
+  --image-bg: #0a0c0e;
+  --image-bg-2: #08090b;
+  --preview-bg: #14181c;
+  /* Traeger fuer alles, was auf einem Foto liegt; gleich in beiden Schemata. */
+  --photo-rgb: 8,10,12;
+  /* Als Zahl statt `var(--text-2)`: das helle Schema setzte sonst dunkle
+     Schrift auf den dunklen Traeger. */
+  --on-photo: #b3bac1;
+  --on-photo-dim: #616a73;
+  /* Gruen und Rot auf Fotos, ebenfalls fest. Auf dem Traeger ueber hellem
+     Foto: #3fd39a 5,89 : 1 statt 2,10 (#0c7a54), #f0555c 3,30 statt 2,10
+     (#cb2a32). */
+  --badge-green: #3fd39a;
+  --badge-green-rgb: 63,211,154;
+  --badge-red: #f0555c;
+  --badge-red-rgb: 240,85,92;
+  /* Striche der Marke (SVG in app.js). Kontrast dunkel 5,58 und 7,31, hell
+     4,62 und 4,59; Grenze fuer Grafik 3 : 1. */
+  --brand-grey: var(--muted);
+  --brand-line: var(--accent-text);
+  /* Daempfung eines abgelehnten Eintrags. Hell `opacity` statt
+     `brightness(.5)`: das misst auf weisser Karte 10,33 : 1. */
+  --dimmed: grayscale(.85) brightness(.5);
+  /* Traeger der Werkzeuge im Betrachter und der Bedienung im Vollbild. */
+  --tool-rgb: 14,16,18;
+  --lb-surface-rgb: 20,23,27;
+  --edge-on-dark-rgb: 255,255,255;
+  /* Schleier hinter Dialog und Vollbild. */
+  --scrim-rgb: 6,7,9;
+  /* Fertige Werte statt Alphas: das helle Schema aendert auch die Deckung,
+     und --lb-bg ist dort deckend. */
+  --scrim: rgba(var(--scrim-rgb), .78);
+  --lb-bg: rgba(var(--scrim-rgb), .97);
+
+  --r-sm: 7px;
+  --r: 11px;
+  --r-lg: 16px;
+  --sh-sm: 0 1px 2px rgba(0,0,0,.4);
+  --sh: 0 4px 16px rgba(0,0,0,.45);
+  --sh-lg: 0 12px 40px rgba(0,0,0,.6);
+  --sh-menu: 0 6px 18px rgba(0,0,0,.45);
+
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
+
+  --ease: cubic-bezier(.22,.61,.36,1);
+
+  /* Stapelordnung. Die vier Werte unter 10 gelten innerhalb des Vollbilds;
+     ein Test in test/ui_entry.js prueft die Reihenfolge. */
+  --z-crop-frame: 2;
+  --z-viewer-tools: 3;
+  --z-page-arrows: 4;
+  --z-timeline-hint: 5;
+  --z-markup-menu: 10;
+  --z-masthead: 20;
+  --z-masthead-menu: 30;
+  --z-compare-bar: 40;
+  --z-lightbox: 90;
+  --z-dialog: 100;
+  --z-toast: 120;
+}
+
+/* ---- Helles Schema ---- */
+/* Kein Kontrast liegt unter dem derselben Paarung im dunklen Schema. Farben
+   auf Fotos werden hier nicht ueberschrieben. */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #eaedf1;
+  --surface: #ffffff;
+  --surface-2: #f4f6f8;
+  --surface-3: #e3e7ec;
+  --line: #d0d7de;
+  --line-2: #e7ebef;
+
+  --text: #14181c;
+  --text-2: #3f4851;
+  --muted: #616b75;
+  --faint: #767f89;
+
+  /* #ff7a1a misst auf Weiss 2,61 : 1; Schrift und Kanten nehmen #ad4f0b
+     (5,38, auf --bg 4,59). */
+  --accent-hi: #ec6a05;
+  --accent-text: #ad4f0b;
+  --accent-text-hi: #933f06;
+  --accent-dim: rgba(var(--accent-rgb), .16);
+  --accent-edge: var(--accent-text);
+  /* Keine Teildeckung: aus --accent erreicht der Rand auf Weiss hoechstens
+     2,61 : 1. */
+  --accent-line: var(--accent-text);
+
+  /* Gold, Blau, Gruen und Rot mit einem Wert fuer Flaeche und Schrift:
+     Karte 5,31 bis 5,38 : 1, --bg 4,52 bis 4,59. */
+  --gold: #8f6306;
+  --gold-rgb: 143,99,6;
+  --gold-line: rgba(var(--gold-rgb), .55);
+  /* Leerer gegen vollen Stern 3,76 : 1; Grenze fuer Grafik 3 : 1. */
+  --star-off: #d3dae1;
+
+  --blue: #1d6eb6;
+  --blue-rgb: 29,110,182;
+  --blue-dim: rgba(var(--blue-rgb), .11);
+  --green: #0c7a54;
+  --green-rgb: 12,122,84;
+  --green-dim: rgba(var(--green-rgb), .10);
+  --red: #cb2a32;
+  --red-rgb: 203,42,50;
+  --red-dim: rgba(var(--red-rgb), .09);
+
+  --line-hover: #b9c2cb;
+  --line-hover-2: #aab4bf;
+  --placeholder: #78828d;
+  /* Gegen --bg (#eaedf1): --timeline-line 1,54 : 1 (Grenze 1,5),
+     --timeline-mid 2,13 (2,0), --timeline-year 4,62 (4,5). */
+  --timeline-line: var(--line-hover);
+  --timeline-mid: #9aa5b0;
+  --timeline-year: var(--muted);
+  /* #0a0c0e hinter Fotos maesse gegen die weisse Karte 19,59 : 1 und waere
+     der lauteste Fleck der Seite. */
+  --image-bg: #e3e7ec;
+  --image-bg-2: #dde2e8;
+  --preview-bg: #f4f6f8;
+
+  --dimmed: grayscale(.85) opacity(.45);
+
+  --scrim-rgb: 20,26,33;
+  --scrim: rgba(var(--scrim-rgb), .55);
+  --lb-bg: #2b323a;
+
+  /* Hell traegt der Rand die Kante; Schatten mit einem Sechstel des Alphas
+     im Farbton von --scrim-rgb. */
+  --sh-sm: 0 1px 2px rgba(var(--scrim-rgb), .06);
+  --sh: 0 4px 16px rgba(var(--scrim-rgb), .10);
+  --sh-lg: 0 12px 40px rgba(var(--scrim-rgb), .16);
+  --sh-menu: 0 6px 18px rgba(var(--scrim-rgb), .12);
+}
+
+/* Das Vollbild bleibt im hellen Schema dunkel; mit den hellen Werten
+   stuende --text #14181c mit 1,38 : 1 auf --lb-bg. */
+[data-theme="light"] .lightbox {
+  /* Fuer den Rollbalken des Bildstreifens im Vollbild. */
+  color-scheme: dark;
+  --bg: #2b323a;
+  --surface: #363e47;
+  --surface-2: #3b434c;
+  --surface-3: #434c56;
+  --line: #4a535e;
+  --line-2: #333b43;
+  --line-hover: #566069;
+  --line-hover-2: #566069;
+
+  --text: #eef1f4;
+  --text-2: #c2c9d1;
+  --muted: #96a0aa;
+  --faint: #7d8791;
+
+  --accent-hi: #ff9440;
+  --accent-text: var(--accent);
+  --accent-text-hi: var(--accent-hi);
+  --accent-edge: var(--accent);
+  --accent-dim: rgba(var(--accent-rgb), .13);
+  --accent-line: rgba(var(--accent-rgb), .42);
+
+  --gold: #ffc531;
+  --gold-rgb: 255,197,49;
+  --star-off: #3a424a;
+  --blue: #4d9de0;
+  --blue-rgb: 77,157,224;
+  --blue-dim: rgba(var(--blue-rgb), .16);
+  --green: #3fd39a;
+  --green-rgb: 63,211,154;
+  --red: #f0555c;
+  --red-rgb: 240,85,92;
+}
+
+* { box-sizing: border-box; }
+
+/* `!important`: sonst schlaegt jede `display`-Regel dieses Blatts das
+   `hidden` des Browsers. */
+[hidden] { display: none !important; }
+/* Bezug aller rem; Layoutmasse bleiben px. Hier px, weil sich rem am
+   Wurzelelement auf die Browservorgabe bezoege. */
+html { font-size: 15px; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--text);
+  /* Kein Tap-Highlight von Android: jeder Knopf zeigt seinen Zustand selbst,
+     :active bleibt. */
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  font-family: var(--sans); font-size: 1rem; line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+a { color: inherit; text-decoration: none; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: none; padding: 0; }
+/* Hilfsfeld zum Kopieren ohne sicheren Kontext, ausserhalb des sichtbaren
+   Bereichs. */
+.copy-spare { position: fixed; top: -1000px; left: 0; opacity: 0; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+::selection { background: var(--accent); color: var(--on-accent); }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 999px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--line-hover-2); }
+
+.hint { color: var(--faint); font-size: .87rem; }
+/* --muted wie `.label`: die Beschriftung braucht man zum Bedienen. */
+.eyebrow {
+  font-family: var(--mono); font-size: .78rem; text-transform: uppercase;
+  letter-spacing: .14em; color: var(--muted);
+}
+/* Tabellarische Ziffern, damit Zahlen beim Wechsel (3,9 auf 4,1) nicht
+   springen. */
+.brand .count, .card-test, .rating-inline, .link-count, .rrow .ravg, .rrow .rname .rweight,
+.mrow .mcount, .mrow .mweight, .kv .v, .log-time, .session-time, .trash-meta, .cmt-head,
+.lb-count, .vcount, .bsum, .calc-row > span, .open-when, .card-find .find-more,
+.thumb .num, .thumb .duration, .cmt-img .duration, .lrow .lnum, .cmp-crit, .cmp-group, .pill .n, .photo-count,
+.two-factor-codes span, .user-status, .filter-toggle .fcount, .open-count {
+  font-variant-numeric: tabular-nums;
+}
+/* Klasse `logo`, nicht `mark`: `.mark` sind die Knoepfe am Kommentar.
+   Groesse in rem, weil die Schrift von 80 bis 120 Prozent einstellbar ist;
+   `width: auto` schlaegt das width-Attribut im Markup. */
+.logo { flex-shrink: 0; display: block; width: auto; }
+/* Eigene SVG-Zeichen aus app.js (24er Raster, Strich 1,8) statt Emoji, die
+   jedes System anders zeichnet. */
+.icon { width: 1em; height: 1em; display: inline-block; vertical-align: -.125em; flex-shrink: 0; }
+
+/* ---------- Schaltflaechen ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 9px 15px; border-radius: var(--r-sm);
+  border: 1px solid var(--line); background: var(--surface-2);
+  font-size: .93rem; font-weight: 550; color: var(--text-2);
+  transition: background .15s var(--ease), border-color .15s var(--ease),
+              color .15s var(--ease), transform .1s var(--ease);
+  white-space: nowrap;
+}
+.btn:hover { background: var(--surface-3); border-color: var(--line-hover); color: var(--text); }
+.btn:active { transform: translateY(1px); }
+.btn-accent { background: var(--accent); border-color: var(--accent-edge); color: var(--on-accent); font-weight: 620; }
+.btn-accent:hover { background: var(--accent-hi); border-color: var(--accent-hi); color: var(--on-accent); }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--muted); }
+.btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+.btn-danger { color: var(--red); border-color: rgba(var(--red-rgb), .32); background: transparent; }
+.btn-danger:hover { background: var(--red-dim); border-color: var(--red); }
+.btn-sm { padding: 6px 11px; font-size: .87rem; }
+.btn:disabled { opacity: .42; cursor: not-allowed; }
+.btn:disabled:hover { background: var(--surface-2); border-color: var(--line); color: var(--text-2); }
+
+/* ---------- Anmeldung ---------- */
+/* `100vh` als Rueckfall vor `100dvh`, wie an `body.login`. */
+.login-screen {
+  min-height: 100vh; min-height: 100dvh;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+  background: radial-gradient(780px 440px at 50% -12%, rgba(var(--accent-rgb), .11), transparent 64%), var(--bg);
+}
+.login-card {
+  width: 100%; max-width: 372px; background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  padding: 36px 32px 30px; box-shadow: var(--sh-lg);
+  animation: rise .34s var(--ease) both;
+}
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+/* Marke und Name in einer Zeile wie `.brand` in der Kopfzeile. */
+.login-card .login-brand {
+  display: flex; align-items: center; gap: 11px; margin: 0 0 5px;
+}
+/* Kein `margin-bottom` am h1: bei `align-items: center` schoebe es das h1
+   nach oben. */
+.login-card .login-brand h1 { margin: 0; }
+/* Hoehe der Zeile daneben: 1,53 rem x Zeilenhoehe 1,55 = 2,372 rem. Mit
+   der Schriftgroesse von `.login-card h1` aendern. */
+.login-card .login-brand .logo { height: 2.372rem; }
+.login-card h1 { font-size: 1.53rem; font-weight: 640; letter-spacing: -.028em; margin: 0 0 5px; }
+.login-card .sub { color: var(--muted); font-size: .9rem; margin: 0 0 24px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: .8rem; font-weight: 600; color: var(--text-2); margin-bottom: 6px; }
+.input {
+  width: 100%; padding: 10px 12px;
+  background: var(--bg); border: 1px solid var(--line);
+  border-radius: var(--r-sm); font-size: .97rem; color: var(--text);
+  transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
+}
+.input::placeholder { color: var(--faint); }
+.input:hover { border-color: var(--line-hover); }
+.input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.login-card .btn { width: 100%; margin-top: 10px; padding: 11px; }
+.login-card .login-divider {
+  margin: 28px 0 0; font-size: .87rem;
+}
+/* „Account anfragen" gedaempft und nicht orange: zwei gleich laute Knoepfe
+   lassen offen, welcher der gewoehnliche Weg ist. */
+.login-card .login-alt {
+  background: var(--accent-dim); border-color: var(--accent-line);
+  color: var(--muted); font-weight: 500;
+}
+.login-card .login-alt:hover {
+  border-color: var(--accent); color: var(--text-2);
+}
+.login-error {
+  background: var(--red-dim); border: 1px solid rgba(var(--red-rgb), .34); color: var(--red);
+  padding: 10px 12px; border-radius: var(--r-sm); font-size: .87rem; margin-bottom: 15px;
+  animation: rise .22s var(--ease) both;
+}
+
+/* ---------- Rahmen ---------- */
+.shell { max-width: 1300px; margin: 0 auto; padding: 0 24px 96px; }
+.masthead {
+  display: flex; align-items: center; gap: 12px;
+  padding: 20px 0 17px; border-bottom: 1px solid var(--line); margin-bottom: 22px; flex-wrap: wrap;
+  position: sticky; top: 0; z-index: var(--z-masthead);
+  /* Deckend, ohne `backdrop-filter`; test/ui_style.js prueft das. */
+  background: var(--bg);
+  transition: box-shadow .15s var(--ease);
+}
+.masthead.scrolled { box-shadow: var(--sh-sm); }
+.brand { display: flex; align-items: center; gap: 11px; margin-right: auto; min-width: 0; }
+.brand h1 { font-size: 1.23rem; font-weight: 620; letter-spacing: -.028em; margin: 0; }
+.brand .count { font-size: .77rem; color: var(--faint); font-family: var(--mono); }
+/* So hoch wie Titel und Zaehlzeile daneben: (1,23 + 0,77) x 1,55 = 3,1 rem.
+   Mit den Schriftgroessen von `.brand h1` und `.brand .count` aendern. */
+.brand .logo { height: 3.1rem; }
+/* Name des angemeldeten Accounts; bricht nicht um, sonst stuende er
+   zwischen zwei Knoepfen. */
+.masthead .who { white-space: nowrap; }
+
+.search-box { position: relative; flex: 1; min-width: 180px; max-width: 320px; }
+.search-box .input { padding-left: 34px; padding-right: 28px; }
+.search-box .ic { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; display: flex; }
+.search-box .clr { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: var(--faint); font-size: 1rem; padding: 2px 4px; }
+.search-box .clr:hover { color: var(--text); }
+
+.icon-btn {
+  width: 36px; height: 36px; border-radius: var(--r-sm);
+  border: 1px solid var(--line); background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center; color: var(--text-2);
+  transition: all .15s var(--ease);
+}
+.icon-btn:hover { background: var(--surface-3); color: var(--text); border-color: var(--line-hover); }
+
+/* ---------- Kopfzeile der Unteransichten ---------- */
+/* `.subhead` steht neben `.masthead` und erbt alles; hier nur die
+   Unterschiede. */
+
+.sub-back { border-color: transparent; background: none; }
+.sub-back:hover { background: var(--surface-2); border-color: var(--line); color: var(--text); }
+
+/* ---------- Blaettern am Ende des Eintrags ---------- */
+.entry-nav { display: flex; justify-content: space-between; gap: 12px;
+  margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line); }
+/* Am Telefon ragte der zweite Knopf sonst ueber den rechten Rand. */
+.entry-nav .step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.entry-nav .step-arrow { color: var(--faint); }
+.entry-nav .step:disabled { opacity: .38; cursor: default; }
+.entry-nav .step:disabled:hover { background: var(--surface-2); border-color: var(--line); color: var(--text-2); }
+/* Gekuerzt wird der Titel, nicht die Symbolknoepfe; die schrumpften am
+   Telefon (390 px) sonst unter ihr Mass. */
+.subhead .brand h1 { min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.subhead .brand > div { min-width: 0; }
+.sub-back, .subhead .brand .logo { flex-shrink: 0; }
+
+/* ---------- Filter ---------- */
+.filters { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+/* `baseline` statt `center`: die aufgeklappte Tagwolke ist drei bis fuenf
+   Zeilen hoch, `center` setzte die Beschriftung 32 bis 59 px zu tief. */
+.frow { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+/* Ohne `margin-left: auto`: es naehme der Wolke den Platz, und sie
+   rutschte darunter. */
+.frow-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+/* In der Sortierzeile fuellt kein Element den Platz wie die Wolke. */
+.frow-right-wide { margin-left: auto; }
+/* Ohne `min-width: 0` waere die Mindestbreite der Wolke ihr Inhalt. */
+.frow > .pills.cloud { flex: 1 1 0; min-width: 0; }
+/* In em: die Breite fasst nur Text und waechst mit der Schrift. */
+.frow > .eyebrow { min-width: 7.25em; flex-shrink: 0; }
+/* Zweite Beschriftung derselben Zeile: „Ansichten" hinter „Sortieren". */
+.frow > .eyebrow-with { min-width: 0; margin-left: 22px; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.sort-pair { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sort-pair .select { min-width: 0; }
+/* Der Knopf nennt die Richtung als Text („neu → alt") und bricht nicht um. */
+.sort-dir { white-space: nowrap; flex-shrink: 0; font-family: var(--mono); font-size: .74rem; }
+/* Hinweis unter einer Sprachpillenreihe; `flex-basis: 100%` gibt ihm eine
+   eigene Zeile im Pillenkasten. */
+/* In der Karte „Sprachen" mit mehr Abstand, weil er dort unter einer Liste
+   steht. */
+.pills .langnote { flex-basis: 100%; margin: 2px 0 0; font-size: .68rem;
+  color: var(--faint); font-style: italic; line-height: 1.35; }
+.engine-list .langnote { margin: 8px 0 0; font-size: .72rem;
+  color: var(--faint); font-style: italic; line-height: 1.45; }
+.pill {
+  padding: 5px 12px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface);
+  font-size: .83rem; color: var(--muted); font-weight: 500;
+  transition: all .15s var(--ease);
+}
+.pill:hover { border-color: var(--accent-line); color: var(--text); background: var(--accent-dim); }
+.pill.on { background: var(--accent); border-color: var(--accent-edge); color: var(--on-accent); font-weight: 620; }
+.pill-tag { font-family: var(--mono); font-size: .77rem; }
+/* Trennt den Favoritenumschalter von den drei Statuspillen davor. Gesetzt
+   orange (`.pill.on`), nicht gold: Gold steht fuer Bewertung. */
+.pill-sep { margin-left: 14px; }
+.pill .n { opacity: .55; margin-left: 4px; font-size: .7rem; }
+/* Punkt an einer vollständigen Sprachpille; bei Lücken steht die Zahl. */
+.pill .dot { opacity: .5; margin-left: 5px; font-size: .58rem; vertical-align: middle; }
+/* Ein `span` im Knopf, weil HTML keinen Knopf im Knopf erlaubt; den Klick
+   faengt app.js ab. */
+.pill .view-remove { margin-left: 8px; opacity: .45; font-size: .78rem; }
+.pill .view-remove:hover { opacity: 1; color: var(--red); }
+.pill.on .view-remove { opacity: .6; }
+
+/* Zeile „Ähnlich: …" im Dialog zum Anlegen. Leer ohne Hoehe, sonst
+   verschoebe sie den Dialog bei jedem Anschlag. */
+.similar { margin-top: 6px; }
+.similar:empty { display: none; }
+.similar a { color: var(--text-2); text-decoration: underline; text-decoration-color: var(--line); }
+.similar a:hover { color: var(--accent-text); text-decoration-color: var(--accent-text); }
+.select {
+  padding: 6px 10px; border-radius: var(--r-sm);
+  border: 1px solid var(--line); background: var(--surface); color: var(--text-2); font-size: .83rem;
+}
+.select:hover { border-color: var(--line-hover); }
+.link-btn { font-size: .8rem; color: var(--muted); text-decoration: underline; }
+.link-btn:hover { color: var(--accent-text); }
+/* Abstand vor „+ Ansicht speichern", gleich `.pill-sep`. */
+.link-btn-sep { margin-left: 14px; }
+/* Erklaertext ohne Aufklapper, wenn er in eine Zeile passt. Abstand wie
+   `.more`, mit dem zusammen aendern. */
+.more-plain { margin: -6px 0 14px; }
+/* Verweis mit Zeichen statt Wort: ohne Unterstrich, 30 x 30 px fuer den
+   Finger. */
+.link-btn.icon-link {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0; border-radius: 7px;
+  text-decoration: none; flex-shrink: 0;
+}
+.link-btn.icon-link:hover { background: var(--surface-2); }
+.link-btn.icon-link .icon { width: 17px; height: 17px; }
+
+/* ---------- Kartenraster ---------- */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+/* Waehrend der Suche bleibt die alte Liste gedaempft stehen, statt
+   zwischen zwei Anschlaegen leer zu werden. */
+.grid.searching { opacity: .5; transition: opacity .12s ease-in .12s; }
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
+  overflow: hidden; display: flex; flex-direction: column; position: relative;
+  transition: border-color .18s var(--ease), transform .18s var(--ease), box-shadow .18s var(--ease);
+  animation: fade .3s var(--ease) both;
+  /* Der Engpass ist das Zeichnen, nicht das Laden (GET /api/items: 0,52 MB
+     bei 1000 Eintraegen). Jede Rasterstufe setzt ihre Hoehe; `auto` gilt bis
+     zum ersten Zeichnen. */
+  /* Kachelgroesse je Schirmbreite, 250 Kacheln in Chromium:
+       390 px    178x305
+       834 px    255x374
+       1440 px   301x399 */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 400px;
+}
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.card:hover { border-color: var(--line-hover-2); transform: translateY(-2px); box-shadow: var(--sh); }
+.card.picked { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+.card-img {
+  aspect-ratio: 1/1; background: var(--image-bg);
+  display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;
+}
+/* Kein `scale(var(--zoom))`: der Server liefert die Kachel schon im
+   Ausschnitt. */
+.card-img img { width: 100%; height: 100%; object-fit: cover; display: block; transition: filter .2s var(--ease), transform .3s var(--ease); }
+.card:hover .card-img img { transform: scale(1.02); }
+.card-img .ph { color: var(--placeholder); }
+.card.rejected .card-img img { filter: var(--dimmed); }
+.card.rejected .card-title { color: var(--muted); }
+.card-badges { position: absolute; top: 9px; left: 9px; display: flex; gap: 5px; flex-wrap: wrap; }
+/* Dunkler Traeger wie `.photo-count`: auf hellen Fotos waere der Stern
+   sonst kaum zu sehen. */
+.card-pin {
+  position: absolute; top: 8px; right: 9px;
+  font-size: 1.05rem; line-height: 1; color: var(--gold);
+  width: 26px; height: 26px; display: flex;
+  align-items: center; justify-content: center;
+  background: rgba(var(--photo-rgb), .82);
+  border-radius: 999px;
+}
+.photo-count {
+  position: absolute; bottom: 8px; right: 8px;
+  background: rgba(var(--photo-rgb), .82); color: var(--on-photo);
+  font-family: var(--mono); font-size: .67rem; padding: 2px 7px; border-radius: 999px;
+}
+/* Links unten, weil rechts unten `.photo-count` steht. */
+.card-play {
+  position: absolute; bottom: 8px; left: 8px;
+  font-size: .72rem; line-height: 1; color: var(--text-2);
+  width: 24px; height: 24px; display: flex;
+  align-items: center; justify-content: center;
+  background: rgba(var(--photo-rgb), .82);
+  border-radius: 999px; padding-left: 2px;
+}
+.card-body { padding: 12px 14px 13px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.card-cat {
+  font-family: var(--mono); font-size: .63rem; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--accent-text); font-weight: 600;
+}
+.card-title { font-size: 1.03rem; font-weight: 600; letter-spacing: -.015em; margin: 0; line-height: 1.34; }
+/* Trefferzeile waehrend einer Suche. Einzeilig, weil die schmalste Kachel
+   240 px misst; gekuerzt wird nur `.find-text`. */
+.card-find {
+  display: flex; align-items: baseline; gap: 5px;
+  font-size: .73rem; line-height: 1.45; color: var(--muted);
+  min-width: 0;
+}
+.card-find .find-source { flex-shrink: 0; color: var(--faint); font-weight: 600; }
+.card-find .find-text {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Die Zahl in der Schreibmaschinenschrift traegt einen eigenen Grund,
+   damit sie nicht als Teil des Ausschnitts gelesen wird. */
+.card-find .find-more {
+  flex-shrink: 0; font-family: var(--mono); font-size: .66rem;
+  color: var(--faint); background: var(--surface-2);
+  border-radius: 4px; padding: 1px 5px;
+}
+
+/* Beide Farben gesetzt, weil der Browser `mark` schwarz auf gelb zeichnet.
+   Kein Fettdruck: er aenderte die Breite. */
+mark {
+  background: var(--accent-dim); color: var(--accent-text-hi);
+  border-radius: 3px; padding: 0 1px;
+}
+/* Erwaehnung eines Accounts wie `mark`, aber blau: Orange ist die Farbe
+   der Suchtreffer. */
+.mention {
+  background: var(--blue-dim); color: var(--blue);
+  border-radius: 3px; padding: 0 1px;
+}
+
+/* Zahlen am Kommentarblock („12 · ⚑3 · ☐3 · ☑2"). Das Zeichen trägt den
+   Sinn, die Farbe verstärkt ihn nur. */
+.cnum { white-space: nowrap; }
+.cnum .icon { vertical-align: -.13em; margin-right: 2px; }
+.cnum[data-kind="report"] { color: var(--accent); }
+.cnum[data-kind="task"]   { color: var(--blue); }
+.cnum[data-kind="done"]   { color: var(--green); }
+.cnum[data-kind="marked"] { color: var(--blue); }
+.card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.card-test {
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--mono); font-size: .7rem; color: var(--muted);
+  padding: 5px 0 1px; border-top: 1px solid var(--line-2); margin-top: 2px;
+}
+.card-test .sep { color: var(--line); }
+.card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 5px; }
+.card-meta-l { display: flex; align-items: center; gap: 9px; }
+.rating-inline { display: inline-flex; align-items: center; gap: 4px; font-size: .83rem; color: var(--text-2); font-weight: 600; }
+.rating-inline .dot { color: var(--gold); font-size: .8rem; }
+/* Potenzial gedaempft und mit ◆, damit es nicht als Bewertung (★, Gold)
+   gelesen wird. */
+.rating-inline.potential .dot { color: var(--muted); }
+.link-count { font-family: var(--mono); font-size: .7rem; color: var(--faint); }
+.pick-box {
+  width: 21px; height: 21px; border-radius: 5px; border: 1.5px solid var(--line);
+  background: var(--surface-2); display: flex; align-items: center; justify-content: center;
+  font-size: .8rem; color: transparent; flex-shrink: 0; transition: all .15s var(--ease);
+}
+.pick-box:hover { border-color: var(--accent-line); }
+.pick-box.on { background: var(--accent); border-color: var(--accent-edge); color: var(--on-accent); }
+
+.badge {
+  display: inline-flex; align-items: center;
+  font-family: var(--mono); font-size: .63rem; font-weight: 600;
+  letter-spacing: .07em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 5px; border: 1px solid;
+}
+.badge-rejected { background: rgba(var(--photo-rgb), .8); border-color: rgba(var(--badge-red-rgb), .5); color: var(--badge-red); }
+.badge-tested { background: rgba(var(--photo-rgb), .8); border-color: rgba(var(--badge-green-rgb), .45); color: var(--badge-green); }
+
+.empty {
+  border: 1.5px dashed var(--line); border-radius: var(--r-lg);
+  padding: 66px 24px; text-align: center; background: var(--surface);
+}
+.empty .ph { display: block; margin: 0 auto 12px; color: var(--placeholder); }
+.empty h2 { font-size: 1.2rem; font-weight: 620; margin: 0 0 7px; letter-spacing: -.02em; }
+.empty-state { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 0 8px; text-align: center; }
+.empty p { color: var(--muted); margin: 0; font-size: .93rem; }
+
+/* ---------- Detail ---------- */
+.detail { display: grid; grid-template-columns: minmax(300px, 46%) 1fr; gap: 28px; align-items: start; }
+@media (max-width: 860px) { .detail { grid-template-columns: 1fr; } }
+.meta-col { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 84px; }
+@media (max-width: 860px) { .meta-col { position: static; } }
+
+.viewer {
+  position: relative; aspect-ratio: 4/3; background: var(--image-bg-2);
+  border-radius: var(--r); overflow: hidden;
+  display: flex; align-items: center; justify-content: center; border: 1px solid var(--line);
+}
+.viewer img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; }
+/* `#000` fest: Balken eines Videos, keine Flaeche der Oberflaeche. Die
+   Positivliste in test/ui_language.js fuehrt diese Stelle. */
+.viewer video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+.viewer .ph { color: var(--placeholder); }
+.vnav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(var(--tool-rgb), .86);
+  border: 1px solid rgba(var(--edge-on-dark-rgb), .12);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text); font-size: 1.27rem; transition: all .15s var(--ease); opacity: 0;
+}
+.viewer:hover .vnav { opacity: 1; }
+/* Ohne Zeiger gibt es kein :hover. Regel einzeilig und ohne Kommentar
+   lassen: test/roundtrip.js sucht sie woertlich. */
+@media (hover: none) { .vnav { opacity: 1; } }
+.vnav:hover { background: var(--accent); border-color: var(--accent-edge); color: var(--on-accent); transform: translateY(-50%) scale(1.07); }
+.vnav.prev { left: 10px; } .vnav.next { right: 10px; }
+.vcount {
+  position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+  background: rgba(var(--photo-rgb), .84); color: var(--on-photo);
+  font-family: var(--mono); font-size: .73rem; padding: 3px 10px; border-radius: 999px;
+}
+.main-flag {
+  position: absolute; top: 10px; left: 10px;
+  background: var(--accent); color: var(--on-accent);
+  font-family: var(--mono); font-size: .6rem; font-weight: 700;
+  letter-spacing: .09em; text-transform: uppercase; padding: 3px 8px; border-radius: 5px;
+}
+
+/* auto-fill statt auto-fit: auto-fit klappt leere Spalten zusammen und streckt wenige Kacheln. */
+.thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--tile-min), 1fr)); gap: 7px; margin: 10px 0; }
+.thumb {
+  width: auto; height: auto; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden;
+  border: 2px solid var(--line); position: relative; background: var(--image-bg);
+  cursor: grab; transition: border-color .15s var(--ease), transform .15s var(--ease), opacity .15s var(--ease);
+}
+/* Ohne `transform`: der Server liefert das Bild schon im Ausschnitt. */
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.thumb.current { border-color: var(--accent); }
+.thumb.dragging { opacity: .45; transform: scale(.93); cursor: grabbing; }
+.thumb .num { position: absolute; bottom: 0; left: 0; background: rgba(var(--photo-rgb), .82); color: var(--on-photo); font-family: var(--mono); font-size: .6rem; padding: 1px 5px; border-radius: 0 5px 0 0; }
+.thumb .del { position: absolute; top: 0; right: 0; width: 19px; height: 19px; background: rgba(var(--photo-rgb), .82); color: var(--on-photo); font-size: .73rem; display: flex; align-items: center; justify-content: center; border-radius: 0 0 0 6px; opacity: 0; transition: opacity .15s var(--ease); }
+/* `pointer-events: none`, sonst faengt die Marke das Ziehen zum
+   Umsortieren ab. */
+.thumb .play-badge, .lb-thumb .play-badge, .cmt-img .play-badge {
+  position: absolute; top: 3px; left: 3px; pointer-events: none;
+  font-size: .58rem; line-height: 1; color: var(--text-2);
+  width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;
+  background: rgba(var(--photo-rgb), .82); border-radius: 999px; padding-left: 1px;
+}
+.thumb .duration, .cmt-img .duration {
+  position: absolute; bottom: 0; right: 0; pointer-events: none;
+  background: rgba(var(--photo-rgb), .82); color: var(--on-photo);
+  font-family: var(--mono); font-size: .58rem; padding: 1px 4px; border-radius: 5px 0 0 0;
+}
+.lb-thumb { position: relative; }
+.thumb:hover .del { opacity: 1; }
+/* Ohne Zeiger kein Kreuz: auf der kleinen Kachel laege es unter dem Daumen;
+   geloescht wird ueber `.vremove`. Einzeilig lassen, test/roundtrip.js sucht
+   die Regel woertlich. */
+@media (hover: none) { .thumb .del { display: none; } }
+.thumb .del:hover { background: var(--red); color: var(--on-signal); }
+
+.drop {
+  display: block; border: 1.5px dashed var(--line); border-radius: var(--r-sm);
+  padding: 13px; text-align: center; font-size: .87rem; color: var(--muted);
+  cursor: pointer; background: var(--surface); transition: all .15s var(--ease);
+}
+.drop:hover, .drop.over { border-color: var(--accent); color: var(--accent-text); background: var(--accent-dim); }
+.drop input { display: none; }
+
+.title-line { display: flex; align-items: flex-start; gap: 10px; }
+/* Ein Textbereich: `display: block` nimmt ihm die Grundlinie,
+   `overflow: hidden` den Rollbalken; die Hoehe setzt `autoGrow()`. */
+.title-in {
+  flex: 1; font-size: 1.6rem; font-weight: 640; letter-spacing: -.032em; color: var(--text);
+  background: transparent; border: 1px solid transparent; border-radius: var(--r-sm);
+  padding: 5px 8px; margin: -5px 0 0 -8px; line-height: 1.28;
+  display: block; overflow: hidden;
+  transition: background .15s var(--ease), border-color .15s var(--ease);
+}
+.title-in:hover { background: var(--surface); border-color: var(--line); }
+.title-in:focus { outline: none; background: var(--surface); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.pin-btn { font-size: 1.13rem; padding: 4px; color: var(--faint); flex-shrink: 0; transition: color .15s var(--ease), transform .15s var(--ease); }
+.pin-btn:hover { transform: scale(1.15); }
+.pin-btn.on { color: var(--gold); }
+
+.switches { display: flex; gap: 8px; flex-wrap: wrap; }
+.switch {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 13px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface);
+  font-size: .87rem; font-weight: 550; color: var(--muted); transition: all .15s var(--ease);
+}
+.switch:hover { border-color: var(--line-hover); color: var(--text); }
+.switch .knob { width: 8px; height: 8px; border-radius: 50%; background: var(--star-off); transition: background .15s var(--ease); }
+.switch.on-green { background: var(--green-dim); border-color: rgba(var(--green-rgb), .42); color: var(--green); }
+.switch.on-green .knob { background: var(--green); }
+.switch.on-red { background: var(--red-dim); border-color: rgba(var(--red-rgb), .42); color: var(--red); }
+.switch.on-red .knob { background: var(--red); }
+.switch.locked { cursor: help; }
+
+/* --line-2 wie `.sys-card`; zusammen aendern. */
+.block { background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r); padding: 15px 17px 17px; }
+.block-wide { margin-top: 20px; }
+.block-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+/* Kein Text unter 0,78 rem und nicht in --faint, wenn man ihn zum Bedienen
+   lesen muss. */
+.label { font-family: var(--mono); font-size: .8rem; text-transform: uppercase; letter-spacing: .13em; color: var(--muted); font-weight: 600; transition: color .15s var(--ease); }
+.block-head .hint { color: var(--text-2); }
+.ta {
+  width: 100%; min-height: 92px; resize: vertical; color: var(--text);
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
+  padding: 11px 13px; font-size: .97rem; line-height: 1.65;
+  transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
+}
+.ta::placeholder { color: var(--faint); }
+.ta:hover { border-color: var(--line-hover); }
+.ta:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.ta-desc { min-height: 140px; }
+/* Die Hoehe setzt `autoGrow()`; ein Ziehgriff wirkte nur bis zum naechsten
+   Zeichen. */
+.ta-auto { resize: none; }
+.page-title { font-size: 1.47rem; font-weight: 640; letter-spacing: -.026em; margin: 0 0 4px; }
+.hint-sm { font-size: .8rem; }
+.input-sm { font-size: .87rem; }
+.select-sm { font-size: .9rem; }
+.page-hint { margin: 0 0 20px; }
+.page-hint.above-pills { margin-bottom: 10px; }
+.row-in { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row-in .input { flex: 1; min-width: 145px; }
+/* Auswahl der Kategorie im Eintrag. */
+#cat { min-width: 148px; }
+
+/* ---------- Sterne ---------- */
+.stars { display: inline-flex; gap: 2px; align-items: center; }
+/* Das × zum Zuruecksetzen steht in eigener Spalte: in der Sternreihe hielt
+   man es fuer einen Stern, in der Zahlenspalte verschoebe es die Zahl. */
+.rrow .rreset-cell { display: flex; align-items: center; justify-content: flex-end; padding-left: 12px; }
+.rreset {
+  width: 26px; height: 26px; border-radius: 50%; border: 0; padding: 0;
+  background: transparent; color: var(--faint); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: color .15s var(--ease), background .15s var(--ease);
+}
+.rreset .icon { width: 15px; height: 15px; }
+.rreset:hover { color: var(--red); background: var(--red-dim); }
+/* `visibility` statt `display: none`, sonst fiele die Zelle aus dem Raster. */
+.rreset.blank { visibility: hidden; }
+.star { font-size: 1.2rem; line-height: 1; color: var(--star-off); transition: color .15s var(--ease), transform .1s var(--ease); }
+.star.on { color: var(--gold); }
+.stars .star { cursor: pointer; }
+.stars .star:hover { transform: scale(1.18); }
+
+/* Ein Raster fuer alle Zeilen, damit die Sternreihen gleich beginnen.
+   Spalten: Name, Sterne, Durchschnitt, Ruecksetzknopf. `.rrow` ist
+   `display: contents`, die Linie steht deshalb an den Zellen. */
+.rlist { display: grid; grid-template-columns: 1fr auto auto auto; }
+/* Bei genau einem Account haengt drawRatings() keine Durchschnittszelle an;
+   im Vierspaltenraster verschoeben sich sonst alle Zellen. */
+.rlist.no-average { grid-template-columns: 1fr auto auto; }
+.rrow { display: contents; }
+.rrow > * { padding: 9px 0; border-bottom: 1px solid var(--line-2); }
+.rrow:last-of-type > * { border-bottom: none; }
+.rrow .rname { font-size: .93rem; font-weight: 500; padding-right: 12px; }
+.rrow .racts { display: flex; align-items: center; gap: 9px; }
+/* Gewichtsmarke „×1,5" hinter dem Kriteriennamen. */
+.rrow .rname .rweight, .cmp-crit .cn .cweight {
+  font-family: var(--mono); font-size: .72rem; color: var(--faint); white-space: nowrap;
+}
+/* Mindestbreite: 4,34 rem fasst „⌀ 4,2 (9)", 65,03 px bei 15 px
+   Wurzelschrift. Rechtsbuendig ueber flex, weil die Zelle gestreckt ist. */
+.rrow .ravg {
+  font-family: var(--mono); font-size: .8rem; color: var(--muted);
+  white-space: nowrap; padding-left: 9px;
+  min-width: calc(4.34rem + 9px);
+  display: flex; align-items: center; justify-content: flex-end;
+}
+.rvotes { display: flex; flex-wrap: wrap; gap: 4px 8px; padding: 0 0 9px; margin-top: -4px; }
+.rvote {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: .76rem; color: var(--faint); white-space: nowrap;
+}
+.rvote.mine { color: var(--muted); }
+/* Stimmen im Dialog fuer Admins, mit den Klassen der Sternzeile. Kein
+   eigener Bildlauf: `.modal` begrenzt die Hoehe. */
+.vote-list { display: flex; flex-direction: column; gap: 13px; }
+.vote-row .rname { display: block; font-size: .93rem; font-weight: 500; margin-bottom: 4px; }
+.vote-row .rvotes { padding: 0; margin-top: 0; }
+/* Verfasserangaben (Anlegen, Testtag, Ablehnung): wer etwas getan hat und
+   wann. */
+.author-row { margin: 8px 2px 0; }
+/* Von der Schrift ist nur der Grund (`.rej-why`) rot; Datum und Name sind
+   Verfasserangabe. */
+.rej-note { display: flex; align-items: baseline; gap: 10px;
+               border-left: 2px solid rgba(var(--red-rgb), .42); padding-left: 9px; }
+.rej-note .rej-text { flex: 1 1 auto; min-width: 0; }
+.rej-note .rej-why { color: var(--red); font-weight: 500; }
+.rej-note .rej-why.clickable { cursor: pointer; }
+.rej-note .rej-why.clickable:hover { text-decoration: underline; text-underline-offset: 2px; }
+/* Stift an allen vier Stellen in --accent-text. Im Kommentarkopf misst er
+   mit --faint 2,95 : 1 (dunkel) und 3,75 : 1 (hell), so 6,22 und 4,97. */
+.mact.ed { color: var(--accent-text); }
+.mact.ed:hover { color: var(--accent-text-hi); }
+.rej-note .acts { display: flex; gap: 8px; flex-shrink: 0; }
+.rej-note .mact { color: var(--faint); font-size: .8rem; padding: 3px 6px;
+                     border-radius: 4px; transition: all .15s var(--ease); }
+.rej-note .mact:hover { color: var(--accent-text); background: var(--accent-dim); }
+.rej-note .mact.rm:hover { color: var(--red); background: var(--red-dim); }
+.rej-reason { margin-top: 8px; }
+.trow .tfrom { font-size: .76rem; color: var(--faint); flex-shrink: 0; }
+.trow .tfrom.mine { color: var(--muted); }
+.cmt-head .cmt-from { color: var(--muted); }
+
+.xdel { color: var(--faint); font-size: .87rem; opacity: 0; transition: opacity .15s var(--ease), color .15s var(--ease); padding: 2px 5px; border-radius: 4px; }
+/* Jede Zeilenart mit `.xdel` hier eintragen, sonst bleibt das Kreuz
+   unsichtbar. */
+.lrow:hover .xdel, .trow:hover .xdel, .arow:hover .xdel { opacity: 1; }
+@media (hover: none) { .xdel { opacity: 1; } }
+/* An einer Stimme ist das Kreuz immer sichtbar; in der schmalen Zeile
+   faende man es sonst nicht. */
+.rvote .xdel { opacity: 1; padding: 0 3px; font-size: .8rem; }
+.xdel:hover { color: var(--red); background: var(--red-dim); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--text-2);
+  font-family: var(--mono); font-size: .77rem; padding: 4px 10px; border-radius: 999px;
+}
+.chip.ro { padding: 1px 7px; font-size: .63rem; color: var(--muted); }
+.chip-xs { font-size: .63rem; padding: 1px 6px; gap: 4px; }
+.chip-xs button { font-size: .7rem; }
+.ttags { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; }
+.ttag-add {
+  color: var(--faint); font-size: .87rem; line-height: 1; padding: 0 4px;
+  border-radius: 4px; flex-shrink: 0;
+}
+/* „mehr" in der Testtagzeile schrumpft nicht, sonst braeche es selbst um. */
+.ttag-more { font-size: .68rem; flex-shrink: 0; align-self: center; }
+.ttag-add:hover { color: var(--accent-text); background: var(--surface-2); }
+.ttag-in { width: 8em; padding: 2px 7px !important; font-size: .73rem !important; }
+/* `max-height` setzt app.js, gemessen an der ersten Marke. */
+.cloud { transition: max-height .15s var(--ease); }
+.cloud-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 14px 0 7px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.chip button { color: var(--faint); font-size: .8rem; line-height: 1; }
+.chip button:hover { color: var(--red); }
+
+/* ---------- Links ---------- */
+/* `max-height` setzt app.js aus `LINK_ROWS`, gemessen an der ersten Zeile. */
+.link-scroll { margin: 0 -4px 4px; padding: 0 4px; transition: max-height .15s var(--ease); }
+.link-more {
+  display: block; margin: 0 0 12px; padding: 4px 2px;
+  font-size: .77rem; color: var(--muted); background: none; border: 0;
+  transition: color .15s var(--ease);
+}
+.link-more:hover { color: var(--accent-text); }
+.lrow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: var(--r-sm);
+  border: 1px solid transparent; background: var(--surface-2);
+  margin-bottom: 5px; cursor: pointer;
+  transition: border-color .15s var(--ease), background .15s var(--ease), opacity .15s var(--ease), transform .15s var(--ease);
+}
+.lrow:hover { border-color: var(--accent-line); background: var(--surface-3); }
+.lrow:hover .dom { color: var(--accent-text-hi); }
+.lrow.dragging { opacity: .45; transform: scale(.99); cursor: grabbing; }
+.lrow .grip { color: var(--faint); font-size: .8rem; letter-spacing: -1px; flex-shrink: 0; cursor: grab; }
+.lrow .lnum { font-family: var(--mono); font-size: .67rem; color: var(--faint); min-width: 1.7em; flex-shrink: 0; }
+.lurl { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.lurl .dom { font-size: .87rem; font-weight: 560; color: var(--accent-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color .15s var(--ease); }
+.lurl .path { font-family: var(--mono); font-size: .7rem; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lrow .go { color: var(--faint); font-size: .8rem; flex-shrink: 0; }
+/* `display: block`, sonst sitzt das SVG einige Pixel zu tief. */
+.lrow .go svg { display: block; width: .95rem; height: .95rem; }
+/* Suchzeile in Textfarbe; Orange nur fuer Adressen. */
+.lrow.search .dom { color: var(--text); font-weight: 500; }
+.lrow.search:hover .dom { color: var(--accent-text-hi); }
+/* Anbieternamen ohne Monoschrift: Woerter, keine Adressteile. */
+.snames { font-size: .7rem; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Gekuerzt wird der Pfad, nicht der Name dahinter (`.lfrom`). */
+.lbottom { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.lbottom .path, .lbottom .snames { flex: 0 1 auto; min-width: 0; }
+.lbottom .lfrom { flex: 0 0 auto; font-size: .7rem; color: var(--muted); }
+.snames .sname { cursor: pointer; transition: color .15s var(--ease); }
+.snames .sname:hover { color: var(--accent-text-hi); text-decoration: underline; }
+
+/* ---------- Suchanbieter in den Einstellungen ---------- */
+.engine-list { display: flex; flex-direction: column; gap: 4px; }
+.engine {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 10px; border-radius: var(--r-sm); background: var(--surface-2);
+}
+.engine.blank .engine-name { color: var(--faint); }
+.engine-name { font-size: .85rem; }
+.engine .sdefault {
+  font-size: .68rem; padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--line); background: none; color: var(--muted);
+  transition: color .15s var(--ease), border-color .15s var(--ease);
+}
+.engine .sdefault:hover:not(:disabled) { color: var(--accent-text); border-color: var(--accent-line); }
+.engine .sdefault.on { color: var(--accent-text); border-color: var(--accent); }
+.engine .sdefault:disabled, .engine input:disabled { opacity: .4; cursor: default; }
+.engine-own { display: flex; flex-direction: column; gap: 6px; }
+.engine-slot { display: flex; align-items: center; gap: 6px; }
+.engine-slot .input { padding: 7px 9px; }
+.engine-slot input[id^="se-name-"] { flex: 0 0 8.5em; }
+.engine-slot input[id^="se-vorlage"] { flex: 1; min-width: 0; }
+
+/* ---------- Testtage ---------- */
+.spark { display: block; width: 100%; height: 46px; margin-bottom: 12px; }
+.trow {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 10px; border-radius: var(--r-sm); background: var(--surface-2);
+  margin-bottom: 5px; border: 1px solid transparent;
+  transition: background .15s var(--ease), border-color .15s var(--ease);
+}
+.trow:hover { border-color: var(--line); background: var(--surface-3); }
+.trow .tdate { font-family: var(--mono); font-size: .83rem; color: var(--text-2); min-width: 92px; }
+.trow .tweek { font-size: .73rem; color: var(--faint); flex-shrink: 0; }
+.test-scroll { max-height: 300px; overflow-y: auto; margin: 0 -4px 12px; padding: 0 4px; }
+.test-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-top: 12px; border-top: 1px dashed var(--line); }
+.test-add input[type=date] {
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
+  color: var(--text); padding: 8px 11px; font-size: .87rem;
+}
+.test-add input[type=date]:hover { border-color: var(--line-hover); }
+.test-locked { display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: .87rem; }
+
+/* ---------- Kommentare ---------- */
+.cmts { display: flex; flex-direction: column; gap: 9px; margin-bottom: 13px; }
+.cmt { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 10px 12px; }
+.cmt-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-family: var(--mono); font-size: .7rem; color: var(--faint); margin-bottom: 6px; }
+.cmt-head .acts { display: flex; gap: 8px; flex-shrink: 0; }
+/* Abstand zum Stift gegen Fehlgriffe: .6em bei .73rem sind 6,57 px. */
+.cmt-head button.rm { margin-left: .6em; }
+.cmt-head button { color: var(--faint); font-size: .73rem; }
+.cmt-head button:hover { color: var(--accent-text); }
+.cmt-head button.rm:hover { color: var(--red); }
+/* `pre-wrap` bricht nur an Leerzeichen um; eine lange Adresse ragte sonst
+   ueber den Rand. */
+.cmt-body { font-size: .93rem; white-space: pre-wrap; word-break: break-word; line-height: 1.6; }
+/* Unterstrichen, anders als in der Linkliste: im Fliesstext zeigt sonst
+   nichts den Link an. */
+.cmt-body a { color: var(--accent-text); text-decoration: underline; text-underline-offset: 2px; }
+.cmt-body a:hover { color: var(--accent-text-hi); }
+.cmt-edit { display: flex; flex-direction: column; gap: 7px; }
+.cmt-edit .ta { min-height: 62px; }
+.cmt-edit .acts { display: flex; gap: 7px; justify-content: flex-end; }
+.cmt-form { display: flex; flex-direction: column; gap: 8px; }
+.cmt-form .ta { min-height: 64px; }
+.cmt-form .btn { align-self: flex-end; }
+/* ---------- Auszeichnung ---------- */
+/* Keine Leerzeile zwischen Bloecken: ein Blockelement beginnt eine neue
+   Zeile, `pre-wrap` zeigte den Umbruch sonst doppelt. */
+.markup-quote { margin: 5px 0; padding: 1px 0 1px 11px; border-left: 2px solid var(--line-hover); color: var(--text-2); }
+.markup-list { margin: 5px 0; padding-left: 21px; }
+.markup-list li { margin: 1px 0; }
+.markup-code { font-family: var(--mono); font-size: .88em; background: var(--surface-3); border-radius: 3px; padding: 1px 4px; }
+/* Zeichen hinter einem benannten Link, dessen Adresse nicht dasteht. */
+.markup-out { width: .72em; height: .72em; margin-left: 3px; opacity: .8; vertical-align: -.02em; }
+.markup-ref { display: inline-flex; align-items: baseline; gap: 4px; padding: 0 6px; border: 1px solid var(--accent-line); border-radius: 4px; background: var(--accent-dim); }
+.cmt-body a.markup-ref, .desc-view a.markup-ref { text-decoration: none; }
+.markup-ref .markup-ref-no { font-family: var(--mono); font-size: .86em; color: var(--muted); }
+/* Verweis auf einen geloeschten Kommentar: kein Klickziel, daher keine
+   Linkfarbe. */
+.markup-ref.gone { border-color: var(--line); background: var(--surface-2); color: var(--muted); font-style: italic; }
+
+/* ---------- Die Beschreibung, gelesen ---------- */
+/* Schrift und Innenabstand wie `.ta` und `.ta-desc`, sonst springt der
+   Text beim Wechsel ins Feld. Zusammen aendern. */
+.desc-view { min-height: 140px; padding: 11px 13px; border: 1px solid transparent; border-radius: var(--r-sm); font-size: .97rem; line-height: 1.65; white-space: pre-wrap; word-break: break-word; cursor: text; }
+.desc-view:hover { border-color: var(--line); }
+.desc-view a { color: var(--accent-text); text-decoration: underline; text-underline-offset: 2px; }
+.desc-view a:hover { color: var(--accent-text-hi); }
+.desc-view .hint { cursor: default; }
+
+/* ---------- Das schwebende Menue ---------- */
+/* An der oberen Kante des Feldes, nicht am Schreibzeiger: dessen Position
+   muesste bei einstellbarer Schrift gerechnet werden. */
+.markup-menu {
+  position: absolute; z-index: var(--z-markup-menu); display: flex; flex-wrap: wrap;
+  gap: 3px; padding: 3px; max-width: calc(100vw - 16px);
+  background: var(--surface-3); border: 1px solid var(--line);
+  border-radius: var(--r-sm); box-shadow: var(--sh-menu);
+}
+.markup-menu button { display: inline-flex; align-items: center; justify-content: center; min-width: 29px; height: 27px; padding: 0 7px; border-radius: 5px; color: var(--text-2); font-size: .84rem; }
+.markup-menu button:hover { background: var(--surface); color: var(--accent-text); }
+/* `top` setzt app.js auf die Hoehe von `.masthead`. */
+.markup-menu.docked { position: sticky; margin-bottom: 4px; box-shadow: none; }
+.markup-menu .mk-b { font-weight: 700; }
+.markup-menu .mk-i { font-style: italic; }
+/* Eigene Zeile fuer Adresse oder Name, sonst ragt das Menue am Telefon aus
+   dem Bild. */
+.markup-ask { display: flex; gap: 4px; width: 100%; padding: 2px 0 0; }
+.markup-ask .input { flex: 1; min-width: 0; height: 27px; padding: 3px 7px; font-size: .84rem; }
+
+/* ---------- Die Nummer und das Ziel eines Sprungs ---------- */
+.cmt-no { font-family: var(--mono); color: var(--faint); flex-shrink: 0; }
+.cmt.lit { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+
+.danger-row { display: flex; justify-content: flex-end; margin-top: 8px; }
+
+/* ---------- Vergleich ---------- */
+/* Mittig ueber `left`, `right` und `margin: auto`, nicht ueber `transform`:
+   die Animation `rise` endet auf `transform: none`. */
+.cmp-bar {
+  position: fixed; bottom: 20px; left: 0; right: 0;
+  width: max-content; max-width: calc(100% - 24px); margin: 0 auto;
+  background: var(--surface-3); border: 1px solid var(--line); color: var(--text);
+  border-radius: 999px; padding: 8px 9px 8px 19px;
+  display: flex; align-items: center; gap: 13px; box-shadow: var(--sh-lg); z-index: var(--z-compare-bar); font-size: .9rem;
+  animation: rise .26s var(--ease) both;
+}
+.cmp-bar .btn-x { color: var(--muted); padding: 4px 8px; }
+.cmp-bar .btn-x:hover { color: var(--text); }
+.cmp-grid { display: grid; gap: 18px; margin-top: 6px; }
+.cmp-col { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.cmp-col .cimg { aspect-ratio: 16/10; background: var(--image-bg-2); }
+.cmp-col .cimg img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cmp-col .cbody { padding: 13px 15px 15px; }
+.cmp-col h3 { font-size: 1.07rem; font-weight: 620; letter-spacing: -.02em; margin: 0 0 3px; }
+.cmp-crit { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line-2); font-size: .87rem; }
+.cmp-crit:last-child { border-bottom: none; }
+.cmp-crit .cn { color: var(--muted); }
+/* Trennzeile je Kasten mit dessen Kopfzahl; eine Zeile fuer die ganze
+   Spalte liesse offen, welcher Kasten gemeint ist. */
+.cmp-group {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 0 5px; margin-top: 6px; border-top: 1px solid var(--line);
+  font-size: .87rem; font-weight: 620;
+}
+.cmp-group:first-child { border-top: none; margin-top: 0; padding-top: 4px; }
+.cmp-group .cn { color: var(--text-2); }
+.cmp-best { color: var(--green); font-weight: 700; }
+
+/* ---------- Einstellungen ---------- */
+/* Am Telefon eine Liste: fuenf Woerter brechen auf 366 px um.
+   `margin-bottom: -1px` legt den Strich des Reiters auf den der Leiste. */
+.sys-tabs {
+  display: flex; flex-wrap: wrap; gap: 2px;
+  margin: 0 0 20px; border-bottom: 1px solid var(--line);
+}
+.sys-tab {
+  display: block; padding: 9px 14px 10px; margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  font-size: .9rem; font-weight: 550; color: var(--muted);
+  white-space: nowrap;
+  transition: color .15s var(--ease), border-color .15s var(--ease), background .15s var(--ease);
+}
+/* Untere Ecken eckig: der Reiter sitzt auf der Linie. */
+.sys-tab:hover { color: var(--text); background: var(--surface); border-radius: var(--r-sm) var(--r-sm) 0 0; }
+.sys-tab.on { color: var(--text); border-bottom-color: var(--accent); font-weight: 620; }
+/* `dense` zieht eine schmale Karte in die Luecke vor einer Karte ueber die
+   volle Breite. Kein `align-items: start`: alle Karten einer Reihe sind
+   gleich hoch. */
+.sys-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); grid-auto-flow: dense; gap: 18px; margin-top: 6px; }
+/* Flex-Spalte, damit eine Liste mit `flex: 1` die Hoehe der Rasterzeile
+   bekommt. */
+.sys-card { background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r); padding: 18px 20px 20px;
+  display: flex; flex-direction: column; }
+/* Sonst zieht die Flex-Spalte den Knopf auf volle Breite. */
+.sys-card > .btn { align-self: flex-start; }
+/* Die Klasse setzt und entfernt `saved()` in app.js. */
+.sys-card.saved { animation: card-saved .4s var(--ease); }
+/* Karte mit Lücken: nur Rand und Hof in Rot, keine Fläche; eine
+   eingefärbte Karte läse sich als Fehler. */
+.sys-card.gaps { border-color: rgba(var(--red-rgb), .55); box-shadow: 0 0 0 3px var(--red-dim); }
+@keyframes card-saved {
+  0% { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-dim); }
+  100% { border-color: var(--line-2); box-shadow: none; }
+}
+.sys-card h3 { font-size: 1.03rem; font-weight: 620; letter-spacing: -.018em; margin: 0 0 4px; }
+.sys-card .desc { color: var(--muted); font-size: .87rem; margin: 0 0 14px; line-height: 1.55; }
+.sys-card .desc strong { color: var(--text-2); font-weight: 600; }
+/* Aufklapper statt Tooltip: ohne Zeiger gibt es kein :hover. */
+.more { margin: -6px 0 14px; }
+.more > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--muted); user-select: none; transition: color .15s var(--ease); }
+.more > summary::-webkit-details-marker { display: none; }
+.more > summary::before { content: ''; width: .45em; height: .45em; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform .15s var(--ease); }
+.more[open] > summary::before { transform: rotate(45deg); }
+.more > summary:hover { color: var(--text-2); }
+.more-text { color: var(--muted); font-size: .87rem; line-height: 1.55; margin-top: 6px; }
+.more-text strong { color: var(--text-2); font-weight: 600; }
+.more-text code { font-family: var(--mono); font-size: .8rem; }
+/* Kasten „Auf dem Server": Auskunft, keine Warnung, daher ohne
+   Signalfarbe. */
+.server-box { border: 1px solid var(--line-2); border-radius: var(--r-sm); padding: 10px 12px; margin: 0 0 14px; background: var(--surface-2); }
+.server-head { font-size: .78rem; font-weight: 600; color: var(--text-2); letter-spacing: .03em; text-transform: uppercase; margin-bottom: 4px; }
+.server-box .desc { margin: 0 0 8px; }
+.server-row { display: flex; align-items: center; gap: 8px; }
+.server-row code { flex: 1 1 auto; min-width: 0; overflow-x: auto; white-space: nowrap; font-family: var(--mono); font-size: .78rem; padding: 6px 8px; background: var(--bg); border: 1px solid var(--line-2); border-radius: var(--r-sm); }
+.server-row .btn { flex: 0 0 auto; }
+/* Volle Breite fuer die Liste der Accounts: Name, Rolle, Status,
+   Eintragszahl und bis zu vier Bedienelemente brechen in 300 px um. */
+.sys-card.wide { grid-column: 1 / -1; }
+.sys-card .sys-part { border-top: 1px solid var(--line); margin: 16px 0 8px; padding-top: 14px; }
+/* Ueberschrift unter der Kartenebene, etwa Import unter Export. */
+.sys-card .sys-sub {
+  font-size: .93rem; font-weight: 620; color: var(--text-2);
+  letter-spacing: -.012em; margin: 0 0 6px;
+}
+/* Ablagefeld des Imports leiser, weil er Daten ersetzt; `.drop:hover`
+   gilt weiter. */
+.drop-quiet { border-color: var(--line-2); background: none; }
+.kv { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line-2); font-size: .9rem; }
+.kv:last-child { border-bottom: none; }
+.kv .k { color: var(--muted); }
+.kv .k .extra { color: var(--faint); }
+.kv .v { font-family: var(--mono); font-size: .83rem; }
+/* ---- Faelligkeitsdatum ---- */
+.cmt-due { font-size: .76rem; color: var(--muted); }
+.cmt-due.on { color: var(--text); font-family: var(--mono); }
+/* Blau offen, Rot überschritten, Grün in der Frist erledigt. „Heute" ist
+   ein Termin und nicht rot; zu spät erledigt bleibt rot. */
+.cmt-due.due-overdue { color: var(--red); }
+.cmt-due.due-today { color: var(--blue); font-weight: 600; }
+.cmt-due.due-later { color: var(--blue); }
+.cmt-due.due-late { color: var(--red); text-decoration: line-through; }
+.cmt-due.due-done { color: var(--green); text-decoration: line-through; }
+.cmt-due-in { width: 9.5em; font-size: .76rem; padding: 2px 6px; }
+.open-section { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted); margin: 18px 0 7px; }
+.open-section:first-child { margin-top: 0; }
+.open-section.overdue { color: var(--red); }
+
+/* ---- Probe eines Backups ---- */
+/* Kein `margin`: den Abstand gibt `gap` der Zeile. */
+.mrow .backup-check { flex-shrink: 0; }
+/* Der Zeitstempel ist der Name des Backups und wird nicht gekuerzt;
+   gekuerzt wird das Alter. */
+#cleanup-list .mrow .mname { flex: 0 0 auto; }
+#cleanup-list .mrow .mcount { flex: 1 1 0; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+.backup-probe { padding: 0 0 6px 14px; font-size: .83rem; }
+.probe-ok { font-family: var(--mono); font-size: .8rem; }
+.probe-no { color: var(--muted); }
+
+/* ---- Fingerprint und Dateiliste ---- */
+.kv-act { justify-content: flex-start; padding-top: 4px; }
+/* Der Dateipfad bricht um, der Wert (acht Ziffern) nicht. */
+.fp-list { max-height: 260px; overflow-y: auto; margin: 2px 0 4px;
+  border-bottom: 1px solid var(--line-2); }
+.fp-row { display: flex; justify-content: space-between; align-items: baseline;
+  gap: 12px; padding: 4px 0; font-size: .83rem; }
+.fp-row code { font-family: var(--mono); flex-shrink: 0; }
+.fp-name { color: var(--muted); word-break: break-all; }
+.vocabulary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0 12px; }
+/* `margin-top: auto` haelt beide Felder einer Zeile auf einer Linie, auch
+   bei zweizeiliger Beschriftung. */
+.vocabulary-grid .field { margin-bottom: 10px; display: flex; flex-direction: column; }
+.vocabulary-grid .field .input { margin-top: auto; }
+/* Vokabelfeld ohne Eintrag; kein Fehler, es gilt die Vorgabe der
+   Sprachdatei. */
+.vocabulary-grid .field.gap label { color: var(--faint); }
+.vocabulary-grid .field.gap .input { border-style: dashed; }
+.vocabulary-preview {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  margin-top: 4px; padding: 10px 12px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm);
+  font-size: .83rem; color: var(--text-2);
+}
+.vocabulary-preview .label { width: 100%; margin-bottom: 2px; }
+/* Hoechstens zehn `.mrow` (27,95 rem zu je 41,92 px), sonst so hoch wie der
+   Inhalt. Ohne `min-height: 0` rollt die Liste in der Flex-Spalte nicht. */
+.manage-list { flex: 0 1 auto; min-height: 0; max-height: 27.95rem;
+  overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
+/* Leere Liste zwei Zeilen hoch. `<p>` hat 13,05 px Vorgabemarge; `.mrow`
+   misst 41,92 px und rueckt 9 ein, `.log-row` 35 und 2. */
+.manage-list > .hint, .log-list > .hint {
+  display: flex; align-items: center; margin: 0; }
+.manage-list > .hint { min-height: 5.59rem; padding: 0 9px; }
+.log-list > .hint { min-height: 4.666rem; padding: 0 2px; grid-column: 1 / -1; }
+/* Im Dialog keine Hoechsthoehe: `.modal` begrenzt selbst (`88dvh`). */
+.modal .manage-list { max-height: none; }
+/* Zehn `.mrow.session` zu 72,55 px: 48,37 rem bei 15 px Wurzelschrift. */
+#msessions { max-height: 48.37rem; }
+
+/* Kriterien des Potenzials bei ausgeschaltetem Modus: gedaempft, aber
+   bedienbar, daher nicht `disabled`. */
+.list-quiet { opacity: .55; }
+
+/* Feste Hoehe: die Liste steht mitten in der Karte und schoebe sonst den
+   Import aus dem Blick (20 GB sind 70 Zeilen). */
+#ex-part-list { flex: none; max-height: 280px; }
+
+/* Fuenf Zeilen: 5 x 41,92 px / 15 = 13,973 rem. */
+#cleanup-list { flex: none; max-height: 13.98rem; }
+/* Rot: wird beim naechsten Lauf geloescht. Gedaempft: bleibt. */
+.mrow .cleanup-badge { flex-shrink: 0; font-size: .7rem; letter-spacing: .03em; text-transform: uppercase; }
+.mrow .cleanup-badge.remove { color: var(--red); }
+.mrow .cleanup-badge.old { color: var(--faint); }
+/* Hover wie bei `.lrow`, `.trow` und `.arow`; zusammen aendern. */
+.mrow { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: var(--r-sm); background: var(--surface-2); margin-bottom: 5px; border: 1px solid transparent;
+  transition: background .15s var(--ease), border-color .15s var(--ease); }
+.mrow:hover { border-color: var(--line); background: var(--surface-3); }
+.mrow .mname { flex: 1; min-width: 0; font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mrow .mcount { font-family: var(--mono); font-size: .7rem; color: var(--faint); }
+/* Vermerk, dass für die gezeigte Sprache nichts eingetragen ist. Eigene
+   Zeile: in 280 px verdrängte er sonst den Namen. */
+.mrow.withback { flex-wrap: wrap; row-gap: 1px; }
+.mrow .mfallback { flex: 0 0 100%; font-size: .68rem; color: var(--faint); font-style: italic;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Name aus der Rückfallsprache; --muted statt --faint: geliehen, nicht
+   unwichtig. */
+.mrow .mname.back { color: var(--muted); font-style: italic; }
+/* Nachfrage zur unbekannten Erstellungssprache; ohne Signalfarbe, weil
+   keine Warnung. */
+.namegap { border: 1px dashed var(--line-2); border-radius: var(--r-sm);
+  padding: 10px 12px; margin-bottom: 12px; }
+.namegap .desc { font-size: .82rem; }
+.mrow .mact { color: var(--faint); font-size: .8rem; padding: 3px 6px; border-radius: 4px; opacity: 0; transition: all .15s var(--ease); }
+.mrow:hover .mact { opacity: 1; }
+.mrow .mact:hover { color: var(--accent-text); background: var(--accent-dim); }
+.mrow .mact.rm:hover { color: var(--red); background: var(--red-dim); }
+/* Der Radierer steht immer da. Orange statt Rot beim Überfahren: die
+   Zeile bleibt. */
+.mrow .mact.nx { opacity: .5; }
+.mrow:hover .mact.nx { opacity: 1; }
+.mrow input.medit { flex: 1; background: var(--bg); border: 1px solid var(--accent); border-radius: 5px; padding: 4px 8px; font-size: .87rem; }
+/* Immer sichtbar, anders als `.mact`: das Gewicht ist ein Wert, keine
+   Aktion. */
+.mrow .mweight { display: flex; align-items: center; gap: 2px; flex-shrink: 0;
+  font-family: var(--mono); font-size: .72rem; color: var(--faint); }
+.mrow .mweight-field {
+  /* In em: bei 120 % Schrift fasste ein px-Mass „1,25" nicht mehr. */
+  width: 3.8em; background: var(--bg); border: 1px solid var(--line); border-radius: 5px;
+  padding: 3px 6px; font-family: var(--mono); font-size: .78rem; color: var(--text);
+  text-align: right;
+  transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
+}
+.mrow .mweight-field:hover { border-color: var(--line-hover); }
+.mrow .mweight-field:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+/* Ohne Verwaltungsrecht Text statt Feld. */
+.mrow .mweight-fixed { font-size: .74rem; }
+/* Kein `touch-action: none`: jede Wischbewegung wuerde zum Umsortieren;
+   `makeSortable()` in app.js beginnt erst nach kurzem Halten. */
+.mrow.drag { transition: background .15s var(--ease), border-color .15s var(--ease), opacity .15s var(--ease), transform .15s var(--ease); }
+.mrow.drag .grip { color: var(--faint); font-size: .8rem; letter-spacing: -1px; flex-shrink: 0; cursor: grab; }
+.mrow.dragging { opacity: .45; transform: scale(.99); cursor: grabbing; }
+
+/* ---------- Zugaenge ---------- */
+/* Knoepfe im Papierkorb dauerhaft sichtbar: ohne Hover gaebe es keinen Weg zurueck. */
+.mrow.trash { flex-wrap: wrap; align-items: center; }
+.mrow.trash .mname { white-space: normal; font-weight: 560; }
+.mrow.trash .mact { opacity: 1; flex-shrink: 0; }
+.mrow.trash .trash-meta { flex-basis: 100%; font-family: var(--mono); font-size: .7rem; color: var(--faint); }
+
+.mrow.user .user-role { font-size: .78rem; color: var(--muted); flex-shrink: 0; }
+/* Rollen unterscheiden sich in der Form (gefuellt, umrandet), nicht in der Farbe. */
+.role-badge {
+  display: inline-flex; align-items: center;
+  font-family: var(--mono); font-size: .68rem; font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase; line-height: 1;
+  padding: 3px 7px; border-radius: 999px; border: 1px solid var(--line);
+  color: var(--muted); white-space: nowrap;
+}
+.role-badge.admin { border-color: var(--accent-line); color: var(--text-2); }
+.role-badge.owner { background: var(--accent-dim); border-color: var(--accent-line); color: var(--accent-text-hi); }
+.user-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--faint); flex-shrink: 0;
+}
+.user-dot.active { background: var(--green); }
+.user-dot.invited { background: var(--accent); }
+.mrow.user .user-status {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: .78rem; color: var(--muted); flex-shrink: 0;
+}
+.mrow.user .user-mine { color: var(--faint); font-weight: 400; }
+.mrow.user .user-act { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.mrow.user select.user-role-sel { padding: 3px 6px; font-size: .76rem; width: auto; flex-shrink: 0; }
+/* Gesperrte und entfernte Zugaenge gedaempft statt rot; Rot steht fuer Loeschen. */
+.mrow.user-locked { opacity: .62; }
+.mrow.user-remove { opacity: .4; }
+.mrow.user-remove .mname { font-style: italic; }
+@media (hover: none) { .mrow .mact { opacity: 1; } }
+
+.user-new { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.user-new .input { flex: 1 1 130px; min-width: 0; }
+.user-new select.input { flex: 0 0 auto; width: auto; }
+
+.mrow.user .user-waiting { color: var(--accent-text); }
+.log-detail .role-badge { margin-left: 2px; }
+/* Der Link wird kopiert, nicht gelesen: feste Schrift, volle Zeile. */
+.user-link-row { display: flex; align-items: center; gap: 7px; margin-top: 9px; }
+.user-link-row .input { flex: 1 1 auto; min-width: 0; font-family: var(--mono); font-size: .72rem; }
+.user-link-row .btn { flex: 0 0 auto; }
+.user-link-origin { margin: 8px 0 0; font-size: .82rem; line-height: 1.55; }
+.user-link-origin code { font-family: var(--mono); font-size: .78rem; word-break: break-all; }
+
+.user-send { margin: 8px 0 0; font-size: .82rem; line-height: 1.55; color: var(--text-2); }
+.user-send-ok strong, .user-send-ok { color: var(--green); }
+.user-send-fail strong { color: var(--red); }
+
+.mail-on { color: var(--green); }
+.mail-off { color: var(--red); }
+.mail-ok { background: var(--green-dim); border-color: rgba(var(--green-rgb), .3); }
+.mail-ok strong { color: var(--green); }
+/* ---- Dialog „Mailzugang" ---- */
+/* `.modal` setzt den Abstand ueber `gap`; `.field` gaebe eine zweite Luecke. */
+.mail-dialog { max-width: 520px; }
+.mail-dialog .field { margin-bottom: 0; }
+/* -7px, etwa die halbe Luecke von `.modal`: der Hinweis rueckt an sein Feld. */
+.mail-hint { margin: -7px 0 0; }
+/* Feste Werte einer Vorlage als Text statt als gesperrtes Feld, das aussaehe,
+   als ginge es gleich auf. */
+.mail-fixed { font-family: var(--mono); font-size: .84rem; color: var(--text-2);
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: var(--r-sm); padding: 9px 11px; }
+
+/* Sicherheitsprotokoll: rollt in sich wie `.manage-list`; 35rem sind 15 Zeilen zu 35 px.
+   Das Raster liegt an der Liste, damit die Spalten in allen Zeilen gleich stehen. */
+.log-list { flex: 0 1 auto; min-height: 0; max-height: 35rem;
+  overflow-y: auto; margin: 0 -4px; padding: 0 4px;
+  display: grid; grid-template-columns: 128px 1fr 1fr auto auto; align-content: start; }
+.log-row { display: contents; }
+/* Spaltenabstand als `padding-right`: ein `column-gap` unterbraeche die Trennlinie. */
+.log-row > * { padding: 7px 12px 7px 0; border-bottom: 1px solid var(--line);
+  font-size: .86rem; align-self: end; }
+.log-row > *:first-child { padding-left: 2px; }
+.log-row > *:last-child { padding-right: 2px; }
+.log-row:last-child > * { border-bottom: 0; }
+.log-time { font-family: var(--mono); font-size: .74rem; color: var(--muted); white-space: nowrap; }
+.log-event { font-weight: 560; }
+.log-actor, .log-target { color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+/* Der Name behält die Farbe der Zeile; die Unterstreichung zeigt den Link. */
+.log-actor .log-jump, .log-target .log-jump { color: inherit; font-size: inherit; }
+.log-actor .log-jump:hover, .log-target .log-jump:hover { color: var(--accent-text); }
+.log-detail { color: var(--muted); font-size: .8rem; }
+/* Zeile nach einem Sprung; public/app.js nimmt `mrow-flash` nach 1600 ms wieder weg. */
+.mrow.mrow-flash { border-color: var(--accent); background: var(--accent-dim); }
+
+/* Anmeldung: Name oben, Zeitangaben darunter, sonst wird der Name abgeschnitten.
+   Raster statt `flex-wrap`, damit der Rahmen bis zum Rand reicht. */
+.mrow.session { display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; column-gap: 9px; row-gap: 2px; }
+.mrow.session .mname { grid-column: 1; grid-row: 1; }
+.mrow.session .user-act { grid-column: 2; grid-row: 1; }
+.mrow.session .session-time { grid-column: 1 / -1; justify-self: end; text-align: right; }
+.mrow.session .session-time { font-family: var(--mono); font-size: .68rem; color: var(--faint); white-space: nowrap; }
+.mrow.session-mine { border-color: var(--accent); }
+.mrow.session-mine .mname { color: var(--accent-text); }
+.session-foot { margin-top: 4px; }
+
+.warn-box { background: var(--red-dim); border: 1px solid rgba(var(--red-rgb), .3); border-radius: var(--r-sm); padding: 11px 13px; font-size: .87rem; color: var(--text-2); line-height: 1.55; }
+.warn-box strong { color: var(--red); }
+.ok-box { background: var(--green-dim); border: 1px solid rgba(var(--green-rgb), .3); border-radius: var(--r-sm); padding: 11px 13px; font-size: .87rem; color: var(--text-2); line-height: 1.55; }
+
+/* ---------- Zweiter Faktor ---------- */
+/* „aus" grau statt rot: ein dauerhaft roter Hinweis wird bald nicht mehr gelesen. */
+.two-factor-block { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
+.two-factor-state { font-size: .87rem; line-height: 1.55; color: var(--text-2); }
+.two-factor-on strong { color: var(--green); }
+.two-factor-off strong { color: var(--muted); }
+.two-factor-count { margin-top: 5px; }
+.two-factor-count strong { color: var(--text-2); }
+
+/* Der Schluessel wird abgetippt: feste Schrift, gesperrt, darf umbrechen. */
+.two-factor-key {
+  font-family: var(--mono); font-size: 1.02rem; letter-spacing: .08em;
+  margin: 10px 0 0; padding: 9px 11px; border-radius: var(--r-sm);
+  background: var(--bg); border: 1px solid var(--line); color: var(--text);
+  overflow-wrap: anywhere; user-select: all;
+}
+/* Ein <a>, damit das Telefon die App oeffnet; hier ausgerichtet wie ein Knopf. */
+.two-factor-setup a.btn { display: inline-flex; align-items: center; text-decoration: none; }
+
+.two-factor-codes {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 6px 12px; margin: 10px 0 0;
+}
+.two-factor-codes span {
+  font-family: var(--mono); font-size: .95rem; letter-spacing: .04em;
+  color: var(--text); user-select: all;
+}
+
+/* ---------- Vollbild ---------- */
+/* `overscroll-behavior: contain`: sonst scrollt ein Wisch am Ende die Seite dahinter;
+   `body.lb-open` verhindert das nicht. */
+.lightbox { position: fixed; inset: 0; z-index: var(--z-lightbox); background: var(--lb-bg); display: flex; flex-direction: column; overscroll-behavior: contain; animation: fade .2s var(--ease) both; }
+.lb-stage { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; min-height: 0; }
+.lb-stage img { max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; user-select: none; -webkit-user-drag: none; }
+/* `flex-start`, weil ein zentriertes, zu grosses Flex-Kind nach beiden Seiten
+   ueberlaeuft; zentriert wird ueber `margin: auto` am Bild. */
+.lb-stage.zoomed { overflow: auto; align-items: flex-start; justify-content: flex-start; }
+.lb-stage.zoomed img { max-width: none; max-height: none; margin: auto; cursor: zoom-out; }
+/* Kein Zoomzeiger am Video: der Klick gehoert der eigenen Steuerung. */
+.lb-stage video { max-width: 100%; max-height: 100%; object-fit: contain; background: #000; }
+/* `safe-area-inset`, sonst liegt der Schliessknopf unter der Uhr des Telefons. */
+.lb-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; padding-top: calc(14px + env(safe-area-inset-top)); padding-left: max(18px, env(safe-area-inset-left)); padding-right: max(18px, env(safe-area-inset-right)); flex-shrink: 0; }
+.lb-title { font-size: .93rem; color: var(--text-2); font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-tools { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.lb-count { font-family: var(--mono); font-size: .8rem; color: var(--muted); }
+.lb-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); display: flex; align-items: center; justify-content: center; color: var(--text-2); font-size: 1rem; transition: all .15s var(--ease); }
+.lb-btn:hover { background: var(--surface-3); color: var(--text); border-color: var(--line-hover-2); }
+.lb-btn.download { text-decoration: none; }
+/* Abstand zum Papierkorb, damit er nicht direkt neben dem Schliessknopf liegt. */
+.lb-btn.remove { margin-left: 10px; }
+.lb-btn.remove:hover { color: var(--red); border-color: var(--red); background: var(--surface-3); }
+/* Pfeile an `.lightbox`, nicht an `.lb-stage`: gezoomt scrollt `.lb-stage`, und die
+   Pfeile scrollten mit. */
+.lb-nav { position: absolute; z-index: var(--z-page-arrows); top: 50%; transform: translateY(-50%); width: 46px; height: 46px; border-radius: 50%; background: rgba(var(--lb-surface-rgb), .9); border: 1px solid rgba(var(--edge-on-dark-rgb), .11); display: flex; align-items: center; justify-content: center; color: var(--text); font-size: 1.53rem; transition: all .15s var(--ease); }
+.lb-nav:hover { background: var(--accent); border-color: var(--accent-edge); color: var(--on-accent); transform: translateY(-50%) scale(1.07); }
+.lb-nav.prev { left: 16px; } .lb-nav.next { right: 16px; }
+/* `safe center`: bei Ueberlauf schoebe `center` die ersten Bilder unerreichbar ueber
+   den linken Rand. `center` davor gilt fuer Browser ohne `safe`. */
+.lb-strip { display: flex; gap: 7px; padding: 12px 18px 18px; padding-bottom: calc(18px + env(safe-area-inset-bottom)); overflow-x: auto; overscroll-behavior-x: contain; justify-content: center; justify-content: safe center; flex-shrink: 0; }
+.lb-thumb { width: 56px; height: 56px; border-radius: 6px; overflow: hidden; flex-shrink: 0; border: 2px solid transparent; opacity: .5; transition: all .15s var(--ease); }
+.lb-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lb-thumb.on { opacity: 1; border-color: var(--accent); }
+.lb-thumb:hover { opacity: 1; }
+body.lb-open { overflow: hidden; }
+
+/* ---------- Dialoge ---------- */
+/* Kein `backdrop-filter: blur`; `--scrim` ist dafuer etwas dichter. */
+.backdrop { position: fixed; inset: 0; background: var(--scrim); display: flex; align-items: center; justify-content: center; padding: 22px; z-index: var(--z-dialog); animation: fade .15s var(--ease) both; }
+.modal { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 24px; width: 100%; max-width: 460px; box-shadow: var(--sh-lg); display: flex; flex-direction: column; gap: 13px; max-height: 88vh; max-height: 88dvh; overflow-y: auto; animation: rise .18s var(--ease) both; }
+.modal h2 { font-size: 1.27rem; font-weight: 640; letter-spacing: -.022em; margin: 0; }
+.modal p { margin: 0; color: var(--muted); font-size: .93rem; line-height: 1.6; }
+.modal .ta { min-height: 74px; }
+.modal-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+/* ---- Glocke ---- */
+.bell-panel { max-width: 520px; }
+.bell-row { cursor: pointer; }
+.bell-row:hover .mname { color: var(--accent-text); }
+/* „von wem" in eigener Zeile, sonst schrumpft `.mname` auf Auslassungspunkte. */
+.mrow.bell-row { flex-wrap: wrap; row-gap: 2px; }
+.bell-row .bell-from { flex-basis: 100%; font-size: .76rem; color: var(--faint); }
+.bell-head {
+  font-size: .72rem; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--faint); padding: 12px 0 4px;
+}
+.bell-head:first-child { padding-top: 2px; }
+/* „An mich gerichtet" in der Farbe von `.mention`. */
+.bell-head[data-origin="marked"] { color: var(--blue); }
+/* ---- Die Rechnung hinter der Kopfzahl ---- */
+/* Breiter als `.modal`: schmaler rollte der Dialog bei sieben Kriterien ueber `88dvh`. */
+.calc-modal { max-width: 620px; }
+.calc { display: grid; grid-template-columns: 1fr auto auto auto; gap: 0 14px; }
+.calc-row { display: contents; }
+/* 3px statt 6px spart bei zwoelf Zeilen rund 72 px; die Trennlinie reicht. */
+.calc-row > span { padding: 3px 0; border-bottom: 1px solid var(--line-2); font-size: .9rem; text-align: right; }
+.calc-row > span:first-child { text-align: left; color: var(--muted); }
+.calc-row > span:not(:first-child) { font-family: var(--mono); font-size: .83rem; }
+.calc-head > span { color: var(--faint); font-size: .74rem; text-transform: uppercase;
+  letter-spacing: .05em; border-bottom-color: var(--line); }
+.calc-head > span:not(:first-child) { font-family: inherit; font-size: .74rem; }
+.calc-sum > span { color: var(--text-2); }
+/* Strich vor den Summen ueber die Klasse `calc-last`: `:first-of-type` zaehlt alle
+   DIV-Geschwister. */
+.calc-last > span { border-bottom-color: var(--line); }
+.calc-result > span { font-weight: 640; color: var(--text); border-bottom: 0; }
+.calc-same > span { color: var(--muted); border-bottom: 0; border-top: 1px solid var(--line-2); }
+
+/* `safe-area-inset-bottom`, sonst liegt die Meldung halb hinter dem Home-Indikator. */
+.toast { position: fixed; bottom: calc(22px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); background: var(--surface-3); border: 1px solid var(--line); color: var(--text); padding: 10px 18px; border-radius: 999px; font-size: .9rem; z-index: var(--z-toast); box-shadow: var(--sh-lg); animation: pop 2.6s forwards; max-width: 82vw; text-align: center; }
+/* Ueber `.cmp-bar`: 90px sind 20 Abstand, 60 Hoehe der Leiste und 10 Luft. */
+body:has(.cmp-bar) .toast { bottom: calc(90px + env(safe-area-inset-bottom)); }
+.toast.err { background: var(--red); border-color: var(--red); color: var(--on-signal); }
+/* Meldung mit Knopf; die Dauer setzt toast() in public/app.js. */
+.toast.with-btn { display: inline-flex; align-items: center; gap: 8px; }
+.toast-sep { color: var(--muted); }
+.toast-btn { background: none; border: 0; padding: 0; color: var(--accent-text); font: inherit; font-weight: 600; cursor: pointer; }
+.toast-btn:hover { color: var(--accent-text-hi); text-decoration: underline; }
+@keyframes pop { 0% { opacity: 0; transform: translate(-50%, 8px); } 8% { opacity: 1; transform: translate(-50%, 0); } 84% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -4px); } }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ================= Zeitleiste der Testtage ================= */
+/* Ohne Rahmen und Untergrund: sonst saehe sie aus wie eine Karte. */
+.timeline {
+  position: relative; margin: 0 0 22px; padding: 14px 0 4px;
+}
+.timeline-axis { position: absolute; left: 0; right: 0; top: 14px; height: 60px; }
+.timeline-line { position: absolute; left: 0; right: 0; height: 1px; background: var(--timeline-line); }
+.timeline-line.center { background: var(--timeline-mid); }
+.timeline-field { position: relative; height: 60px; }
+.timeline-dot {
+  position: absolute; width: 9px; height: 9px; margin: 0 0 -4px -4px;
+  border-radius: 50%; background: var(--gold); opacity: .68;
+  transition: transform .15s var(--ease), opacity .15s var(--ease);
+}
+/* Fremde Punkte als Ring; mit `border-box` bleibt ihre Groesse bei 9 px. */
+.timeline-dot.foreign { background: transparent; border: 1.5px solid var(--gold); }
+.timeline-dot:hover { opacity: 1; transform: scale(1.5); }
+.timeline-years { position: relative; height: 18px; margin-top: 4px; border-top: 1px solid var(--timeline-line); }
+.timeline-year {
+  position: absolute; transform: translateX(-50%); top: 3px;
+  font-family: var(--mono); font-size: .63rem; color: var(--timeline-year); white-space: nowrap;
+}
+/* `max-content` loest die Breite vom Platz rechts des Punkts; showHint() in
+   public/app.js schiebt den Hinweis danach in die Zeitleiste. */
+.timeline-hint {
+  position: absolute; bottom: 100%; transform: translateX(-50%);
+  margin-bottom: -6px; padding: 7px 10px; z-index: var(--z-timeline-hint); pointer-events: none;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm);
+  display: flex; flex-direction: column; gap: 2px;
+  width: max-content; max-width: min(14rem, 46%); overflow-wrap: anywhere;
+  box-shadow: var(--sh-menu);
+}
+.timeline-hint strong { font-size: .83rem; font-weight: 600; }
+.timeline-hint span { font-family: var(--mono); font-size: .7rem; color: var(--muted); }
+
+/* ================= Blöcke: Griff, Einklappen ================= */
+#blocks-side { display: flex; flex-direction: column; gap: 16px; }
+.block-head-x { cursor: pointer; user-select: none; }
+.block-head-x:hover .label { color: var(--text-2); }
+.block-head-x:hover .bcaret { color: var(--muted); }
+.block-head-x .label { flex: 1; }
+.bgrip {
+  color: var(--faint); font-size: .8rem; line-height: 1; letter-spacing: -1px;
+  cursor: grab; padding: 2px 1px; flex-shrink: 0;
+}
+.bgrip:hover { color: var(--accent-text); }
+.bcaret { color: var(--faint); font-size: .73rem; width: .8em; flex-shrink: 0; }
+.bsum { color: var(--muted); font-size: .83rem; font-family: var(--mono); }
+.block.closed > *:not(.block-head) { display: none; }
+.block.closed { padding-bottom: 15px; }
+.block.closed .block-head { margin-bottom: 0; }
+/* Beim Ziehen schrumpft der Block auf seine Kopfzeile. */
+.block.dragging {
+  max-height: 50px; overflow: hidden; opacity: .55;
+  padding-top: 15px; padding-bottom: 15px;
+}
+.block.dragging .block-head { margin-bottom: 0; }
+
+/* Zeigt, dass das Halten (`HOLD_MS` in public/app.js) lang genug war und gezogen wird. */
+.handle-ready { outline: 2px solid var(--accent); outline-offset: 1px; }
+.thumb.handle-ready, .lrow.handle-ready, .mrow.handle-ready, .block.handle-ready { border-radius: var(--r-sm); }
+
+/* ================= Bildausschnitt der Vorschau ================= */
+/* Alle Knoepfe des Bildbereichs in einer Reihe oben rechts; unten laeuft der Wisch. */
+.vtools {
+  position: absolute; top: 10px; right: 10px; z-index: var(--z-viewer-tools);
+  display: flex; align-items: center; gap: 6px;
+  opacity: 0; transition: opacity .15s var(--ease);
+}
+.viewer:hover .vtools { opacity: 1; }
+@media (hover: none) { .vtools { opacity: 1; } }
+/* Im Ausschnittmodus sichtbar ohne Hover, sonst verschwaende der Weg hinaus. */
+.vtools.open { opacity: 1; }
+
+.vfocus, .vfull, .vremove {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 999px;
+  background: rgba(var(--photo-rgb), .78); border: 1px solid var(--line); color: var(--on-photo);
+  transition: color .15s var(--ease), border-color .15s var(--ease),
+              background .15s var(--ease);
+}
+.vfocus:hover, .vfull:hover, .vremove:hover { color: var(--text); border-color: var(--line-hover-2); }
+.vfocus.on { color: var(--accent-text); border-color: var(--accent); }
+/* Papierkorb abgesetzt, erst beim Hover rot; die beiden davor stellen nur etwas ein. */
+.vremove { margin-left: 14px; }
+.vremove:hover { color: var(--red); border-color: var(--red); background: var(--red-dim); }
+.viewer.focus-mode { cursor: crosshair; touch-action: none; }
+.viewer.focus-mode img { cursor: crosshair; }
+/* Je zwei Selektoren, weil `img` seinen Zeiger selbst setzt. */
+.viewer.focus-mode.handle-move, .viewer.focus-mode.handle-move img { cursor: move; }
+.viewer.focus-mode.handle-nwse, .viewer.focus-mode.handle-nwse img { cursor: nwse-resize; }
+.viewer.focus-mode.handle-nesw, .viewer.focus-mode.handle-nesw img { cursor: nesw-resize; }
+.viewer.focus-mode.handle-ns, .viewer.focus-mode.handle-ns img { cursor: ns-resize; }
+.viewer.focus-mode.handle-ew, .viewer.focus-mode.handle-ew img { cursor: ew-resize; }
+.focus-frame {
+  position: absolute; pointer-events: none; z-index: var(--z-crop-frame);
+  border: 2px solid var(--accent); border-radius: 2px;
+  box-shadow: 0 0 0 9999px rgba(var(--photo-rgb), .55);
+}
+/* `z-index` ueber `.focus-frame`, dessen Schatten sonst den Schieber abdunkelt. */
+.vzoom {
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: 12px; z-index: var(--z-viewer-tools);
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 12px; border-radius: 999px;
+  background: rgba(var(--photo-rgb), .88); border: 1px solid var(--line);
+}
+.vzoom label { color: var(--text-2); font-size: .78rem; }
+.vzoom input[type="range"] { width: 132px; accent-color: var(--accent); cursor: pointer; }
+.vzoom .vzoom-value {
+  color: var(--text-2); font-family: var(--mono); font-size: .68rem;
+  min-width: 42px; text-align: right;
+}
+
+/* ================= Dateien am Eintrag ================= */
+.arow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: var(--r-sm); background: var(--surface-2);
+  margin-bottom: 5px; border: 1px solid transparent;
+  transition: background .15s var(--ease), border-color .15s var(--ease);
+}
+.arow { cursor: pointer; }
+.arow:hover { border-color: var(--line); background: var(--surface-3); }
+.arow.open { border-color: var(--line); }
+.arow.open .aicon { color: var(--accent-text); }
+.arow .ago { color: var(--faint); font-size: .73rem; flex-shrink: 0; }
+.arow:hover .ago { color: var(--muted); }
+/* Eigener Download-Knopf: bei Dateien mit Vorschau oeffnet der Klick auf
+   die Zeile die Vorschau. */
+.arow .adl {
+  color: var(--faint); font-size: .87rem; line-height: 1; padding: 2px 6px; border-radius: 4px;
+  opacity: 0; flex-shrink: 0; transition: opacity .15s var(--ease), color .15s var(--ease);
+}
+.arow:hover .adl { opacity: 1; }
+.arow .adl:hover { color: var(--accent-text); background: var(--surface); }
+@media (hover: none) { .arow .adl { opacity: 1; } }
+.arow .aicon { color: var(--faint); font-size: .87rem; flex-shrink: 0; }
+.arow .aname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .87rem; }
+.arow .asize { font-family: var(--mono); font-size: .7rem; color: var(--faint); flex-shrink: 0; }
+/* Nicht abschneiden; schrumpfen darf nur `.aname`. */
+.arow .afrom { font-size: .7rem; color: var(--muted); flex-shrink: 0; }
+/* Nur der Ausweichknopf der PDF-Vorschau. */
+.abtn {
+  font-size: .73rem; color: var(--muted); padding: 3px 8px; border-radius: 5px;
+  border: 1px solid var(--line); background: var(--surface); flex-shrink: 0;
+  transition: color .15s var(--ease), border-color .15s var(--ease);
+}
+.abtn:hover { color: var(--accent-text); border-color: var(--accent); }
+.apreview {
+  margin: 0 0 10px; padding: 10px; border-radius: var(--r-sm);
+  background: var(--image-bg); border: 1px solid var(--line);
+}
+.apreview img { max-width: 100%; max-height: 460px; display: block; margin: 0 auto; border-radius: 4px; }
+.apreview iframe { width: 100%; height: 520px; border: 0; border-radius: 4px; background: var(--preview-bg); }
+.atext {
+  margin: 0; max-height: 420px; overflow: auto;
+  font-family: var(--mono); font-size: .77rem; line-height: 1.6; color: var(--text-2);
+  white-space: pre-wrap; word-break: break-word;
+}
+.ex-parts { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.ex-parts .mrow .mname { font-weight: 500; }
+.ex-files { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: .83rem; color: var(--muted); cursor: pointer; }
+.ex-files input { accent-color: var(--accent); }
+.apdf-hint { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 0 0; flex-wrap: wrap; }
+
+/* ================= Verknüpfung der Tagfilter ================= */
+.tagmode { display: inline-flex; gap: 3px; flex-shrink: 0; margin-right: 4px; }
+/* Unter zwei gewählten Tags wirkt der Umschalter nicht, bleibt aber sichtbar. */
+.tagmode.idle { opacity: .45; }
+.tagmode.idle:hover { opacity: 1; }
+.pill-mode { padding: 3px 9px; font-size: .7rem; font-family: var(--mono); }
+/* Pillen, die mit der Auswahl null Treffer brächten; gilt für jede Pille, nicht nur Tags. */
+.pill.blank { opacity: .34; }
+.pill.blank:hover { opacity: .7; }
+
+/* ================= Berichte, Anpinnung, Kommentarbilder ================= */
+/* Die Kante zeigt, warum ein Bericht ausserhalb der zeitlichen Folge oben steht. */
+.cmt.report { border-left: 3px solid var(--accent); }
+.cmt.task { border-left: 3px solid var(--blue); }
+.cmt.done { border-left: 3px solid var(--green); }
+/* 10 + 3 Kante = 12 + 1 ohne Art: der Text verschiebt sich nicht. */
+.cmt.report, .cmt.task, .cmt.done { padding-left: 10px; }
+/* Ausnahmen von `.mark.on`: der Knopf traegt die Farbe der Kante, die er setzt. */
+.mark.task.on { color: var(--blue); border-color: var(--blue); }
+.mark.task.on.done { color: var(--green); border-color: var(--green); }
+/* `.cmt.pinned` steht nach `.cmt.report` usw. und faerbt bei gleicher Spezifitaet
+   auch die linke Kante; jede Art braucht deshalb ihre eigene `.cmt.pinned.<art>`. */
+.cmt.pinned { border-color: var(--gold-line); }
+.cmt.pinned.report {
+  border-top-color: var(--accent);
+  border-right-color: var(--accent);
+  border-bottom-color: var(--accent);
+  border-left-color: var(--accent);
+}
+.cmt.pinned.task {
+  border-top-color: var(--blue);
+  border-right-color: var(--blue);
+  border-bottom-color: var(--blue);
+  border-left-color: var(--blue);
+}
+.cmt.pinned.done {
+  border-top-color: var(--green);
+  border-right-color: var(--green);
+  border-bottom-color: var(--green);
+  border-left-color: var(--green);
+}
+.cmt-head .marks { display: flex; gap: 4px; flex-shrink: 0; }
+.cmt-head .cmt-when { flex: 1; }
+/* Nicht rot: der Vermerk ist eine Angabe, keine Warnung. */
+.cmt-edited { color: var(--text-2); }
+.mark {
+  font-size: .67rem; font-family: var(--mono); line-height: 1;
+  padding: 3px 7px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--faint);
+  transition: color .15s var(--ease), border-color .15s var(--ease);
+}
+.mark:hover { color: var(--text-2); border-color: var(--line-hover-2); }
+.mark.on { color: var(--accent-text); border-color: var(--accent); }
+.mark.pin { opacity: .55; }
+.mark.pin.on { opacity: 1; }
+.cmt-imgs, .cmt-new-imgs { display: flex; flex-wrap: wrap; gap: 6px; }
+.cmt-imgs:not(:empty) { margin-top: 9px; }
+.cmt-new-imgs:not(:empty) { margin-top: 2px; }
+.cmt-img { position: relative; width: 86px; height: 86px; border-radius: var(--r-sm); overflow: hidden; background: var(--image-bg); }
+.cmt-img img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; display: block; }
+.cmt-img .del {
+  position: absolute; top: 3px; right: 3px; width: 19px; height: 19px;
+  border-radius: 50%; background: rgba(var(--photo-rgb), .8); color: var(--on-photo-dim);
+  font-size: .7rem; line-height: 1; opacity: 0; transition: opacity .15s var(--ease);
+}
+.cmt-img:hover .del { opacity: 1; }
+.cmt-img .del:hover { color: var(--red); }
+@media (hover: none) { .cmt-img .del { opacity: 1; } }
+.cmt-form-row { display: flex; align-items: center; gap: 8px; }
+.cmt-form-row .marks { display: flex; gap: 4px; margin-right: auto; }
+.cmt-form .btn { align-self: auto; }
+
+/* Versionszeile ausserhalb von #app; im Fluss statt fest in der Ecke, damit sie
+   nichts verdeckt. */
+.version-row {
+  margin: 0 0 26px; margin-bottom: calc(26px + env(safe-area-inset-bottom));
+  padding: 0 20px; text-align: center;
+  font-family: var(--mono); font-size: .67rem; color: var(--faint);
+  user-select: none;
+  /* Flex, weil `.logo` ein Block ist und sonst eine eigene Zeile bekaeme. */
+  display: flex; align-items: center; justify-content: center; gap: .55em;
+}
+/* In em, weil die Instanz die Schrift von 80 bis 120 Prozent stellt. */
+.version-row .logo { height: 1.5em; }
+/* `body.login` drueckt die Zeile ans untere Ende; dort reichen 10px. */
+body.login .version-row { margin-bottom: calc(10px + env(safe-area-inset-bottom)); }
+body.lb-open .version-row { display: none; }
+
+/* Bricht um, damit alle 64 Zeichen des Schluessels auf dem Telefon sichtbar sind. */
+.keyline {
+  display: block; margin: 0; padding: 8px 10px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
+  font-family: var(--mono); font-size: .72rem; line-height: 1.5;
+  word-break: break-all; user-select: all;
+}
+
+/* Anmeldeseite: Inhalt und Versionszeile teilen sich die Fensterhoehe. `dvh` mit `vh`
+   als Rueckfall: `vh` zaehlt auf dem Telefon die Browserleisten nicht ab. */
+body.login { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+body.login #app { flex: 1 0 auto; display: flex; flex-direction: column; }
+body.login .login-screen { flex: 1 0 auto; min-height: 0; }
+
+/* ================= Offene Aufgaben ================= */
+/* Dieselbe Kante wie `.cmt.task`. */
+.open-group {
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-left: 3px solid var(--blue); border-radius: var(--r-sm);
+  padding: 10px 12px; margin-bottom: 10px;
+}
+.open-title {
+  display: block; font-weight: 600; font-size: .95rem; color: var(--text);
+  margin-bottom: 7px; transition: color .15s var(--ease);
+}
+.open-title:hover { color: var(--accent-text); }
+.open-row {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 4px 0; border-top: 1px solid var(--line-2);
+}
+.open-row:first-of-type { border-top: 0; }
+.open-text {
+  flex: 0 1 auto; color: var(--text-2); font-size: .9rem;
+  word-break: break-word; transition: color .15s var(--ease);
+}
+.open-text:hover { color: var(--accent-text); }
+.open-when {
+  flex: 0 0 auto; margin-left: auto;
+  font-family: var(--mono); font-size: .7rem; color: var(--faint);
+}
+.open-check { flex: 0 0 auto; color: var(--faint); font-size: .95rem; line-height: 1; }
+.open-check:hover { color: var(--green); }
+/* Erledigt bleibt stehen, damit sich der Haken sofort wieder entfernen lässt. */
+.open-row.done .open-text { text-decoration: line-through; color: var(--faint); }
+.open-row.done .open-check { color: var(--green); }
+
+/* ================= Schmaler Schirm ================= */
+/* Die Breite bestimmt das Layout, `pointer` die Groesse der Ziele. Umbrueche: 1024px
+   Tablett, 860px `.detail` einspaltig (weiter oben), 700px Telefon. Quer ist ein
+   Telefon 850 bis 930 px breit und 390 bis 430 px hoch, daher `max-height: 500px`. */
+
+/* Grundwerte fuer die Medienregeln unten; sie stehen davor, weil bei gleicher
+   Spezifitaet die spaetere Regel gewinnt. */
+
+/* Der Punkt ist absolut gesetzt, sonst rueckt die Kopfzeile, wenn er erscheint. */
+.icon-btn.bell { position: relative; }
+/* `bell-pop` laeuft bei jedem Erscheinen neu, weil `hidden` `display: none` setzt. */
+.bell-dot {
+  position: absolute; top: 6px; right: 6px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 0 2px var(--surface);
+  animation: bell-pop .3s var(--ease);
+}
+@keyframes bell-pop { 0% { transform: scale(0); } 60% { transform: scale(1.4); } 100% { transform: scale(1); } }
+.open-count {
+  font-family: var(--mono); font-size: .7rem; font-weight: 600;
+  color: var(--accent-text); margin-left: 3px;
+}
+/* Breit stehen die Kinder von `.mast-rest` direkt in der Kopfzeile. */
+.mast-rest { display: contents; }
+.mast-menu { display: none; }
+/* Das Wort am Symbolknopf erscheint nur im Menue (`.mast-rest .mast-word`). */
+.mast-word { display: none; }
+/* `.filter-toggle` und `.sys-toggle` erscheinen erst bei eingeklappter Kopfzeile. */
+.filter-toggle { display: none; align-items: center; gap: 7px; margin-bottom: 14px; }
+.filter-toggle .fcount { font-family: var(--mono); font-size: .72rem; color: var(--faint); }
+.sys-toggle { display: none; align-items: center; gap: 7px; margin-bottom: 12px; }
+.sys-toggle .fcount { font-family: var(--mono); font-size: .72rem; color: var(--faint); }
+.sys-tabs.closed { display: none; }
+.filter-toggle.active { border-color: var(--accent-line); color: var(--text); }
+.filter-toggle.active .fcount { color: var(--accent-text); }
+
+/* Die `@container`-Regeln stehen hier unten: `@container` hebt die Spezifitaet nicht an,
+   und bei gleicher gewinnt die spaetere Regel. */
+/* Die Breite von `.sys-card` folgt nicht der Fensterbreite.
+   Gemessen in Chromium, Fenster -> schmale Karte, in px:
+     1440 -> 405 · 1280 -> 399 · 1024 -> 320 · 768 -> 359 · 700 -> 664 */
+.sys-card { container-type: inline-size; }
+
+/* 420px Kartenbreite, gemessen: darueber bleibt die Protokollzeile mit fuenf
+   Spalten einzeilig. */
+@container (max-width: 420px) {
+  .log-list { display: block; }
+  .log-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px;
+    align-items: baseline; padding: 7px 2px; border-bottom: 1px solid var(--line); }
+  .log-row > * { padding: 0; border-bottom: 0; }
+  .log-row:last-child { border-bottom: 0; }
+  .log-time { grid-column: 1 / -1; }
+  /* Zwei Spalten Formularfelder sind hier zu schmal. */
+  .vocabulary-grid { grid-template-columns: 1fr; }
+  /* Gemessen in Chromium bei 390 x 844, Hoehe und umbrechende Beschriftungen:
+       einspaltig                   1203 px   2 von 14
+       zwei Spalten                  733 px  14 von 14, zwei dreizeilig
+       Beschriftung neben dem Feld   982 px  14 von 14, drei dreizeilig
+       daneben und enger             853 px  14 von 14, zwei dreizeilig
+       einspaltig, weniger Abstand  1056 px   2 von 14, keine dreizeilig */
+  .vocabulary-grid .field { margin-bottom: 4px; }
+  .vocabulary-grid .field label { line-height: 1.25; }
+  .vocabulary-grid .field label .hint { display: inline; margin-left: 4px; }
+}
+
+/* 560px: der Befehl misst 452 px, dazu Knopf, Abstand und Innenabstaende. */
+@container (max-width: 560px) {
+  .server-row { flex-wrap: wrap; }
+  .server-row code { flex: 1 1 100%; overflow-x: visible;
+    white-space: pre-wrap; overflow-wrap: anywhere; }
+}
+
+/* Suche in eigener Zeile nur bei schmalem, nicht bei niedrigem Fenster: quer
+   waere die Kopfzeile sonst 124 statt 86 px hoch. */
+@media (max-width: 700px) {
+  .search-box { order: 3; flex: 1 1 100%; max-width: none; }
+}
+
+/* Fuer den Dialog am Telefon, der von unten hereinkommt; `rise` hebt nur an. */
+@keyframes page { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+
+/* Touch: Ziele etwa 44 px gross, ueber den Innenabstand statt ueber die Schrift. */
+@media (pointer: coarse) {
+  .btn { padding: 12px 17px; }
+  .btn-sm { padding: 10px 14px; }
+  .icon-btn { width: 44px; height: 44px; }
+  /* Bewusst unter 44 px (35 px hoch): jede Filterreihe waere sonst 6 px hoeher. */
+  .pill { padding: 7px 13px; }
+  /* Der Und/Oder-Umschalter bleibt 4 px niedriger als die Pillen daneben. */
+  .pill-mode { padding: 5px 11px; }
+  .chip { padding: 7px 12px; }
+  .chip button { padding: 3px 5px; }
+  /* Muss nach `.chip` stehen: gleiche Spezifitaet. */
+  .chip-xs { padding: 4px 9px; }
+  .select { padding: 9px 12px; }
+  .link-btn { padding: 7px 3px; }
+  .mark { padding: 8px 12px; }
+  .abtn { padding: 7px 12px; }
+  .engine .sdefault { padding: 6px 12px; }
+  .switch { padding: 10px 15px; }
+  .pin-btn { padding: 8px; }
+  .open-check { padding: 6px 9px; }
+  .ttag-add { padding: 5px 9px; }
+  /* Hoehere Spezifitaet als `.select`, sonst bliebe das Rollenfeld bei 20 px. */
+  .mrow.user select.user-role-sel { padding: 6px 9px; }
+  /* Ein span im Knopf, `button { padding: 0 }` greift hier nicht. */
+  .pill .view-remove { padding: 5px 4px; margin-left: 6px; }
+
+  .xdel { padding: 8px 10px; }
+  /* Eigene Regel: die Grundregel `.rvote .xdel` ist spezifischer als `.xdel`. */
+  .rvote .xdel { padding: 6px 8px; }
+  /* 32 px, sonst trifft man oft den fuenften Stern daneben. */
+  .rreset { width: 32px; height: 32px; }
+  .mrow .mact { padding: 9px 11px; }
+  .arow .adl { padding: 9px 11px; }
+  .cmt-head button { padding: 8px 10px; }
+  .cmt-head .acts, .cmt-head .marks { gap: 2px; }
+  /* 2 px `gap` plus 11 px: 13 px Abstand vor dem Loeschknopf. */
+  .cmt-head button.rm { margin-left: 11px; }
+  .cmt-img .del, .thumb .del { width: 27px; height: 27px; }
+  .thumb .del { border-radius: 0 0 0 9px; }
+
+  /* Liegt in einem Link: daneben tippen oeffnet den Eintrag. */
+  .pick-box { width: 28px; height: 28px; }
+
+  /* 1.25rem und 3px: rund 40 px je Kriterienzeile; 1.45rem und 5px kosten 50. */
+  .star { font-size: 1.25rem; }
+  .stars { gap: 3px; }
+  .stars .star { padding: 3px 4px; }
+
+  /* Der Rand bleibt 1.5px; er unterscheidet eigene von fremden Punkten. */
+  .timeline-dot { width: 12px; height: 12px; margin: 0 0 -6px -6px; }
+
+  .lb-btn { width: 42px; height: 42px; }
+  .lb-nav { width: 54px; height: 54px; }
+  .lb-thumb { width: 62px; height: 62px; }
+  .vnav { width: 44px; height: 44px; }
+  .vfocus, .vfull, .vremove { width: 44px; height: 44px; }
+
+  /* Kein Markieren beim langen Druck: makeSortable() greift nach `HOLD_MS`, und in
+     dieser Zeit bietet das Telefon die Textmarkierung an. */
+  .thumb, .lrow, .mrow.drag, .block-head-x { -webkit-user-select: none; user-select: none; }
+
+  /* Ohne `manipulation` wartet der Browser rund 300 ms auf einen Doppeltipp.
+     Nicht am Vollbild: dort hat der Doppeltipp eine Bedeutung. */
+  .btn, .icon-btn, .pill, .mark, .switch, .chip, .pick-box, .star,
+  .abtn, .link-btn, .xdel, .open-check, .pin-btn, .vnav, .vfocus, .vfull,
+  .cmt-head button, .mrow .mact, .arow .adl,
+  .rej-note .mact { touch-action: manipulation; }
+
+  /* Bei kleinerer Schrift zoomt Safari auf iOS beim Tippen die Seite heran. `max()`,
+     weil die Instanz die Schrift von 80 bis 120 Prozent stellt; jeder Selektor
+     einzeln, weil kleine Felder ihre Groesse in spezifischeren Regeln setzen. */
+  /* Anlass ist das Tippen; ein `<select>` oeffnet die Auswahl des Systems und
+     fehlt hier, sonst passt seine Liste nicht auf das Telefon. */
+  .input, .input-sm, .ta, .title-in,
+  .engine-slot .input, .user-link-row .input,
+  .mrow input.medit, .mrow .mweight-field,
+  .test-add input[type=date] { font-size: max(16px, 1rem); }
+  /* `!important`, weil die Grundregel von `.ttag-in` es traegt. */
+  .ttag-in { font-size: max(16px, 1rem) !important; }
+}
+
+/* Auf Touchgeraeten bleibt `:hover` nach einem Tipp stehen; hier zurueckgenommen. */
+@media (hover: none) {
+  .card:hover { transform: none; }
+  /* `:not(.picked)`: die Auswahl setzt dieselben Eigenschaften, gleiche Spezifitaet. */
+  .card:hover:not(.picked) { box-shadow: none; border-color: var(--line); }
+  /* `none` genuegt: der Bildausschnitt steckt im Bild, nicht im `transform`. */
+  .card:hover .card-img img { transform: none; }
+  .stars .star:hover { transform: none; }
+  .pin-btn:hover { transform: none; }
+  .timeline-dot:hover { transform: none; opacity: .68; }
+  /* `:not(.over)`: waehrend eine Datei darueber gezogen wird, bleibt der Akzent. */
+  .drop:hover:not(.over) {
+    border-color: var(--line); color: var(--muted); background: var(--surface);
+  }
+
+  /* `translateY(-50%)` haelt den Pfeil mittig; `none` schoebe ihn nach unten. */
+  .vnav:hover {
+    transform: translateY(-50%);
+    background: rgba(var(--tool-rgb), .82); border-color: rgba(var(--edge-on-dark-rgb), .12);
+    color: var(--text);
+  }
+  .lb-nav:hover {
+    transform: translateY(-50%);
+    background: rgba(var(--lb-surface-rgb), .86); border-color: rgba(var(--edge-on-dark-rgb), .11);
+    color: var(--text);
+  }
+}
+
+/* ---- Tablett ---- */
+@media (max-width: 1024px) {
+  .shell { padding: 0 18px 84px; }
+  /* 200px: bei 768 px Fenster drei Spalten; 240px ergaeben zwei zu breite Karten. */
+  .grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  /* Gemessen bei 834 px Fensterbreite: 255 x 374 px. */
+  .card { contain-intrinsic-size: auto 375px; }
+  .sys-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .detail { gap: 22px; }
+}
+
+/* ---- Eingeklappte Kopfzeile ---- */
+/* Telefon hoch, Telefon quer, Tablett mit Touch: mit Touch-Massen braucht die Kopfzeile
+   ueber 900 px und bricht sonst um. */
+@media (max-width: 700px), (max-height: 500px) and (max-width: 960px),
+       (max-width: 1024px) and (pointer: coarse) {
+  /* `.mast-rest` wird zum Menue; `.masthead` ist mit `position: sticky` der Bezug. */
+  .mast-rest {
+    display: none;
+    position: absolute; top: 100%; right: 0; z-index: var(--z-masthead-menu);
+    flex-direction: column; align-items: stretch; gap: 2px;
+    min-width: 208px; max-width: min(290px, calc(100vw - 24px));
+    margin-top: 7px; padding: 7px;
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: var(--r); box-shadow: var(--sh-lg);
+    animation: rise .15s var(--ease) both;
+  }
+  .mast-rest.open { display: flex; }
+  .mast-rest .icon-btn, .mast-rest .btn {
+    width: 100%; height: auto; justify-content: flex-start; gap: 11px;
+    padding: 12px 12px; border-color: transparent; background: none;
+    border-radius: var(--r-sm); white-space: nowrap;
+  }
+  .mast-rest .icon-btn:hover, .mast-rest .btn:hover { background: var(--surface-3); }
+  /* Ohne Hover gibt es keinen Titel; das Wort ersetzt ihn. */
+  .mast-rest .mast-word { display: inline; }
+  .mast-rest .bell-dot { top: 10px; left: 25px; right: auto; }
+  .mast-rest .open-count { order: 3; margin-left: 4px; }
+  .mast-rest .who {
+    white-space: normal; padding: 10px 12px 6px; margin-top: 5px;
+    border-top: 1px solid var(--line-2);
+  }
+  .mast-menu { display: inline-flex; }
+
+  /* Auch auf dem Tablett: die Filter sind dort ueber 600 px hoch, die Reiter der
+     Einstellungen 241 px. Eingeklappt startet nur das Telefon. */
+  .filter-toggle { display: inline-flex; }
+  .sys-toggle { display: inline-flex; }
+  .filters.closed { display: none; }
+}
+
+/* ---- Telefon ---- */
+@media (max-width: 700px), (max-height: 500px) and (max-width: 960px) {
+
+  .shell {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+
+  .masthead {
+    gap: 8px;
+    padding: 10px 0 11px;
+    padding-top: calc(10px + env(safe-area-inset-top));
+    margin-bottom: 15px;
+  }
+  /* `flex: 1 1 0`: mit `0 1 auto` bricht das Menuezeichen in eine eigene Zeile um,
+     statt dass der Titel schrumpft. */
+  .brand { gap: 9px; flex: 1 1 0; }
+  .brand .count { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .search-box { min-width: 0; }
+  /* Nur in den Unteransichten: dort misst die Kopfzeile ohne Suche 69 statt 123 px. */
+  .subhead .search-box { display: none; }
+
+  .filters { gap: 9px; margin-bottom: 16px; }
+  /* Beschriftung links in einer `auto`-Spalte; Reihen rollen quer statt umzubrechen
+     (fuenf Pillen: 35 statt 77 px). Die Wolke ist ausgenommen. */
+  .frow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center; gap: 7px 10px; }
+  .frow > .eyebrow, .frow > .eyebrow-with { grid-column: 1; min-width: 0;
+    margin-left: 0; margin-top: 0; }
+  .frow > .pills, .frow > .select, .frow > .sort-pair { grid-column: 2; min-width: 0; }
+  .frow > .frow-right { grid-column: 1 / -1; }
+  /* Dritte Spalte (`auto`) nur fuer kurze Links: „Filter zuruecksetzen (n)" mit 140 px
+     liesse der Sortierwahl daneben 30 px. Daher eine eigene Klasse. */
+  .frow > .frow-right-end { grid-column: 3; }
+  /* Tagzeile: Beschriftung und Umschalter links untereinander, die Wolke rechts. */
+  .frow-tags > .tagmode { grid-column: 1; grid-row: 2; margin-right: 0;
+    align-self: start; }
+  .frow-tags > .tagmode .pill-mode { padding: 2px 7px; font-size: .62rem; }
+  /* Die Wolke spannt ueber alle Rasterzeilen, sonst stuende „mehr" in einer eigenen. */
+  .frow-tags > .pills.cloud { grid-row: 1 / -1; align-self: start; }
+  /* Letzte Zeile `1fr`: mit `auto` teilten sich die Zeilen die Hoehe der Wolke, und
+     Beschriftung und Umschalter sackten ab. Drei Zeilen nur mit `tags-deep`
+     (mehrzeilige Wolke), sonst stuenden zugeklappt 35 px leer. */
+  .frow-tags { grid-template-rows: auto 1fr; }
+  .frow-tags.tags-deep { grid-template-rows: auto auto 1fr; }
+  .frow-tags.tags-deep > .frow-right-end { grid-column: 1; grid-row: 2;
+    align-self: start; justify-self: start; gap: 4px; }
+  /* `tags-live` setzt drawFilters() in public/app.js: Wolke offen oder zwei Tags aktiv. */
+  .frow-tags:not(.tags-live) > .tagmode { display: none; }
+  .frow-tags.tags-deep > .tagmode { grid-row: 3; }
+  /* Eine Stufe kleiner: vier statt drei Tags in der zugeklappten Wolke. */
+  .pill-tag { font-size: .72rem; padding: 4px 10px; }
+  /* Ohne Rollbalken, er kostete Hoehe; die angeschnittene Pille zeigt, dass mehr folgt. */
+  .frow > .pills:not(.cloud) { flex-wrap: nowrap; overflow-x: auto;
+    scrollbar-width: none; -ms-overflow-style: none; }
+  .frow > .pills:not(.cloud)::-webkit-scrollbar { display: none; }
+  .frow > .pills:not(.cloud) > * { flex-shrink: 0; }
+  /* In der Spalte hiesse `flex: 1 1 0` Grundhoehe null, und die Wolke fiele zusammen. */
+  .frow > .pills.cloud { flex: 0 1 auto; }
+
+  /* Beide Felder teilen sich den Platz; eine feste Breite passt nicht zu 80 bis
+     120 Prozent Schrift. */
+  [data-block="kategorie"] .row-in > #cat,
+  [data-block="kategorie"] .row-in > .input { flex: 1 1 0; min-width: 0; }
+
+  /* 150px: zwei Spalten; unter 320 px Breite faellt `auto-fill` auf eine zurueck. */
+  .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  /* Gemessen bei 390 px Fensterbreite: 178 x 305 px. */
+  .card { contain-intrinsic-size: auto 305px; }
+  .card-body { padding: 9px 11px 11px; gap: 5px; }
+  .card-title { font-size: .95rem; }
+  /* Die Angaben brechen um; ohne `.sep`, ein Punkt am Zeilenende trennt nichts. */
+  .card-test { flex-wrap: wrap; gap: 3px 9px; }
+  .card-test .sep { display: none; }
+  .empty { padding: 44px 16px; }
+
+  /* Block ohne Kasten: Trennstrich, Titel, Inhalt. Mit Rahmen und Innenabstand von
+     Block und Inhalt blieben dem Text 280 von 390 px. */
+  .block {
+    background: none;
+    border: 0; border-top: 1px solid var(--line);
+    border-radius: 0;
+    padding: 16px 0 20px;
+  }
+  #blocks-side { gap: 0; }
+  .block-wide { margin-top: 0; }
+  .block.closed { padding-bottom: 16px; }
+  /* Kopfzeile muss passen: 16 + 21 + 16 = 53, abgerundet 52 (`border-box`). */
+  .block.dragging { max-height: 52px; padding-top: 16px; padding-bottom: 16px; }
+
+  /* Gleicher Radius fuer alles in einer Flucht, der groessere des Bildbereichs.
+     `.keyline` und `.two-factor-key` fehlen, sie liegen in einem Kasten. */
+  .viewer, .drop, .ta, .cmt, .lrow, .trow, .arow, .mrow, .open-group,
+  .apreview, .vocabulary-preview, .warn-box, .ok-box, .engine, .empty, .timeline {
+    border-radius: var(--r);
+  }
+  /* 1px wie eine Karte: der leere Zustand steht an der Stelle des Kartenrasters. */
+  .drop, .empty { border-width: 1px; }
+
+  /* Reiter der Einstellungen als Liste, wie das Menue der Kopfzeile; Marke links. */
+  .sys-tabs {
+    display: block; border-bottom: 0; gap: 0;
+    margin: 0 0 4px; border-top: 1px solid var(--line);
+  }
+  .sys-tab {
+    padding: 13px 0 13px 12px; margin-bottom: 0;
+    border-bottom: 1px solid var(--line);
+    border-left: 2px solid transparent;
+    white-space: normal;
+  }
+  .sys-tab.on { border-left-color: var(--accent); border-bottom-color: var(--line); }
+
+  /* `minmax(0, 1fr)`: `1fr` wird nie schmaler als der breiteste unteilbare Inhalt,
+     und die Seite rollte seitlich (Spalte 404 px bei 390 px Fenster). */
+  .sys-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .sys-card {
+    background: none;
+    border: 0; border-top: 1px solid var(--line);
+    border-radius: 0;
+    padding: 18px 0 22px;
+  }
+  /* Ohne Strich: darueber steht die Ueberschrift der Seite. */
+  .sys-grid > .sys-card:first-child { border-top: 0; padding-top: 4px; }
+
+  /* `max-height` nach Fensterhoehe; `flex: 0 1 auto` laesst die Liste kuerzer werden. */
+  .manage-list, .log-list, .test-scroll, .atext, #ex-part-list {
+    flex: 0 1 auto; max-height: 62vh; max-height: 62dvh; }
+
+  /* Detailansicht einspaltig, Titel vor dem Bild; hier und nicht erst bei 860px, weil
+     ein Telefon quer bis 932 px breit ist. Die Tabulatorfolge bleibt die des HTML. */
+  /* `stretch`: das `start` von `.detail` hiesse im Flex-Layout „nicht dehnen". */
+  .detail { display: flex; flex-direction: column; gap: 16px; align-items: stretch; }
+  .meta-col { display: contents; }
+  .title-head { order: -1; }
+  .title-in { font-size: 1.32rem; }
+  /* Nach Fensterhoehe: quer ist ein Telefon nur 390 bis 430 px hoch. */
+  .apreview img { max-height: min(340px, 56dvh); }
+  .apreview iframe { height: 420px; height: min(420px, 62dvh); }
+
+  /* Reihen ohne `flex-wrap` liefen auf 366 px ueber den Rand. */
+  .block-head { flex-wrap: wrap; row-gap: 6px; }
+  /* `1 1 auto`: nach dem Umbruch beginnt die zweite Zeile links. */
+  .block-head .label { flex: 1 1 auto; }
+  /* Kommentarkopf zweizeilig, sonst bricht das Datum um; Umschalter unten. */
+  .cmt-head { flex-wrap: wrap; row-gap: 7px; }
+  .cmt-head .cmt-when { order: 1; }
+  .cmt-head .acts { order: 2; }
+  .cmt-head .cmt-no { order: 3; }
+  .cmt-head .marks { order: 4; flex-basis: 100%; }
+  .cmt-head .mark { padding: 6px 11px; }
+  /* Lange Kriteriennamen brechen um statt ueber den Rand zu laufen. */
+  .rrow .rname { min-width: 0; overflow-wrap: anywhere; }
+  /* Ebenso in der Rechentabelle samt Kopfzeile; bei 360 px sonst 378 statt 328 px breit. */
+  .calc-row > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+  /* Rechentabelle zweizeilig: Name oben, die drei Zahlen darunter. Sonst bleiben der
+     Namensspalte bei langen Spaltentiteln wenige Pixel. */
+  .calc { grid-template-columns: auto auto 1fr; }
+  .calc-row > span:first-child { grid-column: 1 / -1; border-bottom: none; padding-bottom: 0; }
+  .calc-row > span:nth-child(2), .calc-row > span:nth-child(3) { text-align: left; }
+  .calc-same > span:not(:first-child) { border-top: none; }
+
+  /* Sternzeile zweizeilig: Name oben, darunter Sterne und Durchschnitt. Die Zeile ist
+     `display: contents`, daher verliert der Name hier seine eigene Trennlinie. */
+  .rlist:not(.no-average) { grid-template-columns: auto 1fr auto; }
+  .rlist:not(.no-average) .rrow .rname {
+    grid-column: 1 / -1; border-bottom: none;
+    padding-bottom: 0; padding-right: 0;
+  }
+  .rlist:not(.no-average) .rrow .racts,
+  .rlist:not(.no-average) .rrow .ravg { padding-top: 4px; }
+  /* Sterne eine Stufe kleiner: die Namensspalte waechst von 186 auf 210 px, die Hoehe
+     bleibt 256 px. Kleiner nicht, die Sterne muessen per Touch treffbar bleiben. */
+  .star { font-size: 1.1rem; }
+  .stars { gap: 2px; }
+  .stars .star { padding: 3px 3px; }
+  /* Weniger Innenabstand, nur mit Durchschnittsspalte. */
+  .rlist:not(.no-average) .rrow .rname { padding-top: 4px; line-height: 1.35; }
+  .rlist:not(.no-average) .rrow .racts,
+  .rlist:not(.no-average) .rrow .ravg,
+  .rlist:not(.no-average) .rrow .rreset-cell { padding-bottom: 5px; }
+
+  /* Datei- und Testtagzeile brechen um, sonst wird die Dateiendung abgeschnitten. */
+  .arow { flex-wrap: wrap; row-gap: 2px; }
+  .arow .aname { flex: 1 1 auto; }
+  .arow .asize, .arow .afrom { order: 2; }
+  .arow .asize { margin-left: auto; }
+  /* 8px: Datum, Verfasser, Knopf, Sterne und Papierkorb brauchen 311 von 344 px.
+     `row-gap` muss nach `gap` stehen, das beide Richtungen setzt. */
+  .trow { flex-wrap: wrap; gap: 8px; row-gap: 4px; }
+  /* Ohne Wochentag (51 von 344 px). `1 1 auto` statt `flex: 1`: ohne Tags nimmt der
+     Kasten nicht die ganze Breite. */
+  .trow .tweek { display: none; }
+  .trow .ttags { flex: 1 1 auto; }
+  /* Mit Tags: Datum und Tags oben, Verfasser und Sterne darunter. Den Umbruch
+     erzwingt `::after` mit `flex-basis: 100%`. */
+  .trow-tags .ttags { flex: 1 1 0; }
+  .trow-tags::after { content: ''; flex-basis: 100%; height: 0; order: 1; }
+  .trow-tags .tfrom, .trow-tags .stars { order: 2; }
+  .trow-tags .xdel { order: 3; }
+
+  .cmt-form-row { flex-wrap: wrap; row-gap: 8px; }
+  .cmt-form-row .btn { flex: 1 1 auto; }
+  .cmt-edit .acts { flex-wrap: wrap; }
+  .cmt-edit .acts .btn { flex: 1 1 auto; }
+  .card-foot { flex-wrap: wrap; row-gap: 5px; }
+  .apdf-hint { row-gap: 6px; }
+
+  /* Ein langer Titel wird abgeschnitten, damit Anlegeknopf und Menue sichtbar bleiben. */
+  .brand { min-width: 0; }
+  .brand > div { min-width: 0; }
+  .brand h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Quer ist ein Telefon 430 px hoch, 4:3 waere ueber 600 px. `object-fit: contain`
+     beschneidet das Bild nicht. */
+  .viewer { max-height: 64vh; max-height: 64dvh; }
+
+  /* Dialog als Blatt von unten, dort erreicht ihn der Daumen. */
+  .backdrop { padding: 0; align-items: flex-end; }
+  .modal {
+    max-width: none; width: 100%;
+    border-left: 0; border-right: 0; border-bottom: 0;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    padding: 20px 16px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    max-height: 92vh; max-height: 92dvh;
+    animation: page .18s var(--ease) both;
+  }
+  /* `column-reverse`: im HTML steht „Abbrechen" zuerst, die Aktion gehoert nach oben. */
+  .modal-acts { flex-direction: column-reverse; gap: 8px; margin-top: 10px; }
+  .modal-acts .btn { width: 100%; }
+
+  /* ---- Die Vergleichsleiste ---- Statt mittig als Pille nimmt sie auf dem
+     Telefon die volle Breite, erreichbar mit dem Daumen. */
+  .cmp-bar {
+    left: 12px; right: 12px; width: auto; max-width: none;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    border-radius: var(--r); padding: 9px 10px 9px 15px;
+    justify-content: space-between;
+  }
+}

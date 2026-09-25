@@ -1,0 +1,21 @@
+services:
+  kriterion:
+    build: .
+    container_name: kriterion
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      # Links der Port am Server.
+      - "3100:3000"
+    volumes:
+      - ./data:/app/data
+      # Backup-Ordner. Besser ausserhalb des Projekts, dann beide Zeilen so:
+      #   - ../kriterion-backup:/backup
+      #   - BACKUP_DIR=/backup
+      - ./kriterion-backup:/app/backup
+    environment:
+      - PORT=3000
+      # Zeitzone des Containerprotokolls. Gespeicherte Zeiten bleiben UTC.
+      - TZ=Europe/Berlin
+      # Ohne diese Zeile keine Karte "Backup". Pfad wie in der Einhaengung oben.
+      - BACKUP_DIR=/app/backup

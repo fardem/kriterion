@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+<title>Kriterion</title>
+<rect width="32" height="32" rx="7" fill="#16191c"/>
+<g fill="none" stroke-linecap="round" stroke-width="3">
+<path d="M8 6 V26" stroke="#838c95"/>
+<path d="M8 10 H15" stroke="#838c95"/>
+<path d="M8 22 H13" stroke="#838c95"/>
+<path d="M8 16 H24" stroke="#ff7a1a"/>
+</g>
+</svg>

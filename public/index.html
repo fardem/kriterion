@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<!-- viewport-fit=cover UEBERGIBT DIE GANZE FLAECHE. Ohne die Angabe bleiben
+     env(safe-area-inset-*) im Stylesheet auf null; was unter die Aussparung
+     geraet, holt das Stylesheet mit genau diesen Einrueckungen zurueck. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- DIE FARBE DER BROWSERLEISTE. app.js liest den gerade gueltigen Wert mit
+     getComputedStyle aus --bg und setzt ihn hier ein; der Wert unten ist nur
+     der Anstrich bis dahin und deshalb das dunkle --bg. -->
+<meta name="theme-color" content="#0e1012">
+<meta name="robots" content="noindex, nofollow">
+<!-- BEIDE. Welches Schema gilt, sagt `color-scheme` in den :root-Bloecken des
+     Stylesheets; hier steht nur, dass die Anwendung mit beidem umgehen kann.
+     Davon haengen Auswahlfelder, Rollbalken und Datumswaehler ab. -->
+<meta name="color-scheme" content="light dark">
+<title>Kriterion</title>
+<!-- Die Marke fuer den Tab. EINE SVG-Datei traegt vom 16-Pixel-Tab bis zur
+     Lesezeichenleiste; sie bringt ihre eigene dunkle Kachel mit, damit sie
+     auch auf einer hellen Leiste steht. -->
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<!-- DAS MANIFEST KOMMT VOM SERVER UND NICHT AUS DIESEM VERZEICHNIS, weil der
+     Name der Installation eine Einstellung ist. OHNE crossorigin: der Browser
+     holt es ohne Anmeldedaten, und die Route ist genau deshalb offen. -->
+<link rel="manifest" href="/api/manifest.json">
+<!-- VOR DEM STILBLATT, sonst blitzt beim Oeffnen das falsche Schema auf; kein
+     `defer` und kein `async`. ALS DATEI UND NICHT INLINE, weil
+     `script-src 'self'` ein Inline-Script abweist. -->
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app"></div>
+<!-- Steht ausserhalb von #app und ueberlebt deshalb jedes Neuzeichnen. -->
+<p class="version-row" id="version"></p>
+<script src="app.js"></script>
+</body>
+</html>

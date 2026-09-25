@@ -1,0 +1,13 @@
+node_modules
+data
+.env
+*.log
+.git
+.DS_Store
+testbench.js
+counterproof.js
+keytool.sh
+Doku
+kriterion-backup
+kriterion-sicherung
+test
