@@ -62,14 +62,14 @@ async function run() {
   check('Und ist mit einer zweiten Beschriftung abgesetzt',
     [...(fromRow?.querySelectorAll('.eyebrow-with') || [])].some(e => e.textContent === 'Ablehnung'),
     JSON.stringify([...(fromRow?.querySelectorAll('.eyebrow') || [])].map(e => e.textContent)));
-  check('Sie traegt drei Pillen und keinen vierten Wert der Reihe davor',
+  check('Sie traegt zwei Pillen, ohne „Alle“',
     equal([...(fromGroup?.querySelectorAll('.pill') || [])].map(b => b.textContent),
-      ['Alle', 'Abgelehnt', 'Nicht abgelehnt']),
+      ['Abgelehnt', 'Nicht abgelehnt']),
     JSON.stringify([...(fromGroup?.querySelectorAll('.pill') || [])].map(b => b.textContent)));
   const fromStatusPills = [...(fromRow?.querySelectorAll('.pills') || [])][0];
-  check('Der Teststatus selbst hat weiterhin drei Zustaende',
+  check('Der Teststatus traegt zwei Pillen; keine gesetzt heisst alle',
     [...(fromStatusPills?.querySelectorAll('.pill') || [])]
-      .filter(b => !b.classList.contains('pill-sep')).length === 3,
+      .filter(b => !b.classList.contains('pill-sep')).length === 2,
     JSON.stringify([...(fromStatusPills?.querySelectorAll('.pill') || [])].map(b => b.textContent)));
 
   check('Ohne Filter stehen alle vier da',
@@ -135,8 +135,8 @@ async function run() {
   check('Eine Ansicht ohne den neuen Schluessel bleibt lesbar',
     equal(fromTitle(fromOld), ['Getestet und abgelehnt', 'Getestet und nicht abgelehnt']),
     JSON.stringify(fromTitle(fromOld)));
-  check('Und sie faellt bei der Ablehnung auf „Alle" zurueck',
-    fromOld.w.document.querySelector('#f-rejected .pill.on')?.textContent === 'Alle',
+  check('Und bei der Ablehnung ist keine Pille gesetzt',
+    !fromOld.w.document.querySelector('#f-rejected .pill.on'),
     JSON.stringify(fromOld.w.document.querySelector('#f-rejected .pill.on')?.textContent));
   check('Der Schalter zaehlt dort nur den Teststatus',
     /· 1 aktiv/.test(fromNumber(fromOld)), fromNumber(fromOld));
@@ -420,7 +420,7 @@ async function run() {
     const d = buildDom(JSDOM, {
       settings: { filters: null, isAdmin: true, isOwner: true } });
     await until(d.w, listDrawn, 2000, 'die Uebersicht');
-    await sysSection(d.w, 'database');
+    await sysSection(d.w, 'backup');
     const cards = [...d.w.document.querySelectorAll('.sys-grid > .sys-card')];
     const ex = cards.find(k => k.querySelector('h3')?.textContent.trim() === 'Export und Import');
     check('Die Karte heisst „Export und Import"', !!ex,
@@ -1013,11 +1013,12 @@ async function run() {
     check('Das Vollbild geht auf', !!doc.querySelector('.lightbox'));
     const removed = () => doc.querySelector('.lightbox .lb-btn.remove');
     check('Und es traegt einen Papierkorb', !!removed(), 'kein Papierkorb im Vollbild');
-    // Nicht neben dem Schliessen: ein Fehlgriff loeschte das Bild.
+    // Am Ende der Leiste, mit Abstand zu ✕: ein Fehlgriff loeschte das Bild.
     const tools = [...doc.querySelectorAll('.lightbox .lb-tools .lb-btn')]
       .map(b => b.className.replace('lb-btn ', ''));
-    check('Und er steht vor dem Schliessen, nicht daneben',
-      equal(tools, ['download', 'zoom', 'remove', 'close']), JSON.stringify(tools));
+    check('Und er steht hinten in der Leiste, ✕ ausserhalb davon',
+      equal(tools, ['info', 'copy', 'whole', 'zoom', 'download', 'remove']) &&
+      !!doc.querySelector('.lightbox .lb-top > .lb-btn.close'), JSON.stringify(tools));
 
     const imagesBefore = [...doc.querySelectorAll('.lightbox .lb-thumb')].length;
     // `?.`: ein Rueckbau kann den Papierkorb entfernen, dann ist `removed()` null.
@@ -1338,7 +1339,8 @@ async function run() {
   {
     const shipped = ['public/app.js', 'public/style.css', 'public/index.html',
                           'server.js', 'auth.js', 'db.js', 'usertool.js', 'mail.js',
-                          'keys.js', 'keytool.js', 'twofactor.js'];
+                          'keys.js', 'keytool.js', 'twofactor.js', 'schema.js', 'backup.js',
+                          'backuptool.js'];
     // Je Datei die erlaubten Fundstellen; verglichen wird die ganze Liste.
     const ALLOWED = {};
     const found = {};
@@ -1670,10 +1672,9 @@ async function run() {
     check('Auch die uebrigen Merkmale stehen wieder auf der Vorgabe',
       now.rejected === 'all' && now.favorite === false && now.tagMode === 'and',
       JSON.stringify(now));
-    const everythingPill = [...d.w.document.querySelectorAll('#filters .pill')]
-      .find(b => b.textContent.trim() === 'Alle');
-    check('Und die Leiste zeigt es',
-      everythingPill?.classList.contains('on'), everythingPill?.className);
+    const setPills = [...d.w.document.querySelectorAll('#f-tested .pill.on, #f-rejected .pill.on')];
+    check('Und die Leiste zeigt es: weder Status noch Ablehnung gesetzt',
+      setPills.length === 0, setPills.map(x => x.textContent).join(' · '));
     /* Die Sortierung steht in FILTER_DEFAULT, wird aber weder zurueckgesetzt
        noch mitgezaehlt. */
     check('Die Sortierung bleibt, wo sie war',
@@ -1765,12 +1766,12 @@ async function run() {
     await until(d.w, replaced(sel), 2000, 'die neue Sortierung');
     if (String(value).endsWith('_asc')) {
       const dir = d.w.document.getElementById('f-sort-dir');
-      if (dir && !dir.disabled) { dir.click(); await until(d.w, replaced(dir), 2000, 'die neue Richtung'); }
+      if (dir) { D.flipSort(d.w, 'f-sort-dir'); await until(d.w, replaced(dir), 2000, 'die neue Richtung'); }
     }
     return true;
   };
   const ksShown = (d) => `${d.w.document.getElementById('f-sort')?.value}`
-    + ` · ${d.w.document.getElementById('f-sort-dir')?.textContent}`;
+    + ` · ${D.sortWords(d.w, 'f-sort-dir')}`;
   const ksSetting = (d, start = 0) => {
     const put = d.sent.slice(start).filter(x => x.method === 'PUT' && x.url === '/api/settings');
     return put[put.length - 1]?.body?.filters || null;
@@ -1782,10 +1783,8 @@ async function run() {
     const d = await ksBuild({ ...ksDefault, sort: 'potential_desc' });
     check('Nach Potenzial absteigend stehen alle vier Eintraege da — 0.32.1',
       equal(ksTitle(d), ksAll), JSON.stringify(ksTitle(d)));
-    check('Und genau die Pille „Alle" ist markiert, keine andere',
-      ksPill(d, 'Alle')?.classList.contains('on') === true
-      && ![...d.w.document.querySelectorAll('#filters .pill.on')]
-           .some(b => b.textContent.trim() === 'Ungetestet'),
+    check('Und keine Pille des Teststatus ist markiert',
+      !d.w.document.querySelector('#f-tested .pill.on'),
       [...d.w.document.querySelectorAll('#filters .pill.on')].map(b => b.textContent).join(' '));
     check('Keine Pille traegt mehr das Zeichen der Ableitung',
       d.w.document.querySelectorAll('.pill-derived').length === 0,
@@ -1944,7 +1943,7 @@ async function run() {
                           'tests', 'testavg', 'testlast']),
       soValues(d).join(' '));
     check('Die Richtung steht in einem eigenen Bedienelement daneben',
-      !!soDir(d) && soDir(d).tagName === 'BUTTON'
+      !!soDir(d) && soDir(d).classList.contains('sort-way')
       && !!soField(d) && soDir(d).closest('.sort-pair') === soField(d).closest('.sort-pair'),
       soDir(d) ? soDir(d).outerHTML.slice(0, 120) : '(kein Umschalter)');
     const soWords = [...(soField(d)?.options || [])].map(o => o.textContent);
@@ -1953,7 +1952,7 @@ async function run() {
       && !soWords.some(w => /→/.test(w)),
       `${soValues(d).join(' ')} · ${soWords.join(' | ')}`);
     check('Und er nennt die konkrete Richtung und nicht „absteigend"',
-      soDir(d)?.textContent === 'neu → alt', JSON.stringify(soDir(d)?.textContent));
+      D.sortWords(d.w, 'f-sort-dir') === 'neu → alt', JSON.stringify(D.sortWords(d.w, 'f-sort-dir')));
     d.w.close();
   }
 
@@ -1969,12 +1968,12 @@ async function run() {
       await until(d.w, replaced(field), 2000, 'die neue Sortierung');
       soFrom[key] = soOrder(d);
       let dir = soDir(d);
-      dir?.click();
+      D.flipSort(d.w, 'f-sort-dir');
       await until(d.w, replaced(dir), 2000, 'die umgedrehte Richtung');
       soOn[key] = soOrder(d);
       // Zurueck auf absteigend: die Richtung bleibt beim Wechsel der Grundlage stehen.
       dir = soDir(d);
-      dir?.click();
+      D.flipSort(d.w, 'f-sort-dir');
       await until(d.w, replaced(dir), 2000, 'die absteigende Richtung');
     }
     // Je Sortierung drei verschiedene Werte, also eine eindeutige Folge.
@@ -1997,14 +1996,14 @@ async function run() {
     check('Die siebte ordnet nach Titel, aufsteigend',
       equal(soTitle, ['Alpha', 'Beta', 'Gamma']), JSON.stringify(soTitle));
     check('Und ihr Umschalter steht DA und ist nicht mehr gesperrt',
-      !!soDir(d) && soDir(d).disabled === false && soDir(d).textContent === 'A → Z',
-      `${soDir(d)?.textContent} · disabled=${soDir(d)?.disabled}`);
+      !!soDir(d) && D.sortWords(d.w, 'f-sort-dir') === 'A → Z',
+      `${D.sortWords(d.w, 'f-sort-dir')}`);
     const soTitleDir = soDir(d);
-    soTitleDir?.click();
+    D.flipSort(d.w, 'f-sort-dir');
     await until(d.w, replaced(soTitleDir), 2000, 'die umgedrehte Richtung');
     check('Und ein Druck darauf dreht die Reihenfolge um',
-      equal(soOrder(d), [...soTitle].reverse()) && soDir(d)?.textContent === 'Z → A',
-      `${soOrder(d).join('>')} · ${soDir(d)?.textContent}`);
+      equal(soOrder(d), [...soTitle].reverse()) && D.sortWords(d.w, 'f-sort-dir') === 'Z → A',
+      `${soOrder(d).join('>')} · ${D.sortWords(d.w, 'f-sort-dir')}`);
     const soPut = d.sent.filter(x => x.method === 'PUT' && x.url === '/api/settings');
     check('Und die Gegenrichtung geht als title_desc hinaus',
       soPut[soPut.length - 1]?.body?.filters?.sort === 'title_desc' &&
@@ -2022,8 +2021,9 @@ async function run() {
       && /grid-template-columns: auto minmax\(0, 1fr\)/.test(soNarrow),
       soNarrow || '(keine Regel)');
     check('Und Beschriftung und Reihe stehen in verschiedenen Spalten',
-      /\.frow > \.eyebrow, \.frow > \.eyebrow-with \{ grid-column: 1;/.test(soCss)
-      && /\.frow > \.pills, \.frow > \.select, \.frow > \.sort-pair \{ grid-column: 2;/.test(soCss),
+      /:is\(\.frow, \.fgroup\) > \.eyebrow \{ grid-column: 1;/.test(soCss)
+      && /:is\(\.frow, \.fgroup\) > :is\(\.pills, \.select, \.sort-pair\) \{ grid-column: 2;/.test(soCss)
+      && /\.fgroup \{ display: contents; \}/.test(soCss),
       '(die Spaltenzuweisung fehlt)');
     check('Und was zu keinem Paar gehoert, spannt ueber alle Spalten',
       /\.frow > \.frow-right \{ grid-column: 1 \/ -1; \}/.test(soCss) &&
@@ -2031,11 +2031,11 @@ async function run() {
       /\.frow-tags > \.tagmode \{ grid-column: 1; grid-row: 2;/.test(soCss),
       '(die Spanne oder eine der beiden Spaltenzuweisungen fehlt)');
     check('Zweiter Hebel: die Reihen rollen quer, statt umzubrechen',
-      /\.frow > \.pills:not\(\.cloud\) \{ flex-wrap: nowrap; overflow-x: auto;/.test(soCss),
+      /:is\(\.frow, \.fgroup\) > \.pills:not\(\.cloud\) \{ flex-wrap: nowrap; overflow-x: auto;/.test(soCss),
       '(die Reihen brechen weiter um)');
     check('Und ohne Rollbalken, der die gewonnene Hoehe wieder naehme',
       /scrollbar-width: none/.test(soCss)
-      && /\.frow > \.pills:not\(\.cloud\)::-webkit-scrollbar \{ display: none; \}/.test(soCss),
+      && /:is\(\.frow, \.fgroup\) > \.pills:not\(\.cloud\)::-webkit-scrollbar \{ display: none; \}/.test(soCss),
       '(ein Rollbalken steht da)');
     check('Und die Markenwolke ist ausdruecklich ausgenommen',
       /:not\(\.cloud\)/.test(soCss)
@@ -2369,7 +2369,7 @@ async function run() {
       /\.mact\.ed \{ color: var\(--accent-text\); \}/.test(psRaw),
       'keine Regel auf .mact.ed');
     check('Und beim Ueberfahren einen anderen Wert — sonst gaebe er keine Rueckmeldung',
-      /\.mact\.ed:hover \{ color: var\(--accent-text-hi\); \}/.test(psRaw));
+      /\.mact\.ed:hover:where\(:not\(:disabled\)\) \{ color: var\(--accent-text-hi\); \}/.test(psRaw));
     // Die vier Stellen: Kommentar, Beschreibung, Ablehnungsgrund und Kartenname.
     const psApp = fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8');
     check('Und vier Stellen im Code tragen sie',
@@ -2377,10 +2377,10 @@ async function run() {
       `${(psApp.match(/mact ed/g) || []).length} Stellen`);
 
     // Am Finger mehr Abstand, weil die Flaechen dort dichter stehen.
-    check('Vor dem Loeschkreuz steht ein Abstand',
-      /\.cmt-head button\.rm \{ margin-left: \.6em; \}/.test(psRaw));
+    check('Vor dem Papierkorb steht ein Abstand',
+      /\.cmt-head \.mact\.rm \{ margin-left: \.6em; \}/.test(psRaw));
     check('Und am Finger ein groesserer',
-      /\.cmt-head button\.rm \{ margin-left: 11px; \}/.test(psRaw));
+      /\.cmt-head \.mact\.rm \{ margin-left: 11px; \}/.test(psRaw));
     // In der Aktionsgruppe verschwaende die Nummer beim Bearbeiten mit.
     check('Die Nummer steht ausserhalb der Aktionsgruppe',
       /<button class="link-btn cmt-no"/.test(psApp)

@@ -25,7 +25,7 @@ async function run() {
     { id: 1, name: 'Vorhanden', usage_count: 3, test_usage_count: 0 },
     { id: 2, name: 'Auch da', usage_count: 1, test_usage_count: 0, assigned: true }
   ];
-  const createDom = (isAdmin, free) => buildDom(JSDOM, { hash: '#/item/1', tags: createPool,
+  const createDom = (isAdmin, free) => buildDom(JSDOM, { hash: '#/item/1', tags: createPool, entryMine: true,
     settings: { filters: null, userCount: 3, isAdmin,
                      tagsFreeCreate: free, categoriesFreeCreate: free } });
 
@@ -106,9 +106,10 @@ async function run() {
   check('Der Systembereich traegt beide Haken',
     !!checkTag && !!checkCategory,
     `${checkTag ? '' : 'tagfrei fehlt '}${checkCategory ? '' : 'katfrei fehlt'}`);
+  const barOn = (bar) => bar?.querySelector('.pill.on')?.textContent;
   check('Und jeder zeigt seine eigene Stellung',
-    checkTag.checked === false && checkCategory.checked === true,
-    JSON.stringify([checkTag.checked, checkCategory.checked]));
+    barOn(checkTag) === 'Nur Admins' && barOn(checkCategory) === 'Jeder',
+    JSON.stringify([barOn(checkTag), barOn(checkCategory)]));
   check('Sie stehen bei den Karten, die sie betreffen',
     checkTag.closest('.sys-card')?.querySelector('h3')?.textContent === 'Tags' &&
     checkCategory.closest('.sys-card')?.querySelector('h3')?.textContent === 'Kategorien',
@@ -117,8 +118,7 @@ async function run() {
   /* Zugestelltes Ereignis statt Behandleraufruf: Fehler hinter dem await im
      Behandler blieben sonst unsichtbar. */
   sysDom.sent.length = 0;
-  checkTag.checked = true;
-  checkTag.dispatchEvent(new wSys.Event('change', { bubbles: true }));
+  [...checkTag.querySelectorAll('.pill')][1]?.dispatchEvent(new wSys.MouseEvent('click', { bubbles: true }));
   await until(wSys, (x) => sysDom.sent.some(g => g.url === '/api/settings') &&
     openRequests(x) === 0, 2000, 'die Antwort auf den Haken');
   const checkSent = sysDom.sent.filter(
@@ -129,7 +129,7 @@ async function run() {
     checkSent.body.tagsFreeCreate === true,
     JSON.stringify(checkSent));
   check('Und der andere Haken bleibt dabei unberuehrt',
-    checkCategory.checked === true &&
+    barOn(checkCategory) === 'Jeder' &&
     !sysDom.sent.some(g => g.body && g.body.categoriesFreeCreate !== undefined),
     JSON.stringify(sysDom.sent.map(g => g.body)));
   wSys.close();
@@ -143,10 +143,9 @@ async function run() {
   check('Ein Benutzer bekommt die Haken gar nicht erst zu sehen',
     !wSysU.document.getElementById('tag-free') && !wSysU.document.getElementById('cat-free'),
     'ein Haken steht auch ohne Adminrolle da');
-  // Ansehen darf jeder, nur die Bedienelemente fehlen.
-  check('Die Karten selbst bleiben ihm',
-    !!wSysU.document.getElementById('mtags') && !!wSysU.document.getElementById('mcats'),
-    'die Karten sind verschwunden');
+  check('Und die Karten selbst sieht er nicht',
+    !wSysU.document.getElementById('mtags') && !wSysU.document.getElementById('mcats'),
+    'die Karten stehen beim Benutzer');
   wSysU.close();
 
   group('Der Systembereich nach Rolle');
@@ -185,16 +184,16 @@ async function run() {
     `${dEig.text.length} · ${dAdm.text.length} · ${dUser.text.length} Zeichen`);
 
   const ALL_CARDS = [
-    ACCOUNT_CARD, 'Meine Sitzungen', 'Darstellung',
-    'Kategorien', 'Tags', 'Bewertung: Kriterien', 'Potenzial: Kriterien',
-    'Vokabular', 'Links', 'Suchmaschinen', 'Papierkorb',
+    ACCOUNT_CARD, 'Passwort', 'Meine Sitzungen', 'Darstellung', 'Detailansicht',
+    'Kategorien', 'Tags', 'Bewertung: Kriterien', 'Potenzial: Kriterien', 'Papierkorb',
     'Benutzer', 'Anfragen', 'Sicherheitsprotokoll', 'Mailversand',
-    'Kennzahlen', 'Bildformate', 'Grenzen beim Hochladen', 'Backup', 'Alte Backups', 'Export und Import',
-    'Titel', 'Sprachen'];
-  check('Die Eigentuemerin sieht alle dreiundzwanzig Karten',
+    'Kennzahlen', 'Speicher und Wartung', 'Bildformate', 'Grenzen beim Hochladen',
+    'Backup', 'Alte Backups', 'Export und Import',
+    'Titel', 'Sprachen', 'Vokabular', 'Suchmaschinen', 'Dokumente', 'Proxy', 'Version und Verschlüsselung'];
+  check('Die Eigentuemerin sieht alle achtundzwanzig Karten',
     equal(kEig, ALL_CARDS), kEig.join(' · '));
   // Prueft auch ALL_CARDS selbst: eine aus der Liste gestrichene Karte fiele sonst nicht auf.
-  check('Und es sind wirklich dreiundzwanzig', ALL_CARDS.length === 23 && kEig.length === 23,
+  check('Und es sind wirklich achtundzwanzig', ALL_CARDS.length === 28 && kEig.length === 28,
     `${ALL_CARDS.length} erwartet, ${kEig.length} gezeichnet`);
   /* `equal(kEig, ALL_CARDS)` schlaegt auch bei einer Verschiebung an; diese
      Pruefung nennt, welche Nachbarschaft verletzt ist. */
@@ -212,21 +211,23 @@ async function run() {
   /* ---- Abschnitte ---- */
   const tabWords = (d) => [...d.w.document.querySelectorAll('.sys-tab')]
     .map(a => a.textContent.trim());
-  check('Die Eigentuemerin bekommt fuenf Abschnitte',
-    equal(tabWords(rEig), ['Persönlich', 'Bestand', 'Benutzer', 'Datenbank', 'Installation']),
+  check('Die Eigentuemerin bekommt sechs Abschnitte',
+    equal(tabWords(rEig), ['Persönlich', 'Bestand', 'Benutzer', 'Datenbank', 'Backup', 'Installation']),
     tabWords(rEig).join(' · '));
-  check('Ein gewoehnlicher Benutzer bekommt nur die zwei, die etwas zu zeigen haben',
-    equal(tabWords(rUser), ['Persönlich', 'Bestand']), tabWords(rUser).join(' · '));
-  check('Und kein Abschnitt ist dabei leer',
-    dUser.tab.length === 2 && kUser.length === 8,
-    `${dUser.tab.length} Reiter, ${kUser.length} Karten`);
+  check('Der Admin bekommt fuenf, ohne „Backup“',
+    equal(tabWords(rAdm), ['Persönlich', 'Bestand', 'Benutzer', 'Datenbank', 'Installation']),
+    tabWords(rAdm).join(' · '));
+  check('Ein gewoehnlicher Benutzer bekommt nur „Persönlich“ und keine Leiste der Abschnitte',
+    tabWords(rUser).length === 0 && !rUser.w.document.getElementById('sys-tabs') &&
+    !rUser.w.document.getElementById('sys-toggle') && kUser.length === 5,
+    `${tabWords(rUser).join(' · ')} · ${kUser.length} Karten`);
   // Ohne eigene Adresse laesst sich kein Abschnitt verlinken, und die Zurueck-Taste bricht.
   check('Jeder Reiter traegt seine eigene Adresse',
     equal(dEig.tab, ['#/system/personal', '#/system/inventory', '#/system/users',
-                         '#/system/database', '#/system/installation']),
+                         '#/system/database', '#/system/backup', '#/system/installation']),
     dEig.tab.join(' · '));
   check('Und er ist ein Verweis und kein Knopf',
-    [...rEig.w.document.querySelectorAll('.sys-tab')].length === 5 &&
+    [...rEig.w.document.querySelectorAll('.sys-tab')].length === 6 &&
     [...rEig.w.document.querySelectorAll('.sys-tab')].every(a => a.tagName === 'A'),
     [...rEig.w.document.querySelectorAll('.sys-tab')].map(a => a.tagName).join(' · '));
   await sysSection(rUser.w, 'database');
@@ -238,28 +239,38 @@ async function run() {
   check('Und die Adresse wird dabei nachgezogen',
     rUser.w.location.hash === '#/system/personal', rUser.w.location.hash);
   /* Ohne diese Gegenlage belegte die Pruefung darueber nichts. */
-  await sysSection(rUser.w, 'inventory');
+  await sysSection(rAdm.w, 'inventory');
   check('Eine Adresse auf einen sichtbaren Abschnitt bleibt dagegen stehen',
-    rUser.w.location.hash === '#/system/inventory', rUser.w.location.hash);
+    rAdm.w.location.hash === '#/system/inventory', rAdm.w.location.hash);
+  await sysSection(rUser.w, 'inventory');
+  check('Und „Bestand“ ist fuer einen Benutzer unsichtbar',
+    rUser.w.location.hash === '#/system/personal', rUser.w.location.hash);
   /* `#/system` setzt der Knopf in der Kopfzeile. */
-  rUser.w.history.replaceState(null, '', '#/system');
-  await rUser.w.renderSystem();
-  await until(rUser.w, (x) => x.document.querySelector('.sys-tab.on')?.getAttribute('href') ===
+  rAdm.w.history.replaceState(null, '', '#/system');
+  await rAdm.w.renderSystem();
+  await until(rAdm.w, (x) => x.document.querySelector('.sys-tab.on')?.getAttribute('href') ===
     '#/system/personal' && openRequests(x) === 0, 2000, 'der erste Abschnitt');
   check('Und `#/system` ohne Abschnitt loest sich auf den ersten auf',
-    rUser.w.location.hash === '#/system/personal', rUser.w.location.hash);
+    rAdm.w.location.hash === '#/system/personal', rAdm.w.location.hash);
 
-  /* Mein Account, Meine Sitzungen, Darstellung und Links sind persoenlich; die
-     vier Listen sieht jeder, bedienen darf sie nur der Admin. */
-  check('Ein gewoehnlicher Benutzer sieht acht -- vier persoenliche, vier zum Nachsehen',
-    equal(kUser, [ACCOUNT_CARD, 'Meine Sitzungen', 'Darstellung',
-                   'Kategorien', 'Tags', 'Bewertung: Kriterien', 'Potenzial: Kriterien', 'Links']),
+  check('Ein gewoehnlicher Benutzer sieht fuenf Karten, alle persoenlich',
+    equal(kUser, [ACCOUNT_CARD, 'Passwort', 'Meine Sitzungen', 'Darstellung', 'Detailansicht']),
     kUser.join(' · '));
+  const afterOverview = rUser.sent.length;
+  await sysSection(rUser.w, 'personal');
+  const userGets = rUser.sent.slice(afterOverview)
+    .filter(g => (g.method || 'GET') === 'GET').map(g => g.url);
+  check('Und er holt dafuer keine Titel, Kategorien, Tags und Kriterien',
+    userGets.includes('/api/account') &&
+    !['/api/titles', '/api/product-categories', '/api/tags', '/api/criteria']
+      .some(u => userGets.includes(u)),
+    userGets.join(' · '));
 
   /* Je Karte eine Pruefung, damit die fehlende mit Namen gemeldet wird. */
   /* „Papierkorb": ansehen darf der Admin, handeln nur der Eigentuemer. */
-  for (const card of ['Titel', 'Kennzahlen', 'Vokabular', 'Benutzer', 'Suchmaschinen', 'Papierkorb',
-                       'Anfragen']) {
+  for (const card of ['Titel', 'Kennzahlen', 'Speicher und Wartung', 'Version und Verschlüsselung',
+                       'Vokabular', 'Benutzer', 'Suchmaschinen', 'Papierkorb', 'Anfragen',
+                       'Kategorien', 'Tags', 'Bewertung: Kriterien', 'Potenzial: Kriterien', 'Proxy']) {
     check(`Die Karte "${card}" steht nur beim Admin`,
       kAdm.includes(card) && !kUser.includes(card),
       `Admin: ${kAdm.includes(card)} · Benutzer: ${kUser.includes(card)}`);
@@ -276,14 +287,12 @@ async function run() {
   const kOut = (await sysPass(rOut)).cards;
   check('Ist die Selbstanmeldung aus und nichts offen, steht die Karte "Anfragen" trotzdem',
     kOut.includes('Anfragen'), kOut.join(' · '));
-  check('Und es sind auch dann dreiundzwanzig', kOut.length === 23 && equal(kOut, ALL_CARDS),
+  check('Und es sind auch dann achtundzwanzig', kOut.length === 28 && equal(kOut, ALL_CARDS),
     `${kOut.length} gezeichnet`);
   await sysSection(rOut.w, 'users');
-  check('Und der Schalter steht darin -- sonst kaeme man nie an ihn heran',
-    Boolean(rOut.w.document.getElementById('signup-toggle')), 'der Schalter fehlt');
-  check('Er bietet das Einschalten an',
-    /einschalten/.test(rOut.w.document.getElementById('signup-toggle')?.textContent || ''),
-    rOut.w.document.getElementById('signup-toggle')?.textContent || '');
+  check('Ohne Mailversand steht statt eines gesperrten Schalters der Grund darin',
+    !rOut.w.document.getElementById('signup-toggle') && !!rOut.w.document.getElementById('signup-notready'),
+    `${!!rOut.w.document.getElementById('signup-toggle')} ${!!rOut.w.document.getElementById('signup-notready')}`);
   check('Die Liste bleibt dabei leer, statt eine Zeile zu erfinden',
     (rOut.w.document.getElementById('mrequests')?.textContent || '').trim() === '',
     rOut.w.document.getElementById('mrequests')?.textContent || '');
@@ -292,11 +301,14 @@ async function run() {
       requests: [{ id: 11, username: 'neuling', email: 'neuling@beispiel.de',
                    created_at: '2026-08-20 09:00:00', confirmed_at: '2026-08-20 09:05:00' }] });
   await sysSection(rOutIncludingRows.w, 'users');
+  check('Mit Mailversand steht der Schalter darin und bietet das Einschalten an',
+    /einschalten/.test(rOutIncludingRows.w.document.getElementById('signup-toggle')?.textContent || ''),
+    rOutIncludingRows.w.document.getElementById('signup-toggle')?.textContent || '(kein Schalter)');
   check('Bei ausgeschaltetem Schalter mit offenen Anfragen steht die Liste darin',
     [...rOutIncludingRows.w.document.querySelectorAll('#mrequests .mrow')].length === 1,
     `${[...rOutIncludingRows.w.document.querySelectorAll('#mrequests .mrow')].length} Zeilen`);
 
-  for (const card of [ACCOUNT_CARD, 'Meine Sitzungen', 'Darstellung', 'Links']) {
+  for (const card of [ACCOUNT_CARD, 'Passwort', 'Meine Sitzungen', 'Darstellung']) {
     check(`Die Karte "${card}" steht jedem, auch ohne Rolle`,
       kUser.includes(card) && kEig.includes(card), kUser.join(' · '));
   }
@@ -312,10 +324,10 @@ async function run() {
     rUser.w.document.getElementById('app')?.textContent?.slice(0, 80));
 
   const statsCard = (d) => [...d.w.document.querySelectorAll('.sys-grid > .sys-card')]
-    .find(c => c.querySelector('h3')?.textContent.trim() === 'Kennzahlen');
-  await sysSection(rAdm.w, 'database');
+    .find(c => c.querySelector('h3')?.textContent.trim() === 'Version und Verschlüsselung');
+  await sysSection(rAdm.w, 'installation');
   const admCard = statsCard(rAdm);
-  check('Die Karte Kennzahlen ist für den Admin überhaupt da', !!admCard,
+  check('Die Karte „Version und Verschlüsselung“ ist für den Admin überhaupt da', !!admCard,
     kAdm.join(' · '));
   check('Sie trägt eine Zeile mit der Beschriftung Fingerprint',
     [...(admCard?.querySelectorAll('.kv') || [])]
@@ -332,8 +344,8 @@ async function run() {
 
   const rVok = await buildSystem({ isAdmin: false, isOwner: false,
     vocabulary: { entryMany: 'Geräte' } });
-  /* Die Karte „Kategorien" im Abschnitt „Bestand" nennt die Mehrzahl aus dem Vokabular. */
-  await sysSection(rVok.w, 'inventory');
+  /* „Darstellung" nennt die Mehrzahl aus dem Vokabular. */
+  await sysSection(rVok.w, 'personal');
   check('Das Vokabular wird trotzdem ausgeliefert und benutzt',
     /Geräte/.test(rVok.w.document.getElementById('app')?.textContent || ''),
     'die Beschriftung folgt dem Vokabular nicht');
@@ -356,9 +368,9 @@ async function run() {
   check('Und der Druck speichert sie wirklich',
     rSent?.body?.font === 120, JSON.stringify(rSent));
 
-  /* Karte „Links": die persoenliche Haelfte bleibt, die Haelfte fuer den Admin fehlt. */
-  await sysSection(rUser.w, 'inventory');
-  await sysSection(rAdm.w, 'inventory');
+  /* Die Linkzeilen stehen in „Darstellung"; die Suchmaschinen nur beim Admin. */
+  await sysSection(rUser.w, 'personal');
+  await sysSection(rAdm.w, 'installation');
   check('Die Zahl der Anbieternamen bleibt dem Benutzer',
     !!rUser.w.document.getElementById('snames') &&
     rUser.w.document.querySelectorAll('#snames .pill').length > 0);
@@ -380,17 +392,27 @@ async function run() {
   check('Sie nennt AUTH_RESET nicht mehr',
     !!rUserCard && !/AUTH_RESET/.test(rUserCard.textContent || ''),
     rUserCard?.textContent?.slice(0, 200));
+  const rUserPassword = [...rUser.w.document.querySelectorAll('.sys-card')]
+    .find(k => k.querySelector('h3')?.textContent.trim() === 'Passwort');
   check('Beim gewoehnlichen Benutzer steht der Wirtsbefehl nicht mehr da',
-    !!rUserCard && !/usertool\.js password/.test(rUserCard.textContent || ''),
-    rUserCard?.textContent?.slice(0, 300));
+    !!rUserPassword && !/usertool\.js password/.test(rUserPassword.textContent || ''),
+    rUserPassword?.textContent?.slice(0, 300));
   check('Sondern der Satz, der ihm wirklich hilft',
     !!rUserCard && /Link zum Zurücksetzen des Passworts geschickt werden/.test(rUserCard.textContent || ''),
     rUserCard?.textContent?.slice(0, 300));
+  check('Und statt des Befehls in der Karte „Passwort“ der Hinweis auf einen Admin',
+    !!rUserPassword && D.shows(rUserPassword.textContent, 'card.passwordAskAdmin'),
+    rUserPassword?.textContent?.slice(-220));
+  rUser.w.showAgainCodes(['1111-2222', '3333-4444']);
+  const rCodes = rUser.w.document.getElementById('two-factor-codebox');
+  check('Bei den Wiederherstellungscodes ebenso: der Hinweis statt des Befehls',
+    !!rCodes && D.shows(rCodes.textContent, 'card.twoFactorAskAdmin') && !/usertool\.js/.test(rCodes.textContent),
+    rCodes?.textContent?.slice(-220) || '(kein Kasten)');
   {
     await sysSection(rEig.w, 'personal');
     const eigUser = [...rEig.w.document.querySelectorAll('.sys-card')]
-      .find(k => k.querySelector('h3')?.textContent.trim() === ACCOUNT_CARD);
-    check('Beim Eigentuemer steht er sehr wohl — im Kasten „Auf dem Server"',
+      .find(k => k.querySelector('h3')?.textContent.trim() === 'Passwort');
+    check('Beim Eigentuemer steht er sehr wohl — in der Karte „Passwort“ im Kasten „Auf dem Server"',
       !!eigUser && /usertool\.js password/.test(eigUser.textContent || ''),
       eigUser?.textContent?.slice(0, 300));
   }
@@ -414,6 +436,18 @@ async function run() {
   check('Als eine von genau vieren, und alle vier namentlich',
     equal(rWidth, ['Benutzer', 'Anfragen', 'Sicherheitsprotokoll', 'Mailversand']),
     JSON.stringify(rWidth));
+  await sysSection(rEig.w, 'installation');
+  check('Unter „Installation“ ist „Vokabular“ die breite Karte',
+    equal([...rEig.w.document.querySelectorAll('.sys-grid > .sys-card.wide')]
+      .map(k => k.querySelector('h3')?.textContent.trim()), ['Vokabular']),
+    [...rEig.w.document.querySelectorAll('.sys-grid > .sys-card.wide h3')].map(h => h.textContent).join(' · '));
+  await sysSection(rAdm.w, 'inventory');
+  check('Den Modus „Potenzial“ sieht der Admin als Satz, ohne gesperrtes Kaestchen',
+    !rAdm.w.document.getElementById('pot-mode') &&
+    D.shows(rAdm.w.document.getElementById('app')?.textContent, 'card.potentialModeOwner'),
+    String(!!rAdm.w.document.getElementById('pot-mode')));
+  await sysSection(rAdm.w, 'installation');
+  await sysSection(rEig.w, 'users');
   const rNarrow = [...rEig.w.document.querySelectorAll('.sys-grid > .sys-card')]
     .filter(k => !k.classList.contains('wide'))
     .map(k => k.querySelector('h3')?.textContent.trim());
@@ -440,11 +474,7 @@ async function run() {
     'die breite Kachel ist ans Ende gewandert');
 
   /* ---- Trennlinien in den Linkkarten ---- */
-  await sysSection(rUser.w, 'inventory');
-  check('Die Karte "Links" traegt einen abgesetzten Abschnitt',
-    rUser.w.document.querySelectorAll('.sys-card .sys-part').length > 0,
-    `${rUser.w.document.querySelectorAll('.sys-card .sys-part').length} Abschnitte`);
-  check('Und die Karte "Suchmaschinen" ebenfalls',
+  check('Die Karte "Suchmaschinen" traegt einen abgesetzten Abschnitt',
     [...rAdm.w.document.querySelectorAll('.sys-card')]
       .filter(k => k.querySelector('h3')?.textContent.trim() === 'Suchmaschinen')
       .some(k => k.querySelector('.sys-part')),
@@ -499,8 +529,9 @@ async function run() {
   check('Sie nennt den Mindestwert aus der Antwort',
     /Mindestens 10 Zeichen/.test(eiGood.w.document.body.textContent),
     eiGood.w.document.body.textContent.slice(0, 400));
-  check('Und sie sagt, dass alle anderen Geraete abgemeldet werden',
-    /auf allen anderen Geräten abgemeldet/.test(eiGood.w.document.body.textContent),
+  // Ein neuer Account ist nirgends angemeldet; der Satz gilt nur beim Ruecksetzen.
+  check('Die Einladung sagt nichts vom Abmelden anderer Geraete',
+    !/auf allen anderen Geräten abgemeldet/.test(eiGood.w.document.body.textContent),
     eiGood.w.document.body.textContent.slice(0, 400));
   /* Der Text haengt davon ab, ob der Zugang schon ein Passwort hat, nicht vom
      Anlass des Links. */
@@ -534,9 +565,9 @@ async function run() {
   check('Und sagt, was nach der Frist zu tun ist',
     /danach\s+brauchst du einen neuen vom Admin/i.test(eiGood.w.document.body.textContent),
     eiGood.w.document.body.textContent.slice(0, 600));
-  check('Und dass das Setzen die anderen Geraete abmeldet — 0.22.0',
-    /Nach dem Setzen wirst du auf allen anderen Geräten abgemeldet/.test(eiGood.w.document.body.textContent),
-    eiGood.w.document.body.textContent.slice(0, 600));
+  check('Beim Ruecksetzen sagt sie, dass das Setzen die anderen Geraete abmeldet — 0.22.0',
+    /Nach dem Setzen wirst du auf allen anderen Geräten abgemeldet/.test(eiBack.w.document.body.textContent),
+    eiBack.w.document.body.textContent.slice(0, 600));
   check('Und der Satz, der dasselbe zweimal sagte, steht nicht mehr da',
     !/Seit dem ersten Öffnen läuft eine Frist/.test(eiGood.w.document.body.textContent),
     eiGood.w.document.body.textContent.slice(0, 600));
@@ -931,13 +962,14 @@ async function run() {
   await until(zkOut.w, (x) => x.document.querySelector('.sys-grid') && openRequests(x) === 0,
     2000, 'der neu gezeichnete Systembereich');
   const zkBlock = () => zkOut.w.document.getElementById('two-factor-block');
-  check('Der Block steht in der Karte "Mein Account" und nicht in einer eigenen',
-    Boolean(zkBlock()) && zkBlock().closest('.sys-card')?.querySelector('h3')?.textContent === ACCOUNT_CARD,
+  check('Der Block steht in „Mein Account“ unter „Zweiter Faktor“',
+    Boolean(zkBlock()) && zkBlock().closest('.sys-card')?.querySelector('h3')?.textContent === 'Mein Account' &&
+    zkBlock().previousElementSibling?.textContent === 'Zweiter Faktor',
     zkBlock()?.closest('.sys-card')?.querySelector('h3')?.textContent || '(kein Block)');
   /* sysPass zaehlt ueber alle Abschnitte; sichtbar ist immer nur einer. */
   const zkAll = (await sysPass(zkOut)).cards;
-  check('Und die Zahl der Karten bleibt bei dreiundzwanzig',
-    zkAll.length === 23, `${zkAll.length}: ${zkAll.join(' · ')}`);
+  check('Und die Zahl der Karten bleibt bei achtundzwanzig',
+    zkAll.length === 28, `${zkAll.length}: ${zkAll.join(' · ')}`);
   await sysSection(zkOut.w, 'personal');
   check('Der Zustand "aus" steht ohne Klick da',
     /Zweiter Faktor: aus/.test(zkBlock()?.textContent || ''), zkBlock()?.textContent?.slice(0, 90));
@@ -1301,8 +1333,8 @@ async function run() {
     cap: 20, hours: 24, requests: [
       { id: 11, username: 'neuling', email: 'neuling@beispiel.de',
         created_at: '2026-08-20 09:00:00', confirmed_at: '2026-08-20 09:05:00' }] });
-  check('Ohne Versand ist der Einschaltknopf gesperrt',
-    kNotReady.w.document.getElementById('signup-toggle')?.disabled === true,
+  check('Ohne Versand steht kein Einschaltknopf da, auch kein gesperrter',
+    !kNotReady.w.document.getElementById('signup-toggle'),
     String(kNotReady.w.document.getElementById('signup-toggle')?.disabled));
   check('Und die Karte sagt, was dafuer fehlt',
     /Mailzugang/.test(kNotReady.w.document.getElementById('signup-notready')?.textContent || ''),
@@ -1378,9 +1410,9 @@ async function run() {
   check('Die Frist kommt vom Server und wird nicht nachgerechnet',
     /30 Tagen/.test(msCard(msuEig)?.textContent || ''),
     msCard(msuEig)?.textContent?.slice(-260));
-  check('Die Karte sagt offen, dass sie das Geraet nicht kennt',
-    /Gerät und\s+Ort werden nicht gespeichert/.test(msCard(msuEig)?.querySelector('.desc')?.textContent || ''),
-    msCard(msuEig)?.querySelector('.desc')?.textContent);
+  check('Die Karte sagt offen, dass sie das Geraet nicht kennt; als Rest unter dem Satz',
+    /Gerät und\s+Ort werden nicht gespeichert/.test(msCard(msuEig)?.querySelector('.more-text')?.textContent || ''),
+    msCard(msuEig)?.querySelector('.more-text')?.textContent);
 
   const msuOne = await msSystem({ isAdmin: true, isOwner: true },
     { sessionsInventory: [{ id: 'a'.repeat(64), loggedInAt: '2026-08-20 08:00:00',
@@ -1815,8 +1847,8 @@ async function run() {
     check('Kein Vorgang steht als roher Schluessel am Bildschirm',
       wRaw.length === 0, wRaw.map(z => z.dataset.event).join(' '));
     /* `active` und `locked` haben kein eigenes Wort; es steht schon im Vorgang
-       („Zugang gesperrt", „Zugang freigegeben"). */
-    const wWithoutEvent = ['active', 'locked'];
+       („Zugang gesperrt", „Zugang freigegeben"). `daily` steht beim Urheber. */
+    const wWithoutEvent = ['active', 'locked', 'daily'];
     const wZeilen2 = wListen.DETAILS.filter(m => !wWithoutEvent.includes(m))
       .map((detail, i) => ({ id: 200 + i, at: '2026-08-24 09:00:00', event: 'user.self',
         actor: 1, actorName: 'chefin', target: 1, targetName: 'chefin', detail }));
@@ -2006,7 +2038,7 @@ async function run() {
      geprueft wird bis zum Dialog und der Abbruch. */
   {
     const d = await ziSystem({ isAdmin: true, isOwner: true });
-    await sysSection(d.w, 'database');
+    await sysSection(d.w, 'backup');
     const exNo = d.w.document.getElementById('ex-no');
     exNo?.dispatchEvent(new d.w.MouseEvent('click', { bubbles: true }));
     await until(d.w, (x) => !exNo || x.document.querySelector('.backdrop'), 2000, 'der Hinweis auf den Lauf');
@@ -2036,7 +2068,7 @@ async function run() {
   }
   {
     const d = await ziSystem({ isAdmin: true, isOwner: true });
-    await sysSection(d.w, 'database');
+    await sysSection(d.w, 'backup');
     const exNo = d.w.document.getElementById('ex-no');
     exNo?.dispatchEvent(new d.w.MouseEvent('click', { bubbles: true }));
     await until(d.w, (x) => !exNo || x.document.querySelector('.backdrop'), 2000, 'der Hinweis auf den Lauf');
@@ -2101,15 +2133,15 @@ async function run() {
     const kind = d.w.document.getElementById('user-kind');
     const button = d.w.document.getElementById('user-create');
     const pass = d.w.document.getElementById('user-pass');
-    check('Das Auswahlfeld steht im Formular', !!kind, 'kein Auswahlfeld');
+    check('Die Leiste der Art steht im Formular', !!kind, 'keine Leiste');
     check('Und es gibt nur EINEN Anlegeknopf',
       !!button && d.w.document.querySelectorAll('.user-new .btn').length === 1,
       `${d.w.document.querySelectorAll('.user-new .btn').length} Knoepfe`);
+    const kinds = () => [...(kind?.querySelectorAll('[data-kind]') || [])];
     check('Es traegt genau die zwei Betriebsarten',
-      equal([...kind.options].map(o => o.value), ['link', 'passwort']),
-      JSON.stringify([...(kind?.options || [])].map(o => o.value)));
+      equal(kinds().map(b => b.dataset.kind), ['link', 'passwort']), JSON.stringify(kinds().map(b => b.dataset.kind)));
     /* Beim Link erfaehrt der Admin das Passwort nie. */
-    check('Die Vorgabe ist der Link', kind.value === 'link', kind.value);
+    check('Die Vorgabe ist der Link', kind.querySelector('.pill.on')?.dataset.kind === 'link', kind.querySelector('.pill.on')?.dataset.kind);
     check('Und das Passwortfeld steht dabei nicht da',
       pass.hidden === true, `hidden=${pass.hidden}`);
     check('Der Knopf sagt, was er tun wird',
@@ -2122,16 +2154,14 @@ async function run() {
     check('Und zwar ohne eine eigene Regel fuer diesen Kasten daneben',
       !/\.user-new \[hidden\] \{/.test(ziCss), 'die alte oertliche Regel steht noch da');
 
-    kind.value = 'password';
-    kind.dispatchEvent(new d.w.Event('change'));
+    kind.querySelector('[data-kind="passwort"]').onclick();
     check('Nach der Wahl "ich vergebe eins" erscheint das Passwortfeld',
       pass.hidden === false, `hidden=${pass.hidden}`);
     check('Und der Knopf spricht nicht mehr vom Link',
       !button.textContent.includes('Link'), button.textContent);
 
     pass.value = 'heimlich-getipptes';
-    kind.value = 'link';
-    kind.dispatchEvent(new d.w.Event('change'));
+    kind.querySelector('[data-kind="link"]').onclick();
     check('Zurueck beim Link verschwindet das Feld wieder',
       pass.hidden === true, `hidden=${pass.hidden}`);
     check('Und was darin stand, ist geleert',
@@ -2163,9 +2193,7 @@ async function run() {
 
   {
     const d = await ziSystem({ isAdmin: true, isOwner: true });
-    const kind = d.w.document.getElementById('user-kind');
-    kind.value = 'password';
-    kind.dispatchEvent(new d.w.Event('change'));
+    d.w.document.querySelector('#user-kind [data-kind="passwort"]')?.onclick();
     setField(d.w.document, 'user-name', 'mitpasswort');
     setField(d.w.document, 'user-pass', 'ein-passwort-1');
     const createButton = d.w.document.getElementById('user-create');
@@ -2240,17 +2268,19 @@ async function run() {
   }
   {
     const d = await ziSystem({ isAdmin: false, isOwner: false });
-    setField(d.w.document, 'acc-old', DOM_PASSWORD);
     setField(d.w.document, 'acc-mail', 'neue@beispiel.de');
     const saveButton = d.w.document.getElementById('acc-save');
     saveButton?.dispatchEvent(new d.w.MouseEvent('click', { bubbles: true }));
+    await until(d.w, (x) => !!x.document.getElementById('confirm-pass'), 2000, 'die Rueckfrage nach dem Passwort');
+    setField(d.w.document, 'confirm-pass', DOM_PASSWORD);
+    d.w.document.querySelector('.modal [data-yes]')?.dispatchEvent(new d.w.MouseEvent('click', { bubbles: true }));
     await until(d.w, (x) => !saveButton || (d.sent.some(g => g.method === 'PUT' && g.url === '/api/account') &&
       openRequests(x) === 0), 2000, 'die neu gezeichnete Karte „Mein Account“');
     const put = d.sent.find(x => x.method === 'PUT' && x.url === '/api/account');
     check('Der Knopf schickt die Adresse mit',
       put?.body?.email === 'neue@beispiel.de', JSON.stringify(put?.body));
-    check('Und das bisherige Passwort daneben',
-      put?.body?.oldPassword === DOM_PASSWORD, 'das bisherige Passwort fehlt');
+    check('Und das Passwort aus der Rueckfrage daneben, ohne neues Passwort',
+      put?.body?.oldPassword === DOM_PASSWORD && !('newPassword' in (put?.body || {})), JSON.stringify(put?.body));
     /* Der Mock uebernimmt die Aenderung; sonst liesse sich ein Neuzeichnen nicht
        von einer stehengebliebenen Karte unterscheiden. */
     check('Und die Karte zeigt danach die neue Adresse',
@@ -2261,10 +2291,12 @@ async function run() {
     // Ein leeres Feld, das als „unveraendert" gelesen wird, liesse eine Adresse
     // nie wieder entfernen.
     const d = await ziSystem({ isAdmin: false, isOwner: false });
-    setField(d.w.document, 'acc-old', DOM_PASSWORD);
     setField(d.w.document, 'acc-mail', '');
     const saveButton = d.w.document.getElementById('acc-save');
     saveButton?.dispatchEvent(new d.w.MouseEvent('click', { bubbles: true }));
+    await until(d.w, (x) => !!x.document.getElementById('confirm-pass'), 2000, 'die Rueckfrage nach dem Passwort');
+    setField(d.w.document, 'confirm-pass', DOM_PASSWORD);
+    d.w.document.querySelector('.modal [data-yes]')?.dispatchEvent(new d.w.MouseEvent('click', { bubbles: true }));
     await until(d.w, (x) => !saveButton || (d.sent.some(g => g.method === 'PUT' && g.url === '/api/account') &&
       openRequests(x) === 0), 2000, 'die neu gezeichnete Karte „Mein Account“');
     const put = d.sent.find(x => x.method === 'PUT' && x.url === '/api/account');
@@ -2328,8 +2360,8 @@ async function run() {
     check('Und nennt den Grund',
       /braucht sie, um gültige Links zu erzeugen/.test(k?.textContent || ''),
       k?.textContent?.slice(0, 900));
-    check('Die Stelle traegt die rote Auszeichnung',
-      !!k?.querySelector('.mail-off'), 'keine Auszeichnung');
+    check('Mit eingerichtetem Mailzugang traegt die Stelle die rote Auszeichnung',
+      !!k?.querySelector('.mail-bad'), 'keine Auszeichnung');
     d.w.close();
   }
   {
@@ -2744,16 +2776,20 @@ async function run() {
 
   {
     await sysSection(pkuEig.w, 'database');
-    const card = [...pkuEig.w.document.querySelectorAll('.sys-grid > .sys-card')]
-      .find(c => c.querySelector('h3')?.textContent.trim() === 'Kennzahlen');
-    check('Die Karte Kennzahlen ist ueberhaupt da', !!card);
-    const row = [...(card?.querySelectorAll('.kv') || [])]
+    const storage = [...pkuEig.w.document.querySelectorAll('.sys-grid > .sys-card')]
+      .find(c => c.querySelector('h3')?.textContent.trim() === 'Speicher und Wartung');
+    check('Die Karte „Speicher und Wartung“ ist ueberhaupt da', !!storage);
+    const row = [...(storage?.querySelectorAll('.kv') || [])]
       .find(z => z.querySelector('.k')?.textContent.trim() === 'Papierkorb');
     check('Sie traegt eine Zeile mit der Beschriftung Papierkorb', !!row,
-      [...(card?.querySelectorAll('.kv .k') || [])].map(k => k.textContent.trim()).join(' · '));
+      [...(storage?.querySelectorAll('.kv .k') || [])].map(k => k.textContent.trim()).join(' · '));
     check('Und darin stehen Zahl und Groesse aus der Antwort',
       /^2 · 2,5 KB$/.test(row?.querySelector('.v')?.textContent?.trim() || ''),
       row?.querySelector('.v')?.textContent);
+
+    await sysSection(pkuEig.w, 'installation');
+    const card = [...pkuEig.w.document.querySelectorAll('.sys-grid > .sys-card')]
+      .find(c => c.querySelector('h3')?.textContent.trim() === 'Version und Verschlüsselung');
 
     const kvRow = (k) => [...(card?.querySelectorAll('.kv') || [])]
       .find(z => z.querySelector('.k')?.textContent.trim() === k);
@@ -2799,9 +2835,9 @@ async function run() {
     /* Ohne Angaben vom Server fehlt der Abschnitt, statt vier Zeilen mit Gedankenstrichen. */
     const withoutVerf = await pkSystem({ isAdmin: true, isOwner: true },
       { statsMethod: null });
-    await sysSection(withoutVerf.w, 'database');
+    await sysSection(withoutVerf.w, 'installation');
     const kWithout = [...withoutVerf.w.document.querySelectorAll('.sys-grid > .sys-card')]
-      .find(c => c.querySelector('h3')?.textContent.trim() === 'Kennzahlen');
+      .find(c => c.querySelector('h3')?.textContent.trim() === 'Version und Verschlüsselung');
     check('Ohne Verfahrensangaben steht der Abschnitt gar nicht da',
       !!kWithout && ![...kWithout.querySelectorAll('.sys-sub')]
         .some(u => u.textContent.trim() === 'Verfahren'),
@@ -2862,9 +2898,9 @@ async function run() {
       ['png', 'webp-lossless', 'webp-lossy'].every(k =>
         storeRows.some(z => z.getAttribute('data-store') === k)),
       storeRows.map(z => z.getAttribute('data-store')).join(' · '));
-    check('Jede Zeile traegt einen Knopf „Standard"',
-      storeRows.every(z => (z.querySelector('.sdefault')?.textContent || '').trim() === 'Standard'),
-      storeRows.map(z => z.querySelector('.sdefault')?.textContent).join(' · '));
+    check('Jede Zeile traegt einen Auswahlpunkt unter „Standard"',
+      storeRows.every(z => !!z.querySelector('.sdefault .sdot') && /: Standard$/.test(z.querySelector('.sdefault').getAttribute('aria-label') || '')),
+      storeRows.map(z => z.querySelector('.sdefault')?.getAttribute('aria-label')).join(' · '));
     const onButtons = storeRows.filter(z => z.querySelector('.sdefault.on'));
     check('Und genau einer davon steht an', onButtons.length === 1,
       `${onButtons.length} angeschaltet`);
@@ -2875,9 +2911,9 @@ async function run() {
       ?.textContent.replace(/\s+/g, ' ') || '';
     check('„PNG" sagt, dass nicht konvertiert wird',
       /keine Konvertierung/.test(storeText('png')), storeText('png'));
-    check('„WebP verlustfrei" nennt sich die Vorgabe',
-      /WebP verlustfrei/.test(storeText('webp-lossless')) &&
-      /Vorgabe/.test(storeText('webp-lossless')), storeText('webp-lossless'));
+    check('„WebP verlustfrei" nennt sich verlustfrei; „Standard“ steht nur im Kopf',
+      /WebP verlustfrei — verlustfrei/.test(storeText('webp-lossless')) &&
+      !/Vorgabe/.test(storeText('webp-lossless')), storeText('webp-lossless'));
     check('„WebP verlustbehaftet" nennt die Zwischenablage und die Einschraenkung',
       D.shows(storeText('webp-lossy'), 'card.storeLossy') &&
       D.shows(storeText('webp-lossy'), 'card.storeLossyHint'), storeText('webp-lossy'));
@@ -3058,6 +3094,12 @@ async function run() {
       baRows(baCard(baAdm)).join(' · '));
     check('Aber keinen Schalter', !baAdm.w.document.getElementById('convert-images'));
     check('Und keinen Knopf', !baAdm.w.document.getElementById('convert-run'));
+    const baLimits = [...baAdm.w.document.querySelectorAll('.sys-grid > .sys-card')]
+      .find(c => c.querySelector('h3')?.textContent.trim() === 'Grenzen beim Hochladen');
+    check('Die Grenzen beim Hochladen stehen fuer den Admin als Text, ohne gesperrtes Feld',
+      !baAdm.w.document.querySelector('[data-limit]') && (baLimits?.querySelectorAll('.kv').length || 0) === 7 &&
+      D.shows(baLimits?.textContent, 'card.limitsOwner'),
+      `${baLimits?.querySelectorAll('.kv').length} Zeilen, Feld: ${!!baAdm.w.document.querySelector('[data-limit]')}`);
     baAdm.w.close();
   }
 
@@ -3065,7 +3107,7 @@ async function run() {
 
   const siSystem = async (roles, opt = {}) => {
     const d = await pkSystem(roles, opt);
-    await sysSection(d.w, 'database');
+    await sysSection(d.w, 'backup');
     return d;
   };
   const siCard = (d) => [...d.w.document.querySelectorAll('.sys-grid > .sys-card')]
@@ -3082,23 +3124,30 @@ async function run() {
     siEig.sent.some(x => x.url === '/api/backup'),
     siEig.sent.map(x => x.url).join(' · '));
 
-  /* Ein Ort im Arbeitsverzeichnis wird nicht abgewiesen, nur benannt. */
+  /* Ein Ort im Projektordner wird nicht abgewiesen, nur benannt; ohne Befund steht nichts da. */
   const siState = (d) => d.w.document.getElementById('backup-place');
-  check('Die Karte sagt, wie der Sicherungsort liegt', !!siState(siEig),
-    siCard(siEig)?.innerHTML?.slice(0, 300));
-  check('Ausserhalb des Arbeitsverzeichnisses ist der Kasten gruen',
-    siState(siEig)?.classList.contains('ok-box') === true &&
-    siState(siEig)?.classList.contains('warn-box') === false,
-    siState(siEig)?.className);
-  check('Und er sagt, was daran gut ist',
-    /außerhalb des Projektordners/.test(siState(siEig)?.textContent || '') &&
-    /bei Updates unberührt/.test(siState(siEig)?.textContent || ''),
-    siState(siEig)?.textContent);
+  check('Ausserhalb und auf einem anderen Datentraeger steht nichts zur Lage',
+    !siState(siEig) && !siCard(siEig)?.querySelector('.ok-box'), siState(siEig)?.outerHTML || '');
+  {
+    const placeOf = async (inWorkDir, sameDisk) => {
+      const d = await siSystem({ isAdmin: true, isOwner: true },
+        { backupStatus: { configured: true, root: '/app/backup', filePath: '/app/backup', inWorkDir, sameDisk,
+          dbBytes: 1048576, durationSeconds: 1, reachable: true, number: 0, last: null } });
+      return siState(d);
+    };
+    const same = await placeOf(false, true), open = await placeOf(null, null), both = await placeOf(true, true);
+    check('Derselbe Datentraeger: ein Satz ohne Kasten, mit `data/`',
+      same?.tagName === 'P' && same.classList.contains('desc') && D.shows(same.textContent.replace('data/', '{word}'), 'card.backupSameDisk'),
+      same?.outerHTML || '(nichts)');
+    check('Nicht zu vergleichen: keine Aussage zur Lage', !open, open?.outerHTML || '');
+    check('Im Projektordner nur die Warnung, ohne den Satz zum Datentraeger',
+      both?.classList.contains('warn-box') && !/Datenträger wie/.test(both.textContent), both?.textContent);
+  }
 
   {
     const siInn = await siSystem({ isAdmin: true, isOwner: true },
-      { backupStatus: { configured: true, root: '/app/sicherung', place: '',
-        filePath: '/app/sicherung', inWorkDir: true, dbBytes: 1048576,
+      { backupStatus: { configured: true, root: '/app/sicherung',
+        filePath: '/app/sicherung', inWorkDir: true, sameDisk: true, dbBytes: 1048576,
         durationSeconds: 1, reachable: true, number: 0, last: null } });
     const box = siState(siInn);
     check('Im Arbeitsverzeichnis ist der Kasten rot', !!box &&
@@ -3112,8 +3161,8 @@ async function run() {
       /docker-compose\.yml/.test(box?.textContent || ''), box?.textContent);
     /* Der Kasten ist eine Auskunft, keine Absage. */
     check('Der Knopf steht trotzdem da', !!siInn.w.document.getElementById('backup-run'));
-    check('Und das Feld fuer den Zielort auch',
-      !!siInn.w.document.getElementById('backup-dir'));
+    check('Und kein Feld fuer einen Unterordner',
+      !siInn.w.document.getElementById('backup-dir'));
   }
 
 
@@ -3121,7 +3170,7 @@ async function run() {
      niemand), gruen mit einer juengeren Kopie, sonst rot. */
   {
     const siStatusIncluding = (extraEnv) => ({
-      configured: true, root: '/sicherung', place: 'taeglich', filePath: '/sicherung/taeglich',
+      configured: true, root: '/sicherung', filePath: '/sicherung',
       inWorkDir: false, dbBytes: 52428800, durationSeconds: 1,
       reachable: true, number: 3,
       last: { file: 'kriterion-2026-08-20-03-00-00.sqlite', bytes: 52428800,
@@ -3192,8 +3241,8 @@ async function run() {
   check('Die Karte „Backup" sagt, was das Backup ist — 0.22.0',
     /vollständige, verschlüsselte\s+Sicherung der Datenbank/.test(siCard(siEig)?.textContent || ''),
     siCard(siEig)?.textContent?.slice(0, 200));
-  check('Und sagt, dass sie nur in dieselbe Programmversion zurueckgeht — 0.22.0',
-    /nur in dieselbe Programmversion zurückspielen/.test(siCard(siEig)?.textContent || ''),
+  check('Und sagt, womit sie zurueckgeht: ./backuptool.sh auf dem Server',
+    /Zurückgespielt wird auf dem Server mit \.\/backuptool\.sh\./.test(siCard(siEig)?.textContent || ''),
     siCard(siEig)?.textContent?.slice(0, 400));
 
   /* Ohne den Schluessel aus der .env ist die Kopie wertlos; der Hinweis steht deshalb am Knopf. */
@@ -3206,9 +3255,8 @@ async function run() {
   check('Die Karte nennt den eingerichteten Ort',
     /\/backup/.test(siCard(siEig)?.textContent || ''),
     siCard(siEig)?.textContent?.slice(0, 400));
-  check('Das Feld traegt das eingestellte Unterverzeichnis',
-    siEig.w.document.getElementById('backup-dir')?.value === 'taeglich',
-    siEig.w.document.getElementById('backup-dir')?.value);
+  check('Ein Feld fuer einen Unterordner gibt es nicht',
+    !siEig.w.document.getElementById('backup-dir') && !siEig.w.document.getElementById('backup-dir-save'), 'das Feld steht da');
   check('Das letzte Backup steht mit seinen Tagen da',
     /vor 3 Tagen/.test(siCard(siEig)?.textContent || ''),
     siCard(siEig)?.textContent?.slice(0, 600));
@@ -3221,13 +3269,13 @@ async function run() {
     /ist Kriterion kurz nicht\s+erreichbar/.test(siCard(siEig)?.textContent || ''),
     siCard(siEig)?.textContent?.slice(0, 700));
   check('Und nennt die erwartete Dauer aus der Antwort',
-    /etwa\s+1 Sekunden/.test(siCard(siEig)?.textContent || ''),
+    /etwa\s+1 Sekunde\./.test(siCard(siEig)?.textContent || ''),
     siCard(siEig)?.textContent?.slice(0, 700));
 
   {
     const d = await siSystem({ isAdmin: true, isOwner: true },
       { backupStatus: { configured: false, reason: 'Es ist kein Backup-Ordner eingerichtet. ' +
-        'Die docker-compose.yml hängt ihn ein.', place: '', dbBytes: 1, durationSeconds: 1,
+        'Die docker-compose.yml hängt ihn ein.', dbBytes: 1, durationSeconds: 1,
         reachable: false, last: null } });
     check('Ohne eingerichteten Ort steht die Karte trotzdem da', !!siCard(d));
     check('Und sagt, warum sie nicht kann',
@@ -3241,19 +3289,7 @@ async function run() {
 
   {
     const d = await siSystem({ isAdmin: true, isOwner: true },
-      { backupStatus: { configured: true, root: '/sicherung', place: 'weg',
-        error: 'Den Unterordner „weg“ gibt es im Backup-Ordner nicht.',
-        dbBytes: 1024, durationSeconds: 1, reachable: false, last: null } });
-    check('Ein Zielort mit Fehler bekommt keine Zahl, sondern die Begruendung',
-      /gibt es im Backup-Ordner nicht/.test(siCard(d)?.textContent || ''),
-      siCard(d)?.textContent?.slice(0, 400));
-    check('Und nirgends steht "vor 0 Tagen"',
-      !/vor \d+ Tag/.test(siCard(d)?.textContent || ''),
-      siCard(d)?.textContent?.slice(0, 400));
-  }
-  {
-    const d = await siSystem({ isAdmin: true, isOwner: true },
-      { backupStatus: { configured: true, root: '/sicherung', place: '',
+      { backupStatus: { configured: true, root: '/sicherung',
         filePath: '/sicherung', dbBytes: 1024, durationSeconds: 1, reachable: true,
         last: null, number: 0 } });
     check('Ein leerer Ort sagt, dass dort noch kein Backup liegt',
@@ -3274,40 +3310,11 @@ async function run() {
       /kriterion-2026-08-23-19-00-00\.sqlite/.test(d.w.document.querySelector('.toast')?.textContent || ''),
       d.w.document.querySelector('.toast')?.textContent);
     check('Und die Karte zeichnet sich mit dem neuen Stand neu',
-      /vor 0 Tagen/.test(siCard(d)?.textContent || ''),
+      /heute/.test(siCard(d)?.textContent || ''),
       siCard(d)?.textContent?.slice(0, 600));
     check('Die Zahl der Dateien am Ort waechst mit',
       /kriterion-2026-08-23-19-00-00/.test(siCard(d)?.textContent || ''),
       siCard(d)?.textContent?.slice(0, 600));
-  }
-
-  {
-    const d = await siSystem({ isAdmin: true, isOwner: true });
-    if (d.w.document.getElementById('backup-dir')) setField(d.w.document, 'backup-dir', 'woechentlich');
-    const siDirs = () => d.sent.filter(g => g.method === 'PUT' && g.url === '/api/backup/dir').length;
-    const siSave = d.w.document.getElementById('backup-dir-save');
-    siSave?.dispatchEvent(new d.w.MouseEvent('click', { bubbles: true }));
-    await until(d.w, (x) => !siSave || (siDirs() === 1 && openRequests(x) === 0),
-      2000, 'die Antwort auf den Zielort');
-    check('Der Zielort geht mit dem eingetippten Wert hinaus',
-      d.sent.some(x => x.method === 'PUT' && x.url === '/api/backup/dir' &&
-        x.body?.place === 'woechentlich'),
-      d.sent.slice(-3).map(x => `${x.method} ${x.url} ${JSON.stringify(x.body)}`).join(' · '));
-    check('Und die Karte traegt ihn danach',
-      d.w.document.getElementById('backup-dir')?.value === 'woechentlich',
-      d.w.document.getElementById('backup-dir')?.value);
-
-    if (d.w.document.getElementById('backup-dir')) setField(d.w.document, 'backup-dir', '../raus');
-    const siSave2 = d.w.document.getElementById('backup-dir-save');
-    siSave2?.dispatchEvent(new d.w.MouseEvent('click', { bubbles: true }));
-    await until(d.w, (x) => !siSave2 || (siDirs() === 2 && openRequests(x) === 0),
-      2000, 'die Absage zum Zielort');
-    check('Eine Absage des Servers wird gesagt',
-      /Unterordner liegt im eingerichteten Backup-Ordner/.test(d.w.document.querySelector('.toast')?.textContent || ''),
-      d.w.document.querySelector('.toast')?.textContent);
-    check('Und der Ort bleibt der alte',
-      d.w.document.getElementById('backup-dir')?.value === '../raus',
-      d.w.document.getElementById('backup-dir')?.value);
   }
 
 
@@ -3338,7 +3345,7 @@ async function run() {
       affected: matched.has(z.file), outdated: old.has(z.file) }));
   };
   const afStatus = (extraEnv = {}, cleanupExtra = {}) => ({
-    configured: true, root: '/sicherung', place: 'taeglich', filePath: '/sicherung/taeglich',
+    configured: true, root: '/sicherung', filePath: '/sicherung',
     inWorkDir: false, dbBytes: 52428800, durationSeconds: 1, reachable: true, number: 5,
     last: { file: AF_COPIES[0].file, bytes: 52428800, at: AF_COPIES[0].at,
               daysAgo: 0, outdated: false },
@@ -3372,7 +3379,7 @@ async function run() {
     afRows(afEig).map(z => (z.match(/^#(\d+)/) || [])[1]).join(' '));
   /* Groesse vor Alter: mit „prüfen" daneben fehlen der Zeile am Telefon 24 px. */
   check('Je Zeile Datum, Groesse und Alter',
-    /^#1 · 03\.09\.2026, \d{2}:\d{2}.*50,0 MB · vor 0 Tagen/.test(afRows(afEig)[0]),
+    /^#1 · 03\.09\.2026, \d{2}:\d{2}.*50,0 MB · heute/.test(afRows(afEig)[0]),
     afRows(afEig)[0]);
   /* Der Dateiname ist die Zeitmarke; die Zeile nennt Datum und Uhrzeit. */
   check('Und kein Dateiname',
@@ -3392,10 +3399,10 @@ async function run() {
      noch Zusammenfassung und beide Knoepfe. */
   check('Die Liste traegt ihren eigenen Deckel von fuenf Zeilen',
     !!afEig.w.document.getElementById('cleanup-list') &&
-    /#cleanup-list \{ flex: none; max-height: 13\.98rem; \}/.test(afStyle),
+    /#cleanup-list \{ flex: none; max-height: 19\.58rem; \}/.test(afStyle),
     (afStyle.match(/#cleanup-list[^\n]*/) || ['(keine Regel)'])[0]);
   check('Und die Rechnung dahinter steht im Stilblatt',
-    /5 x 41,92( px)? \/ 15 = 13,973/.test(afStyle), 'die Rechnung fehlt');
+    /5 x 58,73( px)? \/ 15 = 19,578/.test(afStyle), 'die Rechnung fehlt');
 
   /* ---- Schalter und Felder ---- */
   check('Der Schalter steht auf aus',
@@ -3533,6 +3540,9 @@ async function run() {
       afRows(d).filter(z => /löschen/i.test(z)).length === 3 &&
       afRows(d).length === 5,
       afRows(d).join(' · '));
+    check('Das Feld bleibt beim Tippen stehen: dasselbe Element, Fokus und Speichern beim Verlassen bleiben',
+      !!afKeep && d.w.document.getElementById('cleanup-keep') === afKeep && afKeep.value === '2',
+      String(d.w.document.getElementById('cleanup-keep') === afKeep));
     check('Und gespeichert wurde dabei nichts',
       !d.sent.some(x => x.method === 'PUT' && x.url === '/api/settings') &&
       !d.sent.some(x => x.url === '/api/backup/cleanup'),
@@ -3589,8 +3599,8 @@ async function run() {
     check('Mit Bestaetigung geht das Loeschen hinaus',
       outcome.length === 1 && outcome[0].method === 'POST' && outcome[0].body?.kind === 'rule',
       d.sent.slice(-3).map(x => `${x.method} ${x.url} ${JSON.stringify(x.body)}`).join(' · '));
-    check('Und der Rumpf traegt genau ein Feld, und das ist die Art',
-      equal(Object.keys(outcome[0]?.body || {}), ['kind']),
+    check('Und der Rumpf traegt die Art und die angezeigten Werte',
+      equal(outcome[0]?.body, { kind: 'rule', keep: 3, days: 30 }),
       JSON.stringify(outcome[0]?.body));
     check('Eine Meldung nennt, wie viele wirklich geloescht wurden',
       /2 Backups gelöscht/.test(d.w.document.querySelector('.toast')?.textContent || ''),

@@ -203,9 +203,11 @@ async function check0311() {
       'card.off':         'Zustandswort einer Kennzeile',
       'card.on':          'Zustandswort einer Kennzeile',
       'entry.none':       'Eintrag der Kategorieauswahl',
+      'entry.sumNone':    'Kurzfassung eines leeren Blocks',
       'list.less':        'Beschriftung des Tagwolkenknopfes',
       'list.more':        'Beschriftung des Tagwolkenknopfes',
       'list.or':          'Beschriftung eines Filterknopfes',
+      'list.shareNone':   'Beschriftung eines Filterknopfes',
       'list.tagModeAnd':  'Beschriftung eines Filterknopfes',
       'list.without':     'Beschriftung eines Filterknopfes'
     };
@@ -705,8 +707,8 @@ async function check0313() {
     /* Zahl und Wort setzt countWord() im Code zusammen; die Sprachdatei allein
        zeigt den Fehler nicht. */
     const TR_COUNTED_PAIRS = [['dialog.comment', 'dialog.comments'],
-      ['dialog.link', 'dialog.links'], ['dialog.file', 'dialog.files'],
-      ['list.photo', 'list.photos'], ['list.video', 'list.videos']];
+      ['dialog.link', 'dialog.links'], ['dialog.file', 'dialog.files'], ['dialog.folder', 'dialog.folders'],
+      ['list.photo', 'list.photos'], ['list.video', 'list.videos'], ['list.audio', 'list.audios']];
     const tgCountCalls = /countWord\([^,]+,\s*(?:t\('([^']+)'\)|V\.(\w+))\s*,\s*(?:t\('([^']+)'\)|V\.(\w+))\)/g;
     const tgPairsInCode = new Set();
     let tgCall, tgCallCount = 0;
@@ -714,14 +716,15 @@ async function check0313() {
       tgCallCount++;
       if (tgCall[1] && tgCall[3]) tgPairsInCode.add(`${tgCall[1]}/${tgCall[3]}`);
     }
-    const TR_COUNTWORD_CALLS = 14;
+    const TR_COUNTWORD_CALLS = 18;
     check(`Der Zaehlerhelfer steht wirklich im Quelltext — ${TR_COUNTWORD_CALLS} Rufe`,
       tgCallCount === TR_COUNTWORD_CALLS, `${tgCallCount} Rufe`);
     const tgStillPlural = TR_COUNTED_PAIRS.filter(([, many]) =>
-      new RegExp(`[${TR_LETTERS}]*(?:ler|lar)$`).test(String(tgFiles.tr[many])));
-    check('Und die fuenf Paare tragen ihre Mehrzahl — seit 0.31.4 an der richtigen Stelle gelesen',
-      tgStillPlural.length === 5 && tgPairsInCode.size === 5,
-      `${tgStillPlural.length} von 5 · im Quelltext ${tgPairsInCode.size} Paare: ${[...tgPairsInCode].join(' ')}`);
+      // „ses dosyaları“: bei zusammengesetzten Woertern folgt der Mehrzahl das Possessivsuffix.
+      new RegExp(`[${TR_LETTERS}]*(?:ler|lar)[ıi]?$`).test(String(tgFiles.tr[many])));
+    check('Und die sieben Paare tragen ihre Mehrzahl — seit 0.31.4 an der richtigen Stelle gelesen',
+      tgStillPlural.length === 7 && tgPairsInCode.size === 7,
+      `${tgStillPlural.length} von 7 · im Quelltext ${tgPairsInCode.size} Paare: ${[...tgPairsInCode].join(' ')}`);
     check('Und das Vokabelpaar an derselben Stelle traegt zwei Woerter — `counted()` nimmt dort die Einzahl',
       tgFiles.tr['vocabulary.ratingOne'] !== tgFiles.tr['vocabulary.ratingMany'] &&
       /counted\(n, V\.ratingOne, V\.ratingMany\)/.test(tgApp),
@@ -882,11 +885,11 @@ async function check0314() {
       /(?:^|[^\p{L}])(?:her|kaç)\s+\{(\w*Many)\}/u.test('her {entryMany} için') &&
       !/(?:^|[^\p{L}])(?:her|kaç)\s+\{(\w*Many)\}/u.test('her {entryOne} için'),
       'der Leser sieht die Nachbarschaft nicht');
-    const AN_SINGULAR_SENTENCES = ['card.blocksHint', 'card.criteriaAdminHint',
+    const AN_SINGULAR_SENTENCES = ['card.blocksHint',
       'card.criteriaTip', 'card.orderAppliesNote', 'list.showAll'];
     const anNotOne = AN_SINGULAR_SENTENCES.filter(k => !/\{entryOne\}/.test(String(anFiles.tr[k])));
-    check(`Und die fuenf Saetze, die sie verlangen, tragen {entryOne} — ${AN_SINGULAR_SENTENCES.length}`,
-      anNotOne.length === 0, anNotOne.join(' ') || 'alle fuenf');
+    check(`Und die vier Saetze, die sie verlangen, tragen {entryOne} — ${AN_SINGULAR_SENTENCES.length}`,
+      anNotOne.length === 0, anNotOne.join(' ') || 'alle vier');
 
     /* tgPlaces in check0313() laesst Einzahl und Mehrzahl eines Worts tauschen;
        hier wird geprueft, dass der Tausch im Paar bleibt. */
@@ -954,8 +957,8 @@ async function check0314() {
         anPairSeen.add(name);
         anPairs.push([name, one, many]);
       }
-      const AN_PAIRS_EXPECTED = 6;
-      check('Und die Zaehlerpaare kommen aus dem Quelltext — die fuenf Wortpaare und ein Vokabelpaar',
+      const AN_PAIRS_EXPECTED = 8;
+      check('Und die Zaehlerpaare kommen aus dem Quelltext — die sieben Wortpaare und ein Vokabelpaar',
         anPairs.length === AN_PAIRS_EXPECTED,
         `${anPairs.length} Paare: ${anPairs.map(([n]) => n).join(' · ')}`);
       for (const [name, one, many] of anPairs)

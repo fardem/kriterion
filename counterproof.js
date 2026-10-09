@@ -221,9 +221,9 @@ const REGRESSIONS = [
   {
     nr: '29', name: 'Das Adressfeld am eigenen Zugang schickt nichts mehr mit',
     file: 'public/app.js',
-    search: "        oldPassword: old, username: name, newPassword: new1, email: address",
-    replacement: "        oldPassword: alt, username: name, newPassword: neu1",
-    expected: 'Die eigene Adresse in der Karte „Zugang“'
+    search: "{ oldPassword: e.password, username: name, email: address }",
+    replacement: "{ oldPassword: e.password, username: name }",
+    expected: 'Die eigene Adresse in der Karte „Mein Account“'
   },
   {
     nr: '30', name: 'Die Frist steht nicht mehr auf der Einladungsseite',
@@ -339,15 +339,15 @@ const REGRESSIONS = [
   {
     nr: '44', name: 'Der Schalter laesst sich ohne oeffentliche Adresse einschalten',
     file: 'server.js',
-    search: "  if (!mailTestState(raw)) return { ok: false, key: 'server.noTestMail' };\n  if (!PUBLIC.address)",
-    replacement: "  if (!mailTestState(raw)) return { ok: false, key: 'server.noTestMail' };\n  if (false)",
+    search: "  if (!mailTestState(raw)) return { ok: false, key: self ? 'server.noTestMailSelf' : 'server.noTestMail' };\n  if (!PUBLIC.address)",
+    replacement: "  if (!mailTestState(raw)) return { ok: false, key: self ? 'server.noTestMailSelf' : 'server.noTestMail' };\n  if (false)",
     expected: 'Die Selbstanmeldung: der Schalter braucht drei Dinge'
   },
   {
     nr: '46', name: 'Ausschalten wird an dieselbe Bedingung gehaengt wie Einschalten',
     file: 'server.js',
-    search: "  if (an) {\n    const b = deliveryReady();",
-    replacement: "  if (true) {\n    const b = versandBereit();",
+    search: "  if (an) {\n    const b = deliveryReady(isOwner(req));",
+    replacement: "  if (true) {\n    const b = deliveryReady(isOwner(req));",
     expected: 'Die Selbstanmeldung: der Schalter aus'
   },
   {
@@ -704,22 +704,22 @@ const REGRESSIONS = [
     nr: '96', name: 'Die Benutzernummer im zweiten Schritt kommt aus dem Rumpf',
     file: 'server.js',
     search: "  const id = auth.useLoginTicket(ticket);",
-    replacement: "  const id = Number((req.body || {}).id) || auth.useLoginTicket(ausweis);",
+    replacement: "  const id = Number((req.body || {}).id) || auth.useLoginTicket(ticket);",
     expected: 'Der zweite Faktor: ohne Code kommt niemand herein'
   },
   /* ---- Der zweite Faktor: die Bremse ---- */
   {
     nr: '97', name: 'Die Bremse fehlt am zweiten Schritt',
     file: 'server.js',
-    search: "  const throttle = auth.checkThrottle(ip, null);\n  if (throttle.blocked) {\n    return res.status(429).json({\n      error: t(localeOf(req), 'server.throttled', { seconds: throttle.retryInSec })});\n  }\n  if (throttle.delayMs) await new Promise(r => setTimeout(r, throttle.delayMs));\n  const id = auth.useLoginTicket(ticket);",
-    replacement: "  const id = auth.useLoginTicket(ausweis);",
+    search: "  const throttle = auth.checkThrottle(ip, null);\n  if (throttle.blocked) {\n    return throttled(req, res, throttle);\n  }\n  if (throttle.delayMs) await new Promise(r => setTimeout(r, throttle.delayMs));\n  const id = auth.useLoginTicket(ticket);",
+    replacement: "  const id = auth.useLoginTicket(ticket);",
     expected: 'Der zweite Faktor: die Anmeldebremse greift am zweiten Schritt'
   },
   {
     nr: '123', name: 'Die Bremse steht wieder HINTER dem Ausweis',
     file: 'server.js',
-    search: "  const throttle = auth.checkThrottle(ip, null);\n  if (throttle.blocked) {\n    return res.status(429).json({\n      error: t(localeOf(req), 'server.throttled', { seconds: throttle.retryInSec })});\n  }\n  if (throttle.delayMs) await new Promise(r => setTimeout(r, throttle.delayMs));\n  const id = auth.useLoginTicket(ticket);\n  if (!id) {\n    auth.noteFailure(ip, null);\n    return res.status(401).json({ error: t(localeOf(req), 'server.sessionExpired')});\n  }",
-    replacement: "  const id = auth.useLoginTicket(ausweis);\n  if (!id) {\n    auth.noteFailure(ip, null);\n    return res.status(401).json({ error: t(localeOf(req), 'server.sessionExpired')});\n  }\n  const bremse = auth.checkThrottle(ip, null);\n  if (bremse.blocked) {\n    return res.status(429).json({\n      error: t(localeOf(req), 'server.throttled', { seconds: bremse.retryInSec })});\n  }\n  if (bremse.delayMs) await new Promise(r => setTimeout(r, bremse.delayMs));",
+    search: "  const throttle = auth.checkThrottle(ip, null);\n  if (throttle.blocked) {\n    return throttled(req, res, throttle);\n  }\n  if (throttle.delayMs) await new Promise(r => setTimeout(r, throttle.delayMs));\n  const id = auth.useLoginTicket(ticket);\n  if (!id) {\n    auth.noteFailure(ip, null);\n    return res.status(401).json({ error: t(localeOf(req), 'server.sessionExpired')});\n  }",
+    replacement: "  const id = auth.useLoginTicket(ticket);\n  if (!id) {\n    auth.noteFailure(ip, null);\n    return res.status(401).json({ error: t(localeOf(req), 'server.sessionExpired')});\n  }\n  const throttle = auth.checkThrottle(ip, null);\n  if (throttle.blocked) {\n    return throttled(req, res, throttle);\n  }\n  if (throttle.delayMs) await new Promise(r => setTimeout(r, throttle.delayMs));",
     expected: 'Der zweite Faktor: die Anmeldebremse greift am zweiten Schritt'
   },
   {
@@ -821,7 +821,7 @@ const REGRESSIONS = [
   {
     nr: '110', name: 'Ausschalten geht ohne Code',
     file: 'server.js',
-    search: "  if (!await ownPasswordMatches(req, res, password)) return;\n  if (!auth.checkTwoFactor(req.user.id, code))\n    return res.status(403).json({ error: t(localeOf(req), auth.TWO_FACTOR_DENIAL)});\n  auth.turnTwoFactorOff(req.user.id, req.user.id);",
+    search: "  if (!await ownPasswordMatches(req, res, password)) return;\n  if (!ownCodeMatches(req, res, code)) return;\n  auth.turnTwoFactorOff(req.user.id, req.user.id);",
     replacement: "  if (!await ownPasswordMatches(req, res, passwort)) return;\n  auth.turnTwoFactorOff(req.user.id, req.user.id);",
     expected: 'Der zweite Faktor: der Rundlauf'
   },
@@ -859,7 +859,7 @@ const REGRESSIONS = [
   /* ---- Der zweite Faktor: die Tabellen und die Oberflaeche ---- */
   {
     nr: '115', name: 'Der Index auf zweifaktor_codes wird nicht mehr angelegt',
-    file: 'db.js',
+    file: 'schema.js',
     search: 'CREATE INDEX IF NOT EXISTS idx_two_factor_codes_user ON two_factor_codes(user_id);',
     replacement: '',
     expected: 'Der zweite Faktor: die Tabellen legen sich selbst an'
@@ -1001,8 +1001,8 @@ const REGRESSIONS = [
   {
     nr: '736', name: 'Der Sprachwechsel nimmt das Vokabular nicht mit',
     file: 'public/app.js',
-    search: "          takeVocabulary((await api('PUT', '/api/settings', { language: a.code })));",
-    replacement: "          await api('PUT', '/api/settings', { language: a.code });",
+    search: "        takeVocabulary((await api('PUT', '/api/settings', { language: code })));",
+    replacement: "        await api('PUT', '/api/settings', { language: code });",
     expected: 'Die Kacheln und der Leser — 0.24.4'
   },
   {
@@ -1133,15 +1133,15 @@ const REGRESSIONS = [
   {
     nr: '150', name: 'Der Titelvergleich achtet wieder auf Gross- und Kleinschreibung',
     file: 'public/app.js',
-    search: "const titleCore = (raw) => String(raw || '').toLocaleLowerCase(LOCALE).replace(",
-    replacement: "const titleCore = (roh) => String(roh || '').replace(",
+    search: "const titleWords = (raw) => String(raw || '').toLocaleLowerCase(LOCALE)",
+    replacement: "const titleWords = (raw) => String(raw || '')",
     expected: 'Doppelte Eintraege beim Anlegen'
   },
   {
     nr: '151', name: 'Der Hinweis greift erst ab acht Zeichen',
     file: 'public/app.js',
-    search: "const SIMILAR_DIALOG = 4;",
-    replacement: "const SIMILAR_DIALOG = 8;",
+    search: "const SIMILAR_WORD = 4, SIMILAR_START = 5;",
+    replacement: "const SIMILAR_WORD = 8, SIMILAR_START = 5;",
     expected: 'Doppelte Eintraege beim Anlegen'
   },
   {
@@ -1289,16 +1289,16 @@ const REGRESSIONS = [
   {
     nr: '172', name: 'Die Vorschaubilder werden mitgezaehlt, obwohl sie nie mitgehen',
     file: 'server.js',
-    search: "      `SELECT COALESCE(SUM(length(data)),0) n FROM photos WHERE kind != 'video'`));",
-    replacement: "      `SELECT COALESCE(SUM(length(data) + COALESCE(length(thumb),0)),0) n FROM photos WHERE art != 'video'`));",
-    expected: 'Videos: Kennzahlen und Austausch'
+    search: "    exportPhotoBytes += z.o;",
+    replacement: "    exportPhotoBytes += z.o + z.n * 1000;",
+    expected: 'Audio bei den Fotos: Zaehlung'
   },
   {
     nr: '174', name: 'Der Warnwert liegt auf der Grenze statt darunter',
     file: 'server.js',
     search: 'const EXCHANGE_WARN = 300 * 1024 * 1024;',
-    replacement: 'const EXCHANGE_WARN = EXCHANGE_MAX;',
-    expected: 'Die Exportgroesse sagt sich an'
+    replacement: 'const EXCHANGE_WARN = 483183799;',
+    expected: 'Videos am Fotoplatz'
   },
   {
     nr: '175', name: 'Die Videos zaehlen auch ohne Fotos mit',
@@ -1377,10 +1377,10 @@ const REGRESSIONS = [
     expected: 'Der Export in Teilen'
   },
   {
-    nr: '185', name: 'Ein zu grosser Eintrag wird still uebergangen',
+    nr: '185', name: 'Ein Eintrag ueber der Teilgroesse teilt sich einen Teil',
     file: 'server.js',
-    search: "    if (reason + b > EXCHANGE_MAX) { tooBig.push({ id: z.id, title: z.title, bytes: reason + b }); continue; }",
-    replacement: '    if (grund + b > EXCHANGE_MAX) { continue; }',
+    search: "    if (!open || open.bytes + b > targetSize) {",
+    replacement: '    if (!open || (open.bytes + b > targetSize && b <= targetSize)) {',
     expected: 'Der Export in Teilen'
   },
   {
@@ -1538,8 +1538,8 @@ const REGRESSIONS = [
   {
     nr: '207', name: 'Sortieren und Ansichten bekommen wieder je eine Zeile',
     file: 'public/app.js',
-    search: "  const r5 = r4;\n  secondLabel(r5, t('list.views'));",
-    replacement: "  const r5 = row(t('list.views'));",
+    search: "  const r5 = r4;\n  const viewsGroup = secondLabel(r5, t('list.views')).parentNode;",
+    replacement: "  const r5 = row(t('list.views'));\n  const viewsGroup = r5;",
     expected: 'Die Filterleiste wird kuerzer — 0.13.0'
   },
   {
@@ -1632,7 +1632,7 @@ const REGRESSIONS = [
   /* ---- Die drei Spalten und der Migrationsblock ---- */
   {
     nr: '224', name: 'Die drei Spalten stehen nicht mehr in der DDL',
-    file: 'db.js',
+    file: 'schema.js',
     search: "  rejected_at TEXT,\n  rejected_reason TEXT,",
     replacement: "",
     expected: 'Der Hinweis auf einen unvollstaendigen Bestand — 0.33.0'
@@ -1698,7 +1698,7 @@ const REGRESSIONS = [
   {
     nr: '233', name: 'Die Formatnummer bleibt auf 15',
     file: 'server.js',
-    search: "const EXCHANGE_FORMAT = 19;",
+    search: "const EXCHANGE_FORMAT = 23;",
     replacement: "const EXCHANGE_FORMAT = 15;",
     expected: 'Die Entscheidung wird mitgeschrieben — 0.14.0'
   },
@@ -1772,16 +1772,15 @@ const REGRESSIONS = [
   {
     nr: '243', name: 'Die Aussage verliert ihren Verfasser',
     file: 'public/app.js',
-    search: "    if (item.rejectedAuthor && multipleUsers())\n" +
-      "      parts.push(`von ${authorName(item.rejectedAuthor)}`);",
-    replacement: "",
+    search: "    const who = item.rejectedAuthor && multipleUsers() ? authorName(item.rejectedAuthor) : '';",
+    replacement: "    const who = '';",
     expected: 'Die Aussage an der Marke — 0.14.0'
   },
   {
     nr: '247', name: 'Der Name steht auch bei einem einzigen Zugang da',
     file: 'public/app.js',
-    search: "    if (item.rejectedAuthor && multipleUsers())",
-    replacement: "    if (item.rejectedAuthor)",
+    search: "    const who = item.rejectedAuthor && multipleUsers() ?",
+    replacement: "    const who = item.rejectedAuthor ?",
     expected: 'Die Aussage an der Marke — 0.14.0'
   },
   {
@@ -1842,8 +1841,8 @@ const REGRESSIONS = [
        davor. */
     nr: '254', name: 'Die zweite Gruppe ist nicht abgesetzt',
     file: 'public/app.js',
-    search: "  secondLabel(r1, t('list.rejection'));",
-    replacement: "  // zweiteBeschriftung(r1, t('list.rejection'));",
+    search: "  secondLabel(r1, t('list.rejection')).parentNode.appendChild(",
+    replacement: "  r1.appendChild(",
     expected: 'Der Filter „abgelehnt" — 0.15.0'
   },
   {
@@ -2127,7 +2126,7 @@ const REGRESSIONS = [
   {
     nr: '292', name: 'Die Zeilen der Tafel fuehren nicht mehr zum Eintrag',
     file: 'public/app.js',
-    search: "      a.href = `#/item/${it.id}`;\n      a.dataset.mid = String(it.id);",
+    search: "      a.href = entryAddress(it.id, '', it.first);\n      a.dataset.mid = String(it.id);",
     replacement: "      a.href = '#/';\n      a.dataset.mid = String(it.id);",
     expected: 'Die Glocke in der Kopfzeile'
   },
@@ -2155,7 +2154,7 @@ const REGRESSIONS = [
   {
     nr: '296', name: 'Der Papierkorb loescht wieder ohne Rueckfrage',
     file: 'public/app.js',
-    search: "    if (!await confirmBox(t('entry.deleteWordAsk', { word: word }), t('entry.deleteHint', { word: word }))) return false;",
+    search: "    if (!await confirmBox(t('entry.deleteWordAsk', { word: word }), t('entry.deleteHint', { word: word }), t('dialog.delete'), 'danger')) return false;",
     replacement: "    if (false) return false;",
     expected: 'Der Papierkorb im Vollbild'
   },
@@ -2329,8 +2328,8 @@ const REGRESSIONS = [
   {
     nr: '319', name: 'Die Tafel ordnet nach den Kommentaren statt nach der Summe',
     file: 'public/app.js',
-    search: "    .slice().sort((a, b) => (freshCount(b) - freshCount(a)) || String(a.title).localeCompare(String(b.title), LOCALE));",
-    replacement: "    .slice().sort((a, b) => ((b.neuKommentare || 0) - (a.neuKommentare || 0)) || String(a.title).localeCompare(String(b.title), LOCALE));",
+    search: "    .sort((a, b) => (b.fresh - a.fresh) || String(a.title).localeCompare(String(b.title), LOCALE));",
+    replacement: "    .sort((a, b) => ((state.all.find(i => i.id === b.id)?.newComments || 0) - (state.all.find(i => i.id === a.id)?.newComments || 0)) || String(a.title).localeCompare(String(b.title), LOCALE));",
     expected: 'Die Glocke in der Kopfzeile'
   },
 
@@ -2338,8 +2337,8 @@ const REGRESSIONS = [
   {
     nr: '320', name: 'Die Tafel sagt nicht mehr, von wem etwas kommt',
     file: 'public/app.js',
-    search: "    a.querySelector('.bell-from').textContent = newFromWords(it);",
-    replacement: "    a.querySelector('.bell-from').textContent = '';",
+    search: "      a.querySelector('.bell-from').textContent = it.from;",
+    replacement: "      a.querySelector('.bell-from').textContent = '';",
     expected: 'Die Glocke in der Kopfzeile'
   },
   {
@@ -2453,8 +2452,8 @@ const REGRESSIONS = [
   {
     nr: '335', name: 'Der Absatz richtet sich nicht mehr nach der Selbstanmeldung',
     file: 'public/app.js',
-    search: "        <p class=\"desc\" style=\"margin:0 0 10px\">${SIGNUP",
-    replacement: "        <p class=\"desc\" style=\"margin:0 0 10px\">${false",
+    search: "        ${setting('', tH('card.resetMailHint'), SIGNUP ?",
+    replacement: "        ${setting('', tH('card.resetMailHint'), false ?",
     expected: 'Der Zugangstext sagt, was gilt — 0.17.1'
   },
   {
@@ -2539,15 +2538,15 @@ const REGRESSIONS = [
   {
     nr: '351', name: 'Die uebernommene Stelle wird nicht gesetzt',
     file: 'public/app.js',
-    search: "        player.currentTime = handover.position;\n",
+    search: "        videoPlayer.currentTime = handover.position;\n",
     replacement: "",
     expected: 'Genau ein Abspieler laeuft — 0.17.1'
   },
   {
     nr: '352', name: 'Der Rueckweg beim Schliessen faellt weg',
     file: 'public/app.js',
-    search: "    hold();\n    restore();\n    lightboxOpen = false;",
-    replacement: "    halteAn();\n    lightboxOpen = false;",
+    search: "    hold();\n    restore();\n    shown?.(null);\n    lightboxOpen = false;",
+    replacement: "    halteAn();\n    shown?.(null);\n    lightboxOpen = false;",
     expected: 'Genau ein Abspieler laeuft — 0.17.1'
   },
   {
@@ -2591,8 +2590,8 @@ const REGRESSIONS = [
   {
     nr: '363', name: 'Die Begruendung zum fehlenden Adressfeld steht wieder in der Karte',
     file: 'public/languages/de.json',
-    search: "\"card.testMailGoesHint\": \"Die Testmail geht **ausschließlich an die Adresse deines eigenen Accounts**. Antwortet der Mailserver nicht, bricht der",
-    replacement: "\"card.testMailGoesHint\": \"Die Testmail geht an deinen Account — es gibt kein Adressfeld daneben, und zwar mit Absicht: ein Knopf, der an eine beliebige Adresse schickt, wäre ein offener Mailverteiler hinter einer Anmeldung. Antwortet der Mailserver nicht, bricht der",
+    search: "\"card.testMailGoesHint\": \"Die Testmail geht **ausschließlich an die Adresse deines eigenen Accounts**.\"",
+    replacement: "\"card.testMailGoesHint\": \"Die Testmail geht an deinen Account — es gibt kein Adressfeld daneben, und zwar mit Absicht: ein Knopf, der an eine beliebige Adresse schickt, wäre ein offener Mailverteiler hinter einer Anmeldung.\"",
     expected: 'Die Karte „Mailversand“'
   },
   {
@@ -2919,8 +2918,8 @@ const REGRESSIONS = [
   {
     nr: '408', name: 'Die Trefferzeile rutscht ueber den Titel',
     file: 'public/app.js',
-    search: "      <h3 class=\"card-title\">${esc(it.title)}</h3>\n      ${findingRow}",
-    replacement: "      ${findingRow}\n      <h3 class=\"card-title\">${esc(it.title)}</h3>",
+    search: "      <h3 class=\"card-title\" title=\"${esc(it.title)}\">${esc(it.title)}</h3>\n      ${findingRow}",
+    replacement: "      ${findingRow}\n      <h3 class=\"card-title\" title=\"${esc(it.title)}\">${esc(it.title)}</h3>",
     expected: 'Die Trefferzeile an der Kachel'
   },
   {
@@ -2968,16 +2967,16 @@ const REGRESSIONS = [
   {
     nr: '415', name: 'Nur die erste Fundstelle wird hervorgehoben',
     file: 'public/app.js',
-    search: "    from = i + b.length;\n  }",
-    replacement: "    von = i + b.length;\n    break;\n  }",
+    search: "    from = end;\n    at = i + b.length;\n  }",
+    replacement: "    from = end;\n    at = i + b.length;\n    break;\n  }",
     expected: 'Die Hervorhebung in der Uebersicht'
   },
   {
     /* Als Muster gelesen findet ein eingegebener Punkt jedes Zeichen. */
     nr: '416', name: 'Der Begriff wird als Muster gelesen',
     file: 'public/app.js',
-    search: "    const i = lower.indexOf(lowerB, from);",
-    replacement: "    const i = klein.slice(von).search(new RegExp(kleinB, 'i')) < 0 ? -1 : von + klein.slice(von).search(new RegExp(kleinB, 'i'));",
+    search: "    const i = flat.indexOf(b, at);",
+    replacement: "    const i = flat.slice(at).search(new RegExp(b, 'i')) < 0 ? -1 : at + flat.slice(at).search(new RegExp(b, 'i'));",
     expected: 'Die Hervorhebung in der Uebersicht'
   },
   {
@@ -3211,7 +3210,7 @@ const REGRESSIONS = [
     /* Derselbe Suchtext wie 233; geprueft wird hier die Exportdatei. */
     nr: '448', name: 'Die Formatnummer bleibt bei 15, obwohl das Faelligkeitsdatum mitgeht',
     file: 'server.js',
-    search: "const EXCHANGE_FORMAT = 19;",
+    search: "const EXCHANGE_FORMAT = 23;",
     replacement: "const EXCHANGE_FORMAT = 15;",
     expected: 'Die Exportdatei'
   },
@@ -3276,8 +3275,8 @@ const REGRESSIONS = [
   {
     nr: '457', name: 'Schalter und Knopf stehen jedem Admin',
     file: 'public/app.js',
-    search: "        ${OWNER ? `\n        ${/* Knopf „Standard\" je Zeile",
-    replacement: "        ${true ? `\n        ${/* Knopf „Standard\" je Zeile",
+    search: "        ${OWNER ? `\n        <h4 class=\"sys-sub\">${tH('card.storeMethod')}</h4>",
+    replacement: "        ${true ? `\n        <h4 class=\"sys-sub\">${tH('card.storeMethod')}</h4>",
     expected: 'Die Bildablage in der Oberflaeche'
   },
 
@@ -3306,8 +3305,8 @@ const REGRESSIONS = [
   {
     nr: '462', name: 'Der Knopf sucht am gemeldeten Typ statt am Inhalt',
     file: 'server.js',
-    search: "  \"SELECT id FROM photos WHERE kind != 'video'\");",
-    replacement: "  \"SELECT id FROM photos WHERE kind != 'video' AND mime_type = 'image/png'\");",
+    search: "  \"SELECT id FROM photos WHERE kind = 'image'\");",
+    replacement: "  \"SELECT id FROM photos WHERE kind = 'image' AND mime_type = 'image/png'\");",
     expected: 'Die Bildablage: PNG kommt herein, WebP geht in die Tabelle'
   },
   {
@@ -3413,7 +3412,7 @@ const REGRESSIONS = [
   },
   {
     nr: '478', name: 'Die README nennt den Pflichtschritt zur Compose-Datei nicht mehr',
-    file: 'README.md',
+    file: 'README-de.md',
     search: "**Der Schritt `cp docker-compose.example.yml docker-compose.yml` ist Pflicht.**",
     replacement: "",
     expected: 'Die Compose-Datei wird nicht ueberschrieben'
@@ -3436,7 +3435,7 @@ const REGRESSIONS = [
   },
   {
     nr: '486', name: 'Der Index steht wieder vor seiner Migration',
-    file: 'db.js',
+    file: 'schema.js',
     search: "CREATE INDEX IF NOT EXISTS idx_photos_item ON photos(item_id, sort_order);",
     replacement: "CREATE INDEX IF NOT EXISTS idx_photos_item ON photos(item_id, sort_order);\n" +
             "CREATE INDEX IF NOT EXISTS idx_photos_kind ON photos(kind);",
@@ -3476,8 +3475,8 @@ const REGRESSIONS = [
   {
     nr: '485', name: 'Der Dialog sagt nicht mehr, dass es verlustfrei ist',
     file: 'public/languages/de.json',
-    search: "\"card.storeLosslessHint\": \"Vorgabe — verlustfrei, gemessen rund zwei Drittel kleiner\",",
-    replacement: "\"card.storeLosslessHint\": \"Vorgabe — gemessen rund zwei Drittel kleiner\",",
+    search: "\"card.storeLosslessHint\": \"verlustfrei, gemessen rund zwei Drittel kleiner\",",
+    replacement: "\"card.storeLosslessHint\": \"gemessen rund zwei Drittel kleiner\",",
     expected: 'Die Bildablage in der Oberflaeche'
   },
 
@@ -3622,8 +3621,8 @@ const REGRESSIONS = [
   {
     nr: '505', name: 'Eine Stelle im Bildschirmtext sagt wieder „Instanz"',
     file: 'public/languages/de.json',
-    search: "\"card.emailOptionalHint\": \"**E-Mail ist optional.** Ohne Mailzugang zeigt Kriterion",
-    replacement: "\"card.emailOptionalHint\": \"**E-Mail ist optional.** Ohne Mailzugang zeigt die Instanz",
+    search: "\"card.emailOptionalMore\": \"Ohne Mailzugang zeigt Kriterion",
+    replacement: "\"card.emailOptionalMore\": \"Ohne Mailzugang zeigt die Instanz",
     expected: '„Instanz" steht in keinem Bildschirmtext mehr — 0.19.1 und 0.19.3'
   },
 
@@ -3814,7 +3813,7 @@ const REGRESSIONS = [
   {
     nr: '531', name: 'Die Videozeile erzeugt aus der Videodatei statt aus ihrem Standbild',
     file: 'batchrun.js',
-    search: "const sourceFrom = (z) => (isVideoRow(z) ? z.medium : z.data);",
+    search: "const sourceFrom = (z) => (isPlayedRow(z) ? z.medium : z.data);",
     replacement: "const sourceFrom = (z) => z.data;",
     expected: 'Der Ausschnitt steckt in der Kachel — 0.19.5'
   },
@@ -3886,71 +3885,71 @@ const REGRESSIONS = [
   {
     nr: '541', name: 'Der Bilderstreifen fragt nicht, ob seine Ansicht noch steht',
     file: 'public/app.js',
-    search: "    // Nach einem await kann die Ansicht schon gewechselt haben.\n    if (!box) return;\n",
+    search: "    // Nach einem await kann die Ansicht schon gewechselt haben.\n    if (!box || !here()) return;\n",
     replacement: "    // Nach einem await kann die Ansicht schon gewechselt haben.\n",
     expected: 'Die Ansicht kann fort sein — 0.19.6'
   },
   {
     nr: '542', name: 'Der Betrachter fragt nicht, ob seine Ansicht noch steht',
     file: 'public/app.js',
-    search: "    if (!v) return;\n    // #viewer bleibt dasselbe Element; die Handler des Ausschnittmodus loeschen.",
+    search: "    if (!v || !here()) return;\n    // #viewer bleibt dasselbe Element; die Handler des Ausschnittmodus loeschen.",
     replacement: "    // #viewer bleibt dasselbe Element; die Handler des Ausschnittmodus loeschen.",
     expected: 'Die Ansicht kann fort sein — 0.19.6'
   },
   {
     nr: '543', name: 'Der Bilderstreifen zeichnet ueberhaupt keine Kacheln mehr',
     file: 'public/app.js',
-    search: "    box.innerHTML = '';\n    item.photos.forEach((p, i) => {",
-    replacement: "    box.innerHTML = '';\n    [].forEach((p, i) => {",
+    search: "    drawPhotoPick();\n    item.photos.forEach((p, i) => {",
+    replacement: "    drawPhotoPick();\n    [].forEach((p, i) => {",
     expected: 'Die Ansicht kann fort sein — 0.19.6'
   },
 
   /* ---- Alte Sicherungen aufraeumen ---- */
   {
     nr: '544', name: 'Die Regel kennt nur das Alter -- der Boden faellt weg',
-    file: 'server.js',
+    file: 'backup.js',
     search: "  return usable.slice(keep).filter(d => d.time < limit);",
     replacement: "  return brauchbar.filter(d => d.zeit < grenze);",
     expected: 'Die Aufraeumregel an der Tafel'
   },
   {
     nr: '545', name: 'Die Regel kennt nur die Zahl -- die Schere faellt weg',
-    file: 'server.js',
+    file: 'backup.js',
     search: "  return usable.slice(keep).filter(d => d.time < limit);",
     replacement: "  return brauchbar.slice(behalten);",
     expected: 'Die Aufraeumregel an der Tafel'
   },
   {
     nr: '546', name: 'Die Musterpruefung faellt weg -- die fremde Datei faellt mit',
-    file: 'server.js',
+    file: 'backup.js',
     search: "const BACKUP_PATTERN = /^kriterion-.+\\.sqlite$/;",
     replacement: "const BACKUP_PATTERN = /./;",
     expected: 'Alte Sicherungen aufraeumen: der echte Ordner'
   },
   {
     nr: '547', name: 'Die zweite Musterpruefung vor dem unlink faellt weg',
-    file: 'server.js',
+    file: 'backup.js',
     search: "    if (short !== String(n) || !BACKUP_PATTERN.test(short)) { stayed.push(short); continue; }",
     replacement: "    if (false) { stayed.push(kurz); continue; }",
     expected: 'Alte Sicherungen aufraeumen: der echte Ordner'
   },
   {
     nr: '548', name: 'Die Liste folgt dem Symlink statt ihn zu sehen',
-    file: 'server.js',
+    file: 'backup.js',
     search: "      const st = fs.lstatSync(path.join(filePath, n));",
     replacement: "      const st = fs.statSync(path.join(pfad, n));",
     expected: 'Alte Sicherungen aufraeumen: der echte Ordner'
   },
   {
     nr: '549', name: 'Das Entfernen folgt dem Symlink',
-    file: 'server.js',
+    file: 'backup.js',
     search: "      const st = fs.lstatSync(full);",
     replacement: "      const st = fs.statSync(voll);",
     expected: 'Alte Sicherungen aufraeumen: der echte Ordner'
   },
   {
     nr: '550', name: 'Der Boden zaehlt auch die veralteten Kopien mit',
-    file: 'server.js',
+    file: 'backup.js',
     search: "    .filter(d => changeMs == null || d.time >= changeMs)",
     replacement: "    .filter(() => true)",
     expected: 'Die Aufraeumregel an der Tafel'
@@ -3958,21 +3957,16 @@ const REGRESSIONS = [
   {
     nr: '551', name: 'Nach der gescheiterten Sicherung wird doch aufgeraeumt',
     file: 'server.js',
-    search: "  if (fs.existsSync(file))\n    return res.status(409).json({ error: t(localeOf(req), 'server.backupConcurrent')});",
-    replacement: "  if (fs.existsSync(datei)) {\n    const r = cleanupStatus();\n    if (r.an) removeBackups(ziel.pfad, ruleHit(backupList(ziel.pfad) || [],\n      r.behalten, r.tage, Date.now(), (changeMark() || {}).ms ?? null).map(d => d.name));\n    return res.status(409).json({ error: t(localeOf(req), 'server.backupConcurrent')});\n  }",
-    expected: 'Alte Sicherungen aufraeumen: der Anschluss an die Sicherung'
+    search: "    if (written.error) return answer(written.status, { error: t(localeOf(req), written.error, written.values) });",
+    replacement: "    if (written.error) {\n      const r = cleanupStatus();\n      if (r.an) removeBackups(target.filePath, ruleHit(backupList(target.filePath) || [],\n        r.keep, r.days, Date.now(), (changeMark() || {}).ms ?? null).map(d => d.name));\n      return answer(written.status, { error: t(localeOf(req), written.error, written.values) });\n    }",
+    expected: "Alte Sicherungen aufraeumen: nicht mehr im Anschluss an die Sicherung"
   },
   {
-    nr: '552', name: 'Das Aufraeumen reisst die gelungene Sicherung mit',
+    nr: '552', name: 'Das Aufraeumen der Kopien reisst die gelungene Sicherung mit',
     file: 'server.js',
-    search: "    logFail('Clearing up after the backup failed:', e.message);\n" +
-           "    cleaned = { removed: 0, notDeleted: 0, bytes: 0, failed: true };\n" +
-           "  }",
-    replacement: "    throw e;\n" +
-            "  }\n" +
-            "  if (cleaned && cleaned.removed)\n" +
-            "    return res.status(500).json({ error: 'Die Sicherung ist gescheitert.' });",
-    expected: 'Alte Sicherungen aufraeumen: der Anschluss an die Sicherung'
+    search: "    try { cleanBackupFiles(target.filePath); } catch (e) { logFail('Clearing up after the backup failed:', e.message); }",
+    replacement: "    cleanBackupFiles(target.filePath);",
+    expected: "Alte Sicherungen aufraeumen: nicht mehr im Anschluss an die Sicherung"
   },
   {
     nr: '553', name: 'Der Schalter steht bei einer frischen Installation auf AN',
@@ -3983,7 +3977,7 @@ const REGRESSIONS = [
   },
   {
     nr: '554', name: 'Die Grenzen der beiden Werte halten nicht mehr am Server',
-    file: 'server.js',
+    file: 'backup.js',
     search: "  if (!Number.isInteger(n) || n < range.min || n > range.max)",
     replacement: "  if (false)",
     expected: 'Alte Sicherungen aufraeumen: der echte Ordner'
@@ -4037,23 +4031,22 @@ const REGRESSIONS = [
   {
     nr: '560', name: 'Der Vorgang sicherung.weg steht in keiner Gruppe',
     file: 'auth.js',
-    search: "  inventory: ['export', 'import', 'backup', 'backup.delete', 'key']",
-    replacement: "  bestand: ['export', 'import', 'backup', 'key']",
-    expected: 'Das Sicherheitsprotokoll: die Gruppen des Filters'
+    search: "  inventory: ['export', 'import', 'backup', 'backup.delete', 'backup.fetch', 'key']",
+    replacement: "  bestand: ['export', 'import', 'backup', 'backup.fetch', 'key']",
+    expected: 'Das Sicherheitsprotokoll in der Oberflaeche'
   },
   {
     nr: '561', name: 'Die Karte „Alte Sicherungen" faellt aus dem Systembereich',
     file: 'public/app.js',
-    search: "  { key: 'cleanup',      section: 'database', visible: () => OWNER,\n" +
-           "    markup: cardCleanup,   wireUp: setUpCleanupOut },",
+    search: "  { key: 'cleanup',      section: 'backup', visible: () => OWNER,\n    markup: cardCleanup,   wireUp: setUpCleanupOut },",
     replacement: "",
     expected: 'Der Systembereich nach Rolle'
   },
   {
     nr: '562', name: 'Die Karte „Alte Sicherungen" steht schon beim Admin',
     file: 'public/app.js',
-    search: "  { key: 'cleanup',      section: 'database', visible: () => OWNER,",
-    replacement: "  { key: 'cleanup',      section: 'database', sichtbar: () => ADMIN,",
+    search: "  { key: 'cleanup',      section: 'backup', visible: () => OWNER,",
+    replacement: "  { key: 'cleanup',      section: 'backup', visible: () => ADMIN,",
     expected: 'Der Systembereich nach Rolle'
   },
   {
@@ -4061,50 +4054,50 @@ const REGRESSIONS = [
     file: 'public/app.js',
     search: "        el.oninput = previewNew;",
     replacement: "        el.oninput = null;",
-    expected: 'Die Karte „Alte Sicherungen" in der Oberflaeche'
+    expected: 'Die Karte „Alte Backups" in der Oberflaeche'
   },
   {
     nr: '564', name: 'Die Karte schickt die Dateinamen an die Loeschroute mit',
     file: 'public/app.js',
-    search: "      try { r = await api('POST', '/api/backup/cleanup', { kind }); }",
+    search: "      try { r = await api('POST', '/api/backup/cleanup', kind === 'rule' ? { kind, ...values() } : { kind }); }",
     replacement: "      try { r = await api('POST', '/api/backup/cleanup',\n" +
             "        { art, dateien: (a.treffer || []).map(t => t.datei) }); }",
-    expected: 'Die Karte „Alte Sicherungen" in der Oberflaeche'
+    expected: 'Die Karte „Alte Backups" in der Oberflaeche'
   },
   {
     nr: '565', name: 'Der Knopf ist auch ohne Treffer bedienbar',
     file: 'public/app.js',
     search: "id=\"cleanup-run\"${matched.length ? '' : ' disabled'}>${tH('card.deleteNow')}",
     replacement: "id=\"cleanup-run\">${tH('card.deleteNow')}",
-    expected: 'Die Karte „Alte Sicherungen" in der Oberflaeche'
+    expected: 'Die Karte „Alte Backups" in der Oberflaeche'
   },
   {
     nr: '566', name: 'Die Sicherungsliste bekommt keinen Deckel',
     file: 'public/style.css',
-    search: '#cleanup-list { flex: none; max-height: 13.98rem; }',
+    search: '#cleanup-list { flex: none; max-height: 19.58rem; }',
     replacement: '#cleanup-list { flex: none; }',
-    expected: 'Die Karte „Alte Sicherungen" in der Oberflaeche'
+    expected: 'Die Karte „Alte Backups" in der Oberflaeche'
   },
   {
     nr: '567', name: 'Die Karte listet die Sicherungen nicht mehr',
     file: 'public/app.js',
-    search: '           <div class="manage-list" id="cleanup-list">${all.map(row).join(\'\')}</div>`',
-    replacement: '           <div class="manage-list" id="cleanup-list"></div>`',
-    expected: 'Die Karte „Alte Sicherungen" in der Oberflaeche'
+    search: '           <div class="manage-list" id="cleanup-list">${all.map(row).join(\'\')}</div>\n',
+    replacement: '           <div class="manage-list" id="cleanup-list"></div>\n',
+    expected: 'Die Karte „Alte Backups" in der Oberflaeche'
   },
   {
     nr: '568', name: 'Die Nummern laufen von der aeltesten zur juengsten',
     file: 'server.js',
     search: '      ...cleanupRow(d, now), nr: i + 1,',
     replacement: '      ...cleanupRow(d, jetzt), nr: dateien.length - i,',
-    expected: 'Die Karte „Alte Sicherungen" in der Oberflaeche'
+    expected: 'Die Karte „Alte Backups" in der Oberflaeche'
   },
   {
     nr: '569', name: 'Die Zeilen sagen nicht mehr, welche geloescht wird',
     file: 'public/app.js',
     search: "      const mark = z.affected ? `<span class=\"cleanup-badge remove\">${tH('card.deleteLower')}</span>`",
     replacement: "      const marke = z.faellt ? ''",
-    expected: 'Die Karte „Alte Sicherungen" in der Oberflaeche'
+    expected: 'Die Karte „Alte Backups" in der Oberflaeche'
   },
 
   /* ---- Zwei Kaesten, zwei Durchschnitte ---- */
@@ -4223,8 +4216,8 @@ const REGRESSIONS = [
   {
     nr: '587', name: 'Der Potenzialblock steht hinter der Bewertung',
     file: 'public/app.js',
-    search: "  side: ['kategorie', 'tags', 'potenzial', 'bewertung'],",
-    replacement: "  side: ['kategorie', 'tags', 'bewertung', 'potenzial'],",
+    search: "  side: ['potenzial', 'bewertung', 'kategorie', 'tags'],",
+    replacement: "  side: ['bewertung', 'potenzial', 'kategorie', 'tags'],",
     expected: 'Zwei Kaesten in der Oberflaeche — 0.21.0'
   },
   {
@@ -4265,8 +4258,8 @@ const REGRESSIONS = [
   {
     nr: '593', name: 'Der Blick ueberlebt den Wechsel des Eintrags',
     file: 'public/app.js',
-    search: "  GLANCE.clear();\n  /* Suchbegriff aus der Adresse oder aus state.search; danach sind beide gleich. */",
-    replacement: "  /* Suchbegriff aus der Adresse oder aus state.search; danach sind beide gleich. */",
+    search: "  GLANCE.clear();\n  JUMPED.clear();\n  /* Suchbegriff aus der Adresse oder aus state.search; danach sind beide gleich. */",
+    replacement: "  JUMPED.clear();\n  /* Suchbegriff aus der Adresse oder aus state.search; danach sind beide gleich. */",
     expected: 'Zwei Kaesten in der Oberflaeche — 0.21.0'
   },
   {
@@ -4392,7 +4385,7 @@ const REGRESSIONS = [
   {
     nr: 'W14', name: 'Die Dateiliste des Sprachwaechters verliert die neuen Dateien',
     file: 'test/source.js',
-    search: "                          'images.js', 'batchrun.js', 'mail.js'];",
+    search: "                          'images.js', 'batchrun.js', 'mail.js', 'docserver.js',\n                          'schema.js', 'backup.js', 'backuptool.js', 'videoproxy.js'];",
     replacement: "                          ];",
     expected: 'Der Sprachwaechter'
   },
@@ -4428,7 +4421,7 @@ const REGRESSIONS = [
   {
     nr: '627', name: 'Das Beenden der anderen Sitzungen fragt wieder ueber confirm()',
     file: 'public/app.js',
-    search: "      if (!await confirmBox(t('card.endSessionsAsk'), t('card.thisSessionStays'), t('card.end'))) return;",
+    search: "      if (!await confirmBox(t('card.endSessionsAsk'), t('card.thisSessionStays'), t('card.end'), 'accent')) return;",
     replacement: "      if (!confirm(t('card.endSessionsAsk'))) return;",
     expected: 'Keine Browserfenster mehr — 0.22.0'
   },
@@ -4598,8 +4591,8 @@ const REGRESSIONS = [
   {
     nr: '667', name: 'tH() maskiert die eingesetzten Werte nicht mehr',
     file: 'public/app.js',
-    search: "    return mask ? esc(String(value)) : String(value);",
-    replacement: "    return String(wert);",
+    search: "    return mask ? esc(value) : value;",
+    replacement: "    return value;",
     expected: 'Der Sprachhelfer und die Ladung — 0.24.0'
   },
   {
@@ -4691,22 +4684,22 @@ const REGRESSIONS = [
   {
     nr: '639', name: 'Der Klartextschluessel steht wieder vor dem Admin',
     file: 'public/app.js',
-    search: "          : (OWNER\n            ? `<div class=\"warn-box\">${tH('card.keyBesideHint')}",
-    replacement: "          : (ADMIN\n            ? `<div class=\"warn-box\">${tH('card.keyBesideHint')}",
+    search: "          : (OWNER\n            ? `<div class=\"warn-box\" style=\"margin-top:14px\">${tH('card.keyBesideHint')}",
+    replacement: "          : (ADMIN\n            ? `<div class=\"warn-box\" style=\"margin-top:14px\">${tH('card.keyBesideHint')}",
     expected: 'Die Rollenweichen — 0.22.0'
   },
   {
-    nr: '640', name: 'Die Karte Kategorien erklaert dem Benutzer wieder die Werkzeuge des Admins',
+    nr: '640', name: "Benutzer sehen die Karte „Kategorien“ wieder",
     file: 'public/app.js',
-    search: "        <p class=\"desc\">${ADMIN\n          ? tH('card.categoriesHint')",
-    replacement: "        <p class=\"desc\">${true\n          ? tH('card.categoriesHint')",
+    search: "  { key: 'categories',   section: 'inventory', visible: () => ADMIN,",
+    replacement: "  { key: 'categories',   section: 'inventory', visible: () => true,",
     expected: 'Die Rollenweichen — 0.22.0'
   },
   {
     nr: '641', name: 'Abbrechen im Loeschfenster fuer einen Benutzer bricht nicht ab',
     file: 'public/app.js',
-    search: "    bd.querySelector('[data-no]').onclick = () => done(null);\n    bd.querySelector('[data-yes]').onclick = take;\n    bd.onclick = e => { if (e.target === bd) done(null); };\n    const onKey = e => { if (e.key === 'Escape') done(null); };",
-    replacement: "    bd.querySelector('[data-no]').onclick = nimm;\n    bd.querySelector('[data-yes]').onclick = nimm;\n    bd.onclick = e => { if (e.target === bd) done(null); };\n    const onKey = e => { if (e.key === 'Escape') done(null); };",
+    search: "    bd.querySelector('[data-no]').onclick = () => done(null);\n    bd.querySelector('[data-yes]').onclick = take;\n    bd.onclick = e => { if (fromBackdrop(e, bd)) done(null); };\n    const onKey = e => { if (e.key === 'Escape') done(null); };",
+    replacement: "    bd.querySelector('[data-no]').onclick = nimm;\n    bd.querySelector('[data-yes]').onclick = nimm;\n    bd.onclick = e => { if (fromBackdrop(e, bd)) done(null); };\n    const onKey = e => { if (e.key === 'Escape') done(null); };",
     expected: 'Keine Browserfenster mehr — 0.22.0'
   },
   /* ---- Gesten, Kopfzahl, Bewertungskasten ---- */
@@ -5037,7 +5030,7 @@ const REGRESSIONS = [
   },
   {
     nr: '718', name: 'Die Namenstabelle haengt nicht mehr an ihrer Grundzeile',
-    file: 'db.js',
+    file: 'schema.js',
     search: "CREATE TABLE IF NOT EXISTS criterion_names (\n  criterion_id INTEGER NOT NULL REFERENCES rating_criteria(id) ON DELETE CASCADE,",
     replacement: "CREATE TABLE IF NOT EXISTS criterion_names (\n  criterion_id INTEGER NOT NULL,",
     expected: 'Der Rueckfall der Namen — 0.24.3'
@@ -5475,8 +5468,8 @@ const REGRESSIONS = [
   {
     nr: '795', name: 'Der Hinweistext hat keinen eigenen Traeger mehr',
     file: 'public/app.js',
-    search: '<input type="file" id="file" accept="image/*,video/*" multiple><span\n          id="drop-text">',
-    replacement: '<input type="file" id="file" accept="image/*,video/*" multiple>\n          <span-ohne-kennung>',
+    search: "<input type=\"file\" id=\"file\" accept=\"${MEDIA_ACCEPT}\" multiple><span\n          id=\"drop-text\">",
+    replacement: "<input type=\"file\" id=\"file\" accept=\"${MEDIA_ACCEPT}\" multiple>\n          <span-ohne-kennung>",
     expected: 'Die kleinen Fehler fallen — 0.26.0'
   },
   {
@@ -5515,11 +5508,11 @@ const REGRESSIONS = [
     expected: 'Die kleinen Fehler fallen — 0.26.0'
   },
   {
-    nr: '801', name: 'Der Gewichtssatz erklaert dem Benutzer wieder den Knopf des Admins',
+    nr: '801', name: "Benutzer sehen die Karte „Potenzial: Kriterien“ wieder",
     file: 'public/app.js',
-    search: "            : t('card.weightSystemDefault')}</p>",
-    replacement: "            : t('card.weightRangeHint')}</p>",
-    expected: 'Die kleinen Fehler fallen — 0.26.0'
+    search: "  { key: 'potentialcriteria', section: 'inventory', visible: () => ADMIN,",
+    replacement: "  { key: 'potentialcriteria', section: 'inventory', visible: () => true,",
+    expected: "Der Systembereich nach Rolle"
   },
   {
     nr: '802', name: 'Der Strich vor den Summen kommt wieder aus einer toten Regel',
@@ -5575,8 +5568,8 @@ const REGRESSIONS = [
   {
     nr: '810', name: 'Die Antwort verschweigt, wie der Schalter steht',
     file: 'server.js',
-    search: "  potentialMode: potentialMode(),\n  imageStore: imageStore(),",
-    replacement: "  imageStore: imageStore(),",
+    search: "  potentialMode: potentialMode(),\n  partialShare: partialShare(),",
+    replacement: "  partialShare: partialShare(),",
     expected: 'Der Potenzialmodus — 0.26.0'
   },
   {
@@ -5654,9 +5647,9 @@ const REGRESSIONS = [
   {
     nr: '824', name: 'Der Satz an der Einfuegestelle wird nicht gezeichnet',
     file: 'public/app.js',
-    search: "          ${tH('entry.photoOrderHint', { mb: UPLOAD_LIMITS.video })} ${tH('entry.clipboardLarger')}</p>",
-    replacement: "          ${tH('entry.photoOrderHint', { mb: UPLOAD_LIMITS.video })}</p>",
-    expected: 'Der Eintrag am Bildschirm'
+    search: "{ mb: UPLOAD_LIMITS.video })} ${tH('entry.clipboardLarger')}</p>` : ''}",
+    replacement: "{ mb: UPLOAD_LIMITS.video })}</p>` : ''}",
+    expected: 'Eintrag: Zaehler, Hinweis bei Touch, Auswahlmodus, Platzhalter'
   },
   {
     /* renderCompare() eigens: eine Pruefung nur an renderDetail() bliebe gruen,
@@ -5664,15 +5657,15 @@ const REGRESSIONS = [
     /* Ersetzt auch wireSubhead(); ohne Kopfzeile bricht der Lauf sonst ab und belegt nichts. */
     nr: '825', name: 'Der Vergleich behaelt seine alte Rueckzeile',
     file: 'public/app.js',
-    search: "    ${subhead()}\n    <h1 class=\"page-title\">${tH('list.compare')}</h1>\n    <p class=\"hint page-hint${multipleUsers() ? ' above-pills' : ''}\" id=\"cmp-hint\"></p>\n    ${multipleUsers() ? `<div class=\"pills\" id=\"cmp-view\" style=\"margin:0 0 20px\"></div>` : ''}\n    <div class=\"cmp-grid\" id=\"cg\" style=\"grid-template-columns:repeat(auto-fit,minmax(264px,1fr))\"></div>\n  </div>`;\n  wireSubhead();",
-    replacement: "    <a href=\"#/\" class=\"back\">${tH('list.backToList')}</a>\n    <h1 class=\"page-title\">${tH('list.compare')}</h1>\n    <p class=\"hint page-hint${multipleUsers() ? ' above-pills' : ''}\" id=\"cmp-hint\"></p>\n    ${multipleUsers() ? `<div class=\"pills\" id=\"cmp-view\" style=\"margin:0 0 20px\"></div>` : ''}\n    <div class=\"cmp-grid\" id=\"cg\" style=\"grid-template-columns:repeat(auto-fit,minmax(264px,1fr))\"></div>\n  </div>`;",
+    search: "    ${subhead()}\n    <h1 class=\"page-title\">${tH('list.compare')}</h1>\n    <p class=\"hint page-hint${multipleUsers() ? ' above-pills' : ''}\" id=\"cmp-hint\"></p>\n    ${multipleUsers() ? `<div class=\"pills seg\" id=\"cmp-view\" style=\"margin:0 0 20px\"></div>` : ''}\n    <div class=\"cmp-grid\" id=\"cg\" style=\"grid-template-columns:repeat(auto-fit,minmax(240px,1fr))\"></div>\n  </div>`;\n  wireSubhead();",
+    replacement: "    <a href=\"#/\" class=\"back\">${tH('list.backToList')}</a>\n    <h1 class=\"page-title\">${tH('list.compare')}</h1>\n    <p class=\"hint page-hint${multipleUsers() ? ' above-pills' : ''}\" id=\"cmp-hint\"></p>\n    ${multipleUsers() ? `<div class=\"pills seg\" id=\"cmp-view\" style=\"margin:0 0 20px\"></div>` : ''}\n    <div class=\"cmp-grid\" id=\"cg\" style=\"grid-template-columns:repeat(auto-fit,minmax(240px,1fr))\"></div>\n  </div>`;",
     expected: 'Die gemeinsame Kopfzeile und das Blaettern — 0.28.0'
   },
   {
     nr: '826', name: 'Der Fehlerweg des Eintrags bleibt ohne Kopfzeile',
     file: 'public/app.js',
-    search: "      app.innerHTML = `<div class=\"shell\">${subhead()}<p class=\"hint\">${tH('server.entryUnknown')}</p></div>`;",
-    replacement: "      app.innerHTML = `<div class=\"shell\"><a href=\"#/\" class=\"back\">${tH('list.backToList')}</a><p class=\"hint\">${tH('server.entryUnknown')}</p></div>`;",
+    search: "    if (here() && e.message !== SESSION_GONE) viewFailed(loadFailed(e), {}, { term });",
+    replacement: "    if (here() && e.message !== SESSION_GONE) app.innerHTML = `<div class=\"shell\"><a href=\"#/\" class=\"back\">${tH('list.backToList')}</a><p class=\"hint\">${loadFailed(e)}</p></div>`;",
     expected: 'Die gemeinsame Kopfzeile und das Blaettern — 0.28.0'
   },
   {
@@ -5708,7 +5701,7 @@ const REGRESSIONS = [
   {
     nr: '831', name: 'Die Pfeile blaettern im ganzen Bestand statt in der Trefferliste',
     file: 'public/app.js',
-    search: "  const list = state.items || [];",
+    search: "  const list = shown.some(x => x.id === id) ? shown : (state.items || []);",
     replacement: "  const list = state.all || [];",
     expected: 'Die gemeinsame Kopfzeile und das Blaettern — 0.28.0'
   },
@@ -5722,22 +5715,22 @@ const REGRESSIONS = [
   {
     nr: '833', name: 'Der gedaempfte Blaetterknopf verschwindet statt dazubleiben',
     file: 'public/style.css',
-    search: ".entry-nav .step:disabled { opacity: .38; cursor: default; }",
-    replacement: ".entry-nav .step:disabled { display: none; }",
+    search: ":is(.btn, .mact, .link-btn, .pill, .icon-btn, .sdefault):disabled { opacity: .42; cursor: not-allowed; }",
+    replacement: ":is(.btn, .mact, .link-btn, .pill, .icon-btn, .sdefault):disabled { display: none; }",
     expected: 'Die gemeinsame Kopfzeile und das Blaettern — 0.28.0'
   },
   {
     nr: '834', name: 'Die Reihenfolge wird im Browser abgelegt',
     file: 'public/app.js',
-    search: "  const list = state.items || [];",
-    replacement: "  const list = state.items || []; try { sessionStorage.setItem('reihe', JSON.stringify(list.map(x => x.id))); } catch {}",
+    search: "  const list = shown.some(x => x.id === id) ? shown : (state.items || []);",
+    replacement: "  const list = shown.some(x => x.id === id) ? shown : (state.items || []); try { sessionStorage.setItem('reihe', JSON.stringify(list.map(x => x.id))); } catch {}",
     expected: 'Die gemeinsame Kopfzeile und das Blaettern — 0.28.0'
   },
   {
     nr: '835', name: 'Bild auf und Bild ab blaettern doch den Eintrag',
     file: 'public/app.js',
-    search: "  document.querySelectorAll('.entry-nav .step').forEach(b => {",
-    replacement: "  document.addEventListener('keydown', e => { if (e.key === 'PageDown' || e.key === 'PageUp') e.preventDefault(); });\n  document.querySelectorAll('.entry-nav .step').forEach(b => {",
+    search: "  const wireNav = () => document.querySelectorAll('.entry-nav .step').forEach(b => {",
+    replacement: "  document.addEventListener('keydown', e => { if (e.key === 'PageDown' || e.key === 'PageUp') e.preventDefault(); });\n  const wireNav = () => document.querySelectorAll('.entry-nav .step').forEach(b => {",
     expected: 'Die gemeinsame Kopfzeile und das Blaettern — 0.28.0'
   },
   {
@@ -5776,8 +5769,8 @@ const REGRESSIONS = [
     /* Nur englisch: eine Pruefung, die nur Deutsch ansieht, bliebe gruen. */
     nr: '840', name: 'Strg+V steht wieder am Ablegefeld (englisch)',
     file: 'public/languages/en.json',
-    search: '"entry.addMediaHint": "Add photos and videos — several at a time",',
-    replacement: '"entry.addMediaHint": "Add photos and videos — several at a time, or paste with Ctrl+V",',
+    search: "\"entry.addMediaHint\": \"Add photos, videos and audio — several at a time\",",
+    replacement: "\"entry.addMediaHint\": \"Add photos, videos and audio — several at a time, or paste with Ctrl+V\",",
     expected: 'Die gemeinsame Kopfzeile und das Blaettern — 0.28.0'
   },
 
@@ -5801,8 +5794,8 @@ const REGRESSIONS = [
   {
     nr: '843', name: 'Das Manifest traegt einen festen Namen',
     file: 'server.js',
-    search: "  const name = getSetting('title_public', 'Bewertungskatalog');",
-    replacement: "  const name = 'Kriterion';",
+    search: "  const name = getSetting('title_public', TITLE_DEFAULT);",
+    replacement: "  const name = 'App';",
     expected: 'Das Startbildzeichen — 0.28.0'
   },
   {
@@ -5899,7 +5892,7 @@ const REGRESSIONS = [
   {
     nr: '856', name: 'Der Richtungsumschalter haengt nicht in der Zeile',
     file: 'public/app.js',
-    search: "  sortPair.appendChild(dirBtn);",
+    search: "  sortPair.appendChild(dirBar);",
     replacement: "",
     expected: 'Die Sortierung trennt Grundlage und Richtung — 0.28.1'
   },
@@ -5978,8 +5971,8 @@ const REGRESSIONS = [
   {
     nr: '867', name: 'Die Filterreihen brechen wieder um, statt quer zu rollen',
     file: 'public/style.css',
-    search: "  .frow > .pills:not(.cloud) { flex-wrap: nowrap; overflow-x: auto;",
-    replacement: "  .frow > .pills:not(.cloud) { flex-wrap: wrap;",
+    search: "  :is(.frow, .fgroup) > .pills:not(.cloud) { flex-wrap: nowrap; overflow-x: auto;",
+    replacement: "  :is(.frow, .fgroup) > .pills:not(.cloud) { flex-wrap: wrap;",
     expected: 'Die Sortierung trennt Grundlage und Richtung — 0.28.1'
   },
   {
@@ -6096,15 +6089,15 @@ const REGRESSIONS = [
   {
     nr: '885', name: 'Der Index unterscheidet Gross- und Kleinschreibung',
     file: 'db.js',
-    search: "  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email\n             ON users(email COLLATE NOCASE) WHERE email IS NOT NULL`);",
-    replacement: "  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email\n             ON users(email) WHERE email IS NOT NULL`);",
+    search: "    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email\n               ON users(email COLLATE NOCASE) WHERE email IS NOT NULL`);",
+    replacement: "    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email\n               ON users(email) WHERE email IS NOT NULL`);",
     expected: 'Die Adresse ist eindeutig — 0.29.0'
   },
   {
     nr: '886', name: 'Der fehlgeschlagene Index wird verschwiegen',
     file: 'db.js',
-    search: "  doubleEmails = db.prepare(qDoubleEmails).all();",
-    replacement: "  doubleEmails = [];",
+    search: "    logLine('The address stays without a lock: ' +\n      db.prepare(qDoubleEmails).all().map(z => `${z.address} (${z.n})`).join(', ') +\n      ' -- used more than once. The \"Users\" card names them.');",
+    replacement: "",
     expected: 'Die Adresse ist eindeutig — 0.29.0'
   },
   {
@@ -6138,10 +6131,10 @@ const REGRESSIONS = [
     expected: 'Die Filterzeile und der Kategoriekasten — 0.29.0'
   },
   {
-    nr: '891', name: 'Der Platzhalter der Kategorie wird wieder lang',
+    nr: '891', name: 'Der Platzhalter der Kategorie sagt wieder nur „Name“',
     file: 'public/languages/de.json',
-    search: '  "entry.newCategoryHint": "Name",',
-    replacement: '  "entry.newCategoryHint": "Neue Kategorie",',
+    search: '  "entry.newCategoryHint": "Neue Kategorie",',
+    replacement: '  "entry.newCategoryHint": "Name",',
     expected: 'Die Filterzeile und der Kategoriekasten — 0.29.0'
   },
 
@@ -6381,8 +6374,8 @@ const REGRESSIONS = [
   {
     nr: "925", name: "\u201emehr\" steht hinter den Sternen statt bei den Tags",
     file: "public/app.js",
-    search: "        row.append(date, wd, tagBox, more, s, x);",
-    replacement: "        row.append(date, wd, tagBox, s, x, more);",
+    search: "        row.append(date, wd, ...(open ? [open] : []), tagBox, more, tail);",
+    replacement: "        row.append(date, wd, ...(open ? [open] : []), tagBox, tail, more);",
     expected: "Die Testtagzeile ordnet sich nach ihrem Inhalt \u2014 0.30.1"
   },
   {
@@ -6395,16 +6388,16 @@ const REGRESSIONS = [
   {
     nr: "927", name: "Der Zaehler verliert seinen Titel",
     file: "public/app.js",
-    search: "  `<span class=\"mcount\" title=\"${esc(long)}\">${esc(short)}</span>`;",
-    replacement: "  `<span class=\"mcount\">${esc(short)}</span>`;",
-    expected: "In der Zeile die Zahl, im Titel das Wort \u2014 0.30.1"
+    search: "  `<span class=\"mcount\" title=\"${esc(long)}\">${esc(text)}</span>`;",
+    replacement: "  `<span class=\"mcount\">${esc(text)}</span>`;",
+    expected: "Der Zaehler entsteht an einer Stelle, mit Zahl und Wort \u2014 0.30.1"
   },
   {
-    nr: "928", name: "Die Tagkarte schreibt ihre beiden Zahlen wieder aus",
+    nr: "928", name: "Die Tagkarte nennt nur die beiden Zahlen",
     file: "public/app.js",
-    search: "      shortCounter: e => `${e.usage_count} \u00b7 ${e.test_usage_count}`,",
-    replacement: "      shortCounter: e => `${e.usage_count} ${vThing(e.usage_count)} \u00b7 ${e.test_usage_count} ${vTime(e.test_usage_count)}`,",
-    expected: "In der Zeile die Zahl, im Titel das Wort \u2014 0.30.1"
+    search: "      counter: e => `${e.usage_count} ${vThing(e.usage_count)} \u00b7 ${e.test_usage_count} ${vTime(e.test_usage_count)}`,",
+    replacement: "      counter: e => `${e.usage_count} \u00b7 ${e.test_usage_count}`,",
+    expected: "Der Zaehler entsteht an einer Stelle, mit Zahl und Wort \u2014 0.30.1"
   },
   {
     nr: "929", name: "Eine zu spaet erledigte Aufgabe verliert ihr Rot",
@@ -6533,25 +6526,25 @@ const REGRESSIONS = [
     expected: "Die zugeklappte Tagzeile fuellt ihre Hoehe \u2014 0.30.3"
   },
   {
-    nr: "947", name: "Der Reihenzaehler rechnet ohne den Abstand",
-    file: "public/app.js",
-    search: "  return Math.round((box.scrollHeight + CLOUD_GAP) / (height + CLOUD_GAP));",
-    replacement: "  return Math.round(box.scrollHeight / height);",
+    nr: '947', name: "Der Zeilenzaehler nimmt jede Marke als eigene Zeile",
+    file: 'public/app.js',
+    search: "    if (!tops.length || k.offsetTop - tops[tops.length - 1] > height / 2) tops.push(k.offsetTop);",
+    replacement: "    tops.push(k.offsetTop);",
     expected: "Die zugeklappte Tagzeile fuellt ihre Hoehe \u2014 0.30.3"
   },
   {
-    nr: "948", name: "Der Reihenzaehler misst wieder selbst",
-    file: "public/app.js",
-    search: "function cloudRows(box) {\n  const height = cloudLine(box);",
-    replacement: "function cloudRows(box) {\n  const first = box.firstElementChild;\n  const height = first ? first.offsetHeight || 0 : 0;",
+    nr: '948', name: "Der Zeilenzaehler misst wieder selbst",
+    file: 'public/app.js',
+    search: "function cloudTops(box) {\n  const height = cloudLine(box);",
+    replacement: "function cloudTops(box) {\n  const first = box.firstElementChild;\n  const height = first ? first.offsetHeight || 0 : 0;",
     expected: "Die zugeklappte Tagzeile fuellt ihre Hoehe \u2014 0.30.3"
   },
   {
-    nr: "949", name: "Der Reihenzaehler sieht nur, was nicht abgeschnitten ist",
-    file: "public/app.js",
-    search: "  return Math.round((box.scrollHeight + CLOUD_GAP)",
-    replacement: "  return Math.round((box.clientHeight + CLOUD_GAP)",
-    expected: "Die zugeklappte Tagzeile fuellt ihre Hoehe \u2014 0.30.3"
+    nr: '949', name: "Eine Rundung beginnt wieder eine neue Zeile",
+    file: 'public/app.js',
+    search: "k.offsetTop - tops[tops.length - 1] > height / 2",
+    replacement: "k.offsetTop - tops[tops.length - 1] > 0",
+    expected: "Tagwolken"
   },
   {
     nr: "950", name: "Die dritte Rasterzeile gilt wieder ohne Bedingung",
@@ -6578,8 +6571,8 @@ const REGRESSIONS = [
   {
     nr: '953', name: 'Der geoeffnete Tab bekommt sein `noopener` nicht mehr',
     file: 'public/app.js',
-    search: "          if (!search) return window.open(l.url, '_blank', 'noopener,noreferrer');",
-    replacement: "          if (!search) return window.open(l.url, '_blank');",
+    search: "        if (!search) return window.open(l.url, '_blank', 'noopener,noreferrer');",
+    replacement: "        if (!search) return window.open(l.url, '_blank');",
     expected: 'Die Sprachdateien werden gegengelesen — 0.31.0'
   },
   {
@@ -6620,8 +6613,8 @@ const REGRESSIONS = [
   {
     nr: '960', name: 'Der Export verlaesst wieder „das Haus"',
     file: 'public/languages/de.json',
-    search: "in {n} Dateien — mit allen Fotos",
-    replacement: "in {n} Dateien, die das Haus verlassen — mit allen Fotos",
+    search: "in {n} Dateien — {contents}",
+    replacement: "in {n} Dateien, die das Haus verlassen — {contents}",
     expected: 'Die Sprachdateien werden gegengelesen — 0.31.0'
   },
   {
@@ -6645,13 +6638,6 @@ const REGRESSIONS = [
     file: 'tools/gleichlaut.js',
     search: "   WOFUER SIE BLIND IST, UND DAS GEHOERT HIERHER:\n   SIE FUEHRT DEN CODE NICHT AUS.",
     replacement: "   SIE BILDET NACH.",
-    expected: 'Deutsch sitzt — 0.31.1'
-  },
-  {
-    nr: '965', name: 'Ein Satz faengt wieder mit dem Punkt des Vorgaengers an',
-    file: 'public/languages/de.json',
-    search: "  \"card.subDirOptional\": \"Optional ein vorhandener Unterordner:\",",
-    replacement: "  \"card.subDirOptional\": \". Optional ein vorhandener Unterordner:\",",
     expected: 'Deutsch sitzt — 0.31.1'
   },
   {
@@ -6785,8 +6771,8 @@ const REGRESSIONS = [
   {
     nr: '985', name: 'Ein englischer Wert traegt eine US-Schreibung',
     file: 'public/languages/en.json',
-    search: "  \"card.themeHint\": \"Colour scheme",
-    replacement: "  \"card.themeHint\": \"Color scheme",
+    search: "  \"card.setTheme\": \"Colour scheme\"",
+    replacement: "  \"card.setTheme\": \"Color scheme\"",
     expected: 'Englisch sitzt — 0.31.2'
   },
   {
@@ -6986,8 +6972,8 @@ const REGRESSIONS = [
   {
     nr: '1017', name: 'Ein fester deutscher Satz kommt in server.js zurueck',
     file: 'server.js',
-    search: "  if (!mail.configured(raw)) return { ok: false, key: 'server.noAccountOwner' };",
-    replacement: "  if (!mail.configured(raw)) return { ok: false, key: 'Es ist kein Mailzugang eingerichtet. Das macht der Eigentuemer dieser Installation.' };",
+    search: "  if (!mail.configured(raw)) return { ok: false, key: self ? 'server.noAccountSelf' : 'server.noAccountOwner' };",
+    replacement: "  if (!mail.configured(raw)) return { ok: false, key: self ? 'server.noAccountSelf' : 'Es ist kein Mailzugang eingerichtet. Das macht der Eigentuemer dieser Installation.' };",
     expected: 'Die Sprachdatei ist die Quelle'
   },
   {
@@ -7020,11 +7006,11 @@ const REGRESSIONS = [
     expected: 'Der Bildschirmtext-Waechter — 0.22.0'
   },
   {
-    nr: '1024', name: 'Der „Mehr"-Aufklapper fragt die Breite nicht mehr',
+    nr: '1024', name: "„Mehr“ misst bei neuer Breite oder Schrift nicht neu",
     file: 'public/app.js',
-    search: "  if (!root || isNarrow()) return;",
-    replacement: "  if (!root) return;",
-    expected: 'Server-Befehle nur im Kasten — 0.22.0'
+    search: "  trimMore(app);\n  watchMore(app);\n}",
+    replacement: "  trimMore(app);\n}",
+    expected: "„Mehr“: ab drei Zeilen hinter dem Knopf, darunter direkt, neu gemessen bei anderer Breite"
   },
   {
     nr: '1025', name: 'Die Messung der Aufklapper laeuft gar nicht mehr',
@@ -7104,8 +7090,8 @@ const REGRESSIONS = [
   {
     nr: '1035', name: 'Der Hinweis auf eine unvollstaendige Datenbank wird nicht mehr gerufen',
     file: 'db.js',
-    search: 'warnIncompleteDatabase(incompleteDatabase());',
-    replacement: '// warnIncompleteDatabase(incompleteDatabase());',
+    search: 'if (isMainThread) warnIncompleteDatabase(incompleteDatabase());',
+    replacement: '// if (isMainThread) warnIncompleteDatabase(incompleteDatabase());',
     expected: 'Der Hinweis auf einen unvollstaendigen Bestand — 0.33.0'
   },
   {
@@ -7125,9 +7111,8 @@ const REGRESSIONS = [
   {
     nr: '1039', name: 'Aus dem Hinweis wird ein Abbruch — die Instanz oeffnet nicht mehr',
     file: 'db.js',
-    search: 'function warnIncompleteDatabase(findings) {\n  if (!isMainThread || !findings.length) return;',
-    replacement: 'function warnIncompleteDatabase(findings) {\n  if (!isMainThread || !findings.length) return;\n' +
-      "  throw new Error('Diese Datenbank ist unvollstaendig.');",
+    search: "function warnIncompleteDatabase(findings) {\n  if (!findings.length) return;",
+    replacement: "function warnIncompleteDatabase(findings) {\n  if (!findings.length) return;\n  throw new Error('Diese Datenbank ist unvollstaendig.');",
     expected: 'Der Hinweis auf einen unvollstaendigen Bestand — 0.33.0'
   },
   {
@@ -7141,15 +7126,8 @@ const REGRESSIONS = [
   {
     nr: '1041', name: 'Die Indizes auf nachgeruestete Spalten fallen wieder hart',
     file: 'db.js',
-    search: "  } catch (e) {\n    if (isMainThread)",
-    replacement: "  } catch (e) {\n    throw e;\n    if (isMainThread)",
-    expected: 'Der Hinweis auf einen unvollstaendigen Bestand — 0.33.0'
-  },
-  {
-    nr: '1042', name: 'Der Rueckfall uebergeht eine fehlende Spalte nicht mehr',
-    file: 'db.js',
-    search: "    if (!db.prepare(`PRAGMA table_info(${table})`).all().some(c => c.name === 'user_id')) {\n      counts[table] = 0;\n      continue;\n    }",
-    replacement: "",
+    search: "  } catch (e) {\n    logWarn(`Index ${name} not created:",
+    replacement: "  } catch (e) {\n    throw e;\n    logWarn(`Index ${name} not created:",
     expected: 'Der Hinweis auf einen unvollstaendigen Bestand — 0.33.0'
   },
   {
@@ -7242,8 +7220,8 @@ const REGRESSIONS = [
   {
     nr: '1056', name: 'Der Sprachwaechter verliert mail.js wieder',
     file: 'test/source.js',
-    search: "'images.js', 'batchrun.js', 'mail.js'];",
-    replacement: "'images.js', 'batchrun.js'];",
+    search: "'images.js', 'batchrun.js', 'mail.js', 'docserver.js',",
+    replacement: "'images.js', 'batchrun.js', 'docserver.js',",
     expected: 'Der Sprachwaechter'
   },
 
@@ -7291,8 +7269,8 @@ const REGRESSIONS = [
     /* Ein Modul, das nach seiner Meldung stirbt, zaehlt dann als bestanden. */
     nr: '1062', name: 'Der Treiber liest wieder nur die Meldung',
     file: 'testbench.js',
-    search: "if (!report.abort && !report.failed && r.status !== 0) {",
-    replacement: "if (false) {",
+    search: "if (!report.abort && !report.failed && r.status !== 0)",
+    replacement: "if (false)",
     expected: 'Der Treiber sieht den Rueckgabewert — 0.34.4'
   },
 
@@ -7310,8 +7288,8 @@ const REGRESSIONS = [
   {
     nr: '1064', name: 'Der Sprachname traegt wieder ename statt engine-name',
     file: 'public/app.js',
-    search: "      st.onclick = () => sendLanguages({ languageDefault: a.code }, t('card.languageDefaultSaved'));\n      const nm = document.createElement('span');\n      nm.className = 'engine-name';",
-    replacement: "      st.onclick = () => sendLanguages({ languageDefault: a.code }, t('card.languageDefaultSaved'));\n      const nm = document.createElement('span');\n      nm.className = 'ename';",
+    search: "      st.onclick = () => {\n        LANGUAGE_SWITCHED = a.code;\n        sendLanguages({ languageDefault: a.code }, t('card.languageDefaultSaved'));\n      };\n      const nm = document.createElement('span');\n      nm.className = 'engine-name';",
+    replacement: "      st.onclick = () => {\n        LANGUAGE_SWITCHED = a.code;\n        sendLanguages({ languageDefault: a.code }, t('card.languageDefaultSaved'));\n      };\n      const nm = document.createElement('span');\n      nm.className = 'ename';",
     expected: 'Die Karte sagt, wo Arbeit liegt — 0.25.0'
   },
   {
@@ -7356,8 +7334,8 @@ const REGRESSIONS = [
   {
     nr: '1070', name: 'Der Export liest die Fotos wieder ohne ihren Ausschnitt',
     file: 'server.js',
-    search: "  'SELECT mime_type, data, thumb, medium, focus_x, focus_y, zoom, kind, duration FROM photos WHERE item_id = ? ORDER BY sort_order, id');",
-    replacement: "  'SELECT mime_type, data, thumb, medium, NULL AS focus_x, NULL AS focus_y, NULL AS zoom, kind, duration FROM photos WHERE item_id = ? ORDER BY sort_order, id');",
+    search: "  `SELECT mime_type, data, thumb, medium, focus_x, focus_y, zoom, kind, duration,\n",
+    replacement: "  `SELECT mime_type, data, thumb, medium, NULL AS focus_x, NULL AS focus_y, NULL AS zoom, kind, duration,\n",
     expected: 'Der Export in Teilen'
   },
   {
@@ -7370,8 +7348,8 @@ const REGRESSIONS = [
   {
     nr: '1072', name: 'Die Sicherungsantwort sagt ihre Dauer nicht mehr an',
     file: 'server.js',
-    search: "  const base = { place, dbBytes, durationSeconds: duration, cleanup: rule };",
-    replacement: "  const base = { place, dbBytes, cleanup: rule };",
+    search: "  const base = { dbBytes, durationSeconds: duration, cleanup: rule, copy: BACKUP_COPY };",
+    replacement: "  const base = { dbBytes, cleanup: rule, copy: BACKUP_COPY };",
     expected: 'Die Sicherung auf Knopfdruck'
   },
 
@@ -7679,7 +7657,7 @@ const REGRESSIONS = [
   {
     /* Die Zeile steht in einer Vorlage, und tools/segments.js haelt eine Vorlage fuer Text. */
     nr: '1115', name: 'Eine SQL-Zeile des Schemas nennt wieder eine Nummer',
-    file: 'db.js',
+    file: 'schema.js',
     search: "  -- ON DELETE SET NULL wie an jedem Traeger: ein entfernter",
     replacement: "  -- ON DELETE SET NULL wie an jedem Traeger (Stolper" + "stein 54): ein entfernter",
     expected: 'Kein Stolpersteinverweis mehr — 0.34.3'
@@ -7747,15 +7725,15 @@ const REGRESSIONS = [
   {
     nr: '1124', name: 'Ein Titel geht wieder ungefuehrt in innerHTML',
     file: 'public/app.js',
-    search: '      <h3 class="card-title">${esc(it.title)}</h3>',
-    replacement: '      <h3 class="card-title">${it.title}</h3>',
+    search: "      <h3 class=\"card-title\" title=\"${esc(it.title)}\">${esc(it.title)}</h3>",
+    replacement: "      <h3 class=\"card-title\" title=\"${esc(it.title)}\">${it.title}</h3>",
     expected: 'Keine nackte Einsetzung in innerHTML'
   },
   {
     nr: '1125', name: 'Die Ausnahmeliste traegt einen Namen, den es nicht gibt',
     file: 'test/source.js',
-    search: "    'changeBox', 'listBox', 'outdatedBox', 'tooBigBox'",
-    replacement: "    'changeBox', 'listBox', 'outdatedBox', 'tooBigBox', 'gibtEsNicht'",
+    search: "    'changeBox', 'rest', 'ruleText', 'copyBox'",
+    replacement: "    'changeBox', 'rest', 'ruleText', 'copyBox', 'gibtEsNicht'",
     expected: 'Keine nackte Einsetzung in innerHTML'
   },
   /* ---- npm audit faerbt den Lauf ---- */
@@ -7778,13 +7756,13 @@ const REGRESSIONS = [
   {
     nr: '1128', name: 'Ein Kommentar nennt wieder eine Bauabschnittsnummer',
     file: 'public/style.css',
-    search: '/* ---- Die Vergleichsleiste ---- Statt mittig als Pille nimmt sie auf dem',
-    replacement: '/* ---- Die Vergleichsleiste, BA 5 ---- Statt mittig als Pille nimmt sie auf dem',
+    search: '/* ---- Vergleichsleiste ---- */',
+    replacement: '/* ---- Vergleichsleiste, BA 5 ---- */',
     expected: 'Kein Papierverweis geht mit hinaus'
   },
   {
     nr: '1129', name: 'Eine SQL-Kommentarzeile des Schemas nennt wieder ein Papier',
-    file: 'db.js',
+    file: 'schema.js',
     search: '-- Anhaenge am Eintrag. mime_type ist der vom Browser gemeldete Typ und dient',
     replacement: '-- Anhaenge am Eintrag (Konzept 4.6). mime_type ist der gemeldete Typ und dient',
     expected: 'Kein Papierverweis geht mit hinaus'
@@ -7842,8 +7820,8 @@ const REGRESSIONS = [
   {
     nr: '1137', name: 'Die Herkunft eines Verweises wird nicht mehr geprueft',
     file: 'public/app.js',
-    search: "  if (!text.startsWith(here + '#/')) return '';\n  const found = text.slice(here.length).match(ENTRY_PATTERN);",
-    replacement: "  const found = text.replace(/^[^#]*/, '').match(ENTRY_PATTERN);",
+    search: "  if (!text.startsWith(here + '#/')) return '';\n  const hash = text.slice(here.length);",
+    replacement: "  const hash = text.replace(/^[^#]*/, '');",
     expected: 'Was nicht in der Teilmenge liegt, bleibt Text'
   },
   {
@@ -7961,15 +7939,15 @@ const REGRESSIONS = [
   {
     nr: '1154', name: 'Vor dem Loeschkreuz steht wieder kein Abstand',
     file: 'public/style.css',
-    search: ".cmt-head button.rm { margin-left: .6em; }",
-    replacement: ".cmt-head button.rm { margin-left: 0; }",
+    search: ".cmt-head .mact.rm { margin-left: .6em; }",
+    replacement: ".cmt-head .mact.rm { margin-left: 0; }",
     expected: 'Der Stift steht da, und das Loeschen steht abseits'
   },
   {
     nr: '1155', name: 'Der Verweis springt wieder nur ueber die Adresse',
     file: 'public/app.js',
-    search: "  const target = commentRow(id);\n  if (!target) { LIT_COMMENT = 0; return false; }",
-    replacement: "  const target = document.querySelector('.cmt.lit');\n  if (!target) { LIT_COMMENT = 0; return false; }",
+    search: "  if (!commentRow(id)) { LIT_COMMENT = 0; return false; }",
+    replacement: "  if (!document.querySelector('.cmt.lit')) { LIT_COMMENT = 0; return false; }",
     expected: 'Was der Betrieb an der Auszeichnung gefunden hat'
   },
   {
@@ -7996,8 +7974,8 @@ const REGRESSIONS = [
   {
     nr: '1159', name: 'Die Nummer steht wieder vor der Aktionsgruppe',
     file: 'public/app.js',
-    search: "          <span class=\"acts\"><button class=\"mact cite\" title=\"${esc(t('entry.quoteComment'))}\">${ICON_QUOTE}</button>${\n            mine ? `<button class=\"mact ed\" title=\"${esc(t('entry.edit'))}\">${ICON_PEN}</button>` : ''\n            }${manage ? `<button class=\"mact rm\" title=\"${esc(t('dialog.delete'))}\">${ICON_X}</button>` : ''}</span>\n          ${/* Ausserhalb von .acts: die Aktionen werden beim Bearbeiten\n               unsichtbar, die Nummer bleibt. */''}\n          <button class=\"link-btn cmt-no\"\n              title=\"${esc(t('entry.copyCommentLink'))}\">#${Number(order.get(c.id))}</button>",
-    replacement: "          <button class=\"link-btn cmt-no\"\n              title=\"${esc(t('entry.copyCommentLink'))}\">#${Number(order.get(c.id))}</button>\n          <span class=\"acts\"><button class=\"mact cite\" title=\"${esc(t('entry.quoteComment'))}\">${ICON_QUOTE}</button>${\n            mine ? `<button class=\"mact ed\" title=\"${esc(t('entry.edit'))}\">${ICON_PEN}</button>` : ''\n            }${manage ? `<button class=\"mact rm\" title=\"${esc(t('dialog.delete'))}\">${ICON_X}</button>` : ''}</span>",
+    search: "          <span class=\"acts\"><button class=\"mact cite\" title=\"${esc(t('entry.quoteComment'))}\">${ICON_QUOTE}</button>${\n            mine ? `<button class=\"mact ed\" title=\"${esc(t('entry.edit'))}\">${ICON_PEN}</button>` : ''\n            }${manage ? `<button class=\"mact rm\" title=\"${esc(t('dialog.delete'))}\">${ICON_DELETE}</button>` : ''}</span>\n          ${/* Ausserhalb von .acts: die Aktionen werden beim Bearbeiten\n               unsichtbar, die Nummer bleibt. */''}\n          <button class=\"link-btn cmt-no\"\n              title=\"${esc(t('entry.copyCommentLink'))}\">#${Number(order.get(c.id))}</button>",
+    replacement: "          <button class=\"link-btn cmt-no\"\n              title=\"${esc(t('entry.copyCommentLink'))}\">#${Number(order.get(c.id))}</button>\n          <span class=\"acts\"><button class=\"mact cite\" title=\"${esc(t('entry.quoteComment'))}\">${ICON_QUOTE}</button>${\n            mine ? `<button class=\"mact ed\" title=\"${esc(t('entry.edit'))}\">${ICON_PEN}</button>` : ''\n            }${manage ? `<button class=\"mact rm\" title=\"${esc(t('dialog.delete'))}\">${ICON_DELETE}</button>` : ''}</span>",
     expected: 'Der Stift steht da, und das Loeschen steht abseits'
   },
   {
@@ -8045,8 +8023,8 @@ const REGRESSIONS = [
   {
     nr: '1166', name: 'Ein laufender Ruf gilt wieder als Auskunft',
     file: 'public/app.js',
-    search: "  const ask = keys.filter(k => !COMMENT_REFS_ASK.has(k)).slice(0, 400);",
-    replacement: "  const ask = keys.slice(0, 400);",
+    search: "  const fresh = keys.filter(k => !COMMENT_REFS_ASK.has(k));",
+    replacement: "  const fresh = keys;",
     expected: 'Der Sprung zum Kommentar trifft und haelt'
   },
   {
@@ -8111,7 +8089,7 @@ const REGRESSIONS = [
   /* ---- Die drei Indexe ---- */
   {
     nr: '1175', name: 'Der Index auf criterion_id faellt weg',
-    file: 'db.js',
+    file: 'schema.js',
     search: "CREATE INDEX IF NOT EXISTS idx_ratings_criterion ON ratings(criterion_id, value, item_id);",
     replacement: "",
     expected: 'Die drei Indexe und der Abfrageplaner'
@@ -8142,7 +8120,7 @@ const REGRESSIONS = [
   {
     nr: '1179', name: 'Das Verzeichnis der lesenden Routen verliert eine Zeile',
     file: 'test/frame.js',
-    search: "  ['/api/comment-refs',            'angemeldet',\n    'Titel und Stellung fuer die Marke am Verweis; dieselbe Schranke wie am Eintrag.'],",
+    search: "  ['/api/comment-refs',            'angemeldet',\n    'Titel, Stellung und Dateiname fuer die Marke am Verweis; dieselbe Schranke wie am Eintrag.'],",
     replacement: "",
     expected: 'Der Waechter ueber den Quelltext'
   },
@@ -8164,14 +8142,14 @@ const REGRESSIONS = [
   {
     nr: '1192', name: 'Der Abschnitt in db.js heisst wieder Auffangnetz',
     file: 'db.js',
-    search: "/* ---- Rueckfall: Bestand ohne Benutzer ---- */",
-    replacement: "/* ---- Auffangnetz: Bestand ohne Benutzer ---- */",
+    search: "/* ---- Rueckfall: Eigentuemer ---- */",
+    replacement: "/* ---- Auffangnetz: Eigentuemer ---- */",
     expected: 'Der Sprachwaechter'
   },
   /* ---- Das Inhaltsverzeichnis der Anleitung ---- */
   {
     nr: '1189', name: 'Eine Sprungmarke der README zeigt auf nichts',
-    file: 'README.md',
+    file: 'README-de.md',
     search: "- [Konfiguration](#konfiguration)",
     replacement: "- [Konfiguration](#einstellungen-der-dateien)",
     expected: "Die Anleitung liegt in zwei Dateien \u2014 0.34.2"
@@ -8225,7 +8203,7 @@ const REGRESSIONS = [
   {
     nr: '1184', name: 'Der Ueberfahrtext der Zaehlzeile faellt weg',
     file: 'public/app.js',
-    search: "      a.querySelector('.mcount').title = counts.text;",
+    search: "      a.querySelector('.mcount').title = it.counts.text;",
     replacement: "",
     expected: 'Die Glocke in der Kopfzeile'
   },
@@ -8270,21 +8248,21 @@ const REGRESSIONS = [
   },
   {
     nr: '1196', name: 'Das Lizenzabzeichen faellt aus der README',
-    file: 'README.md',
+    file: 'README-de.md',
     search: "![Lizenz](https://img.shields.io/badge/Lizenz-MIT-informational)\n",
     replacement: "",
     expected: 'Die Lizenz geht mit hinaus'
   },
   {
     nr: '1197', name: 'Die README nennt die LGPL-Pakete nicht mehr',
-    file: 'README.md',
+    file: 'README-de.md',
     search: "**Die zwei LGPL-Pakete sind `@img/sharp-libvips-linux-x64` und\n`@img/sharp-libvips-linuxmusl-x64`**",
     replacement: "**Die zwei LGPL-Pakete gehoeren zur Bildbibliothek**",
     expected: 'Die Lizenz geht mit hinaus'
   },
   {
     nr: '1198', name: 'Der Transparenzvermerk faellt aus der README',
-    file: 'README.md',
+    file: 'README-de.md',
     search: "## Wie dieser Code entstanden ist",
     replacement: "## Woher der Code kommt",
     expected: 'Die Lizenz geht mit hinaus'
@@ -8292,7 +8270,7 @@ const REGRESSIONS = [
   /* ---- Die Spaltenfolge ---- */
   {
     nr: '1199', name: 'Das Schema faellt auf die alte Folge zurueck',
-    file: 'db.js',
+    file: 'schema.js',
     search: "  filename TEXT NOT NULL DEFAULT 'image.jpg',\n  thumb BLOB,\n"
       + "  sort_order INTEGER NOT NULL DEFAULT 0,\n"
       + "  created_at TEXT NOT NULL DEFAULT (datetime('now')),\n"
@@ -8314,9 +8292,9 @@ const REGRESSIONS = [
   {
     nr: '1201', name: 'Der Import laesst seine Datei liegen',
     file: 'server.js',
-    search: '  } finally {\n    try { fs.rmSync(req.file.path, { force: true }); }\n'
-      + '    catch (e) { logWarn(`Import: ${req.file.path} stayed behind -- ${e.message}`); }\n  }\n});',
-    replacement: '  }\n});',
+    search: '  } finally {\n    file?.close();\n    try { fs.rmSync(req.file.path, { force: true }); }\n'
+      + '    catch (e) { logWarn(`Import: ${req.file.path} stayed behind -- ${e.message}`); }\n  }\n  reply();\n});',
+    replacement: '  }\n  reply();\n});',
     expected: 'Der Export schreibt stueckweise'
   },
   {
@@ -8351,7 +8329,7 @@ const REGRESSIONS = [
   {
     nr: '1206', name: 'Der Import kodiert ein Kommentarvideo als Bild',
     file: 'server.js',
-    search: "                      duration: durationValue(v.duration), thumb: still, data });",
+    search: "                      duration: durationValue(v.duration), thumb: still, data: laterOf(v, 'data', spilled) || data });",
     replacement: "                      duration: durationValue(v.duration), thumb: still,\n"
       + "                      data: (await encodeCommentImage(still)).big });",
     expected: 'Kommentarvideos: Rundlauf mit Format 19'
@@ -8421,17 +8399,10 @@ const REGRESSIONS = [
     expected: 'Die Grenzen beim Hochladen'
   },
   {
-    nr: '1216', name: 'Die Pruefung je Eintrag beim Hochladen faellt weg',
-    file: 'server.js',
-    search: '  const z = qPartSizeOf().get(itemId);\n  if (!z) return false;',
-    replacement: '  const z = qPartSizeOf().get(itemId);\n  return false;',
-    expected: 'Die Grenze je Eintrag'
-  },
-  {
     nr: '1217', name: 'Eine Antwort 413 ohne JSON zeigt wieder den Statuscode',
     file: 'public/app.js',
-    search: "    else if (res.status === 413) m = t('error.proxyTooLarge');\n",
-    replacement: '',
+    search: "const proxyAnswer = (status) => (status === 413 ? t('error.proxyTooLarge')",
+    replacement: "const proxyAnswer = (status) => (status === 413 ? ''",
     expected: 'Die Antwort 413 vom Reverse Proxy'
   },
   {
@@ -8462,6 +8433,9021 @@ const REGRESSIONS = [
     replacement: "  if (kind) { try { kind.kill(); } catch {} }\n  for (const l of CASES) { try { l.kind.kill(); } catch {} }\n  if (process.env.TESTBENCH_DIE_AFTER_REPORT === name) process.exit(9);\n",
     expected: 'Der Treiber sieht den Rueckgabewert — 0.34.4'
   },
+  {
+    nr: '1222', name: 'verify() prueft alg nicht',
+    file: 'docserver.js',
+    search: "  if (head.alg !== 'HS256') return { ok: false, reason: 'alg' };\n",
+    replacement: "",
+    expected: 'Document Server: JWT'
+  },
+  {
+    nr: '1223', name: 'Der Abruf vergleicht die URL im JWT nicht',
+    file: 'docserver.js',
+    search: "  return same ? { ok: true } : { ok: false, reason: 'url' };",
+    replacement: "  return { ok: true };",
+    expected: 'Document Server: Abruf und Konfiguration'
+  },
+  {
+    nr: '1224', name: 'Die Abrufroute liest den Schalter nicht',
+    file: 'server.js',
+    search: "  if (!documentServerOn()) return res.status(404).end();\n",
+    replacement: "",
+    expected: 'Document Server: Abruf und Konfiguration'
+  },
+  {
+    nr: '1225', name: 'Die CSP nimmt den Document Server nicht auf',
+    file: 'server.js',
+    search: "const DOC_ORIGIN = docserver.scriptOrigin();",
+    replacement: "const DOC_ORIGIN = '';",
+    expected: 'Document Server: Abruf und Konfiguration'
+  },
+  {
+    nr: '1226', name: 'detail() liefert office auch fuer PDF, Bild und Text',
+    file: 'server.js',
+    search: "        : officeOn && docserver.officeType(a2.filename) ? 'office' : kind,",
+    replacement: "        : officeOn ? 'office' : kind,",
+    expected: 'Document Server: Abruf und Konfiguration'
+  },
+  {
+    nr: '1227', name: 'Die Pruefung unterscheidet -4 nicht nach der Probe-Route',
+    file: 'docserver.js',
+    search: "  if (j.error === -4 && lastTestFetch && !lastTestFetch.ok)",
+    replacement: "  if (false)",
+    expected: 'Document Server: die Pruefung der Karte'
+  },
+  {
+    nr: '1228', name: 'destroyEditor() wird beim Schliessen der Vorschau nicht gerufen',
+    file: 'public/app.js',
+    search: "  function dropPreview() {\n    endOfficeViewer();\n",
+    replacement: "  function dropPreview() {\n",
+    expected: 'Document Server: der Betrachter im Browser'
+  },
+  {
+    nr: '1229', name: 'Dateinamen werden wieder als Latin-1 gelesen',
+    file: 'server.js',
+    search: "const upload = (options) => multer({ defParamCharset: 'utf8', ...options });",
+    replacement: "const upload = (options) => multer({ ...options });",
+    expected: 'Document Server: Account, Chat und Dateinamen'
+  },
+  {
+    nr: '1230', name: 'Der Betrachter bekommt keinen Account',
+    file: 'docserver.js',
+    search: "      mode: 'view', lang,\n      user: { id: String(user.id), name: user.name },\n",
+    replacement: "      mode: 'view', lang,\n",
+    expected: 'Document Server: Account, Chat und Dateinamen'
+  },
+  {
+    nr: '1231', name: 'Kommentare stehen im Betrachter wieder da',
+    file: 'docserver.js',
+    search: "      customization: { comments: false }\n",
+    replacement: "      customization: {}\n",
+    expected: 'Document Server: Account, Chat und Dateinamen'
+  },
+  {
+    nr: '1232', name: 'Das Menue verliert Oeffnen',
+    file: 'public/app.js',
+    search: "    else if (FILE_READABLE.includes(a.preview))\n      open.push({ label: t('entry.openFile')",
+    replacement: "    else if (false)\n      open.push({ label: t('entry.openFile')",
+    expected: 'Document Server: die eigene Ansicht'
+  },
+  {
+    nr: '1233', name: 'route() baut den Betrachter der Ansicht nicht ab',
+    file: 'public/app.js',
+    search: "  redrawCloud = null;\n  redrawLinks = null;\n  endFileViewer();\n",
+    replacement: "  redrawCloud = null;\n  redrawLinks = null;\n",
+    expected: 'Document Server: die eigene Ansicht'
+  },
+  {
+    nr: '1234', name: 'Auf dem Telefon klappt die Vorschau wieder im Eintrag auf',
+    file: 'public/app.js',
+    search: "    if (isNarrow()) { location.hash = fileAddress(id, a.id); return; }\n",
+    replacement: "",
+    expected: 'Document Server: die eigene Ansicht'
+  },
+  {
+    nr: '1235', name: 'Lange Werte in .kv brechen nicht mehr um',
+    file: 'public/style.css',
+    search: ".kv .k, .kv .v { min-width: 0; overflow-wrap: anywhere; }\n",
+    replacement: "",
+    expected: 'Document Server: die eigene Ansicht'
+  },
+  {
+    nr: '1236', name: 'Auf dem Telefon wieder der mobile Editor',
+    file: 'docserver.js',
+    search: "    type: mobile ? 'embedded' : 'desktop',",
+    replacement: "    type: mobile ? 'mobile' : 'desktop',",
+    expected: 'Document Server: Abruf und Konfiguration'
+  },
+  {
+    nr: '1237', name: 'Die Ansicht traegt wieder die Kopfzeile von Kriterion',
+    file: 'public/app.js',
+    search: "  app.innerHTML = `<div class=\"fileview\">\n    <div class=\"fileview-bar\">",
+    replacement: "  app.innerHTML = `<div class=\"fileview\">\n    ${subhead({ searchBox: false })}\n    <div class=\"fileview-bar\">",
+    expected: 'Document Server: die eigene Ansicht'
+  },
+  {
+    nr: '1238', name: 'Die Ansicht liegt nicht mehr fest ueber dem Fenster',
+    file: 'public/style.css',
+    search: ".fileview { position: fixed; inset: 0; ",
+    replacement: ".fileview { ",
+    expected: 'Document Server: die eigene Ansicht'
+  },
+  {
+    nr: '1239', name: 'Das Zeichen Vollbild schickt nichts ins Vollbild',
+    file: 'public/app.js',
+    search: "  atElement('fileview-full', b => b.onclick = () =>\n    document.querySelector('.fileview-doc')?.requestFullscreen().catch(() => {}));",
+    replacement: "  atElement('fileview-full', b => b.onclick = () => {});",
+    expected: 'Document Server: die eigene Ansicht'
+  },
+  {
+    nr: '1240', name: 'Das Zeichen Vollbild steht auch ohne Vollbild im Browser',
+    file: 'public/app.js',
+    search: "  const fullOk = shown && !!document.fullscreenEnabled;",
+    replacement: "  const fullOk = shown;",
+    expected: 'Document Server: die eigene Ansicht'
+  },
+  {
+    nr: '1241', name: 'Die Karte Dokumente zeigt Name und Wert wieder nebeneinander',
+    file: 'public/app.js',
+    search: "  const row = (r) => `<div class=\"kv kv-stack\"><span class=\"k\">",
+    replacement: "  const row = (r) => `<div class=\"kv\"><span class=\"k\">",
+    expected: 'Document Server: die eigene Ansicht'
+  },
+  {
+    nr: '1242', name: 'Die Rechte beim Bearbeiten fallen weg',
+    file: 'server.js',
+    search: "const mayEditFile = (userId, a) =>\n  editingOf(a.id).edit_all === 1 || (a.user_id != null && a.user_id === userId);",
+    replacement: "const mayEditFile = (userId, a) => true;",
+    expected: 'Bearbeiten: Haken und Rechte'
+  },
+  {
+    nr: '1243', name: 'detail() meldet edit auch ohne Recht',
+    file: 'server.js',
+    search: "    const rights = a2.edit_all === 1 || (a2.user_id != null && a2.user_id === userId);",
+    replacement: "    const rights = true;",
+    expected: 'Bearbeiten: Haken und Rechte'
+  },
+  {
+    nr: '1244', name: 'Der Callback nimmt jeden Schluessel an',
+    file: 'docserver.js',
+    search: "  for (let r = revision; r >= 0; r--) if (editorKey(attachment, r) === key) return true;\n  return false;",
+    replacement: "  return true;",
+    expected: 'Bearbeiten: der Rueckweg'
+  },
+  {
+    nr: '1245', name: 'Der Download folgt Umleitungen',
+    file: 'docserver.js',
+    search: "  try { r = await fetch(target, { redirect: 'error', signal: AbortSignal.timeout(DOWNLOAD_MS) }); }",
+    replacement: "  try { r = await fetch(target, { signal: AbortSignal.timeout(DOWNLOAD_MS) }); }",
+    expected: 'Bearbeiten: der Rueckweg'
+  },
+  {
+    nr: '1246', name: 'Jede Speicherung legt die vorige Fassung neu ab',
+    file: 'server.js',
+    search: "    const first = (qPreviousKey.get(id) || {}).session_key !== key;",
+    replacement: "    const first = true;",
+    expected: 'Bearbeiten: der Rueckweg'
+  },
+  {
+    nr: '1247', name: 'Der Haken reist nicht im Export',
+    file: 'server.js',
+    search: "                    ...(a2.edit_all === 1 ? { edit_all: true } : {}),\n",
+    replacement: "",
+    expected: 'Bearbeiten: Export und Papierkorb'
+  },
+  {
+    nr: '1248', name: 'Der Import liest den Haken nicht',
+    file: 'server.js',
+    search: "        if (a2.editAll) putEditAll.run(added.lastInsertRowid, 1);\n",
+    replacement: "",
+    expected: 'Bearbeiten: Export und Papierkorb'
+  },
+  {
+    nr: '1249', name: 'Der Admin stellt den Haken um',
+    file: 'server.js',
+    search: "  if (!selfOnly(req, a.user_id)) return res.status(403).json({ error: t(localeOf(req), DENIED_SELF)});\n  putEditAll.run(",
+    replacement: "  if (!mayChange(req, a.user_id)) return res.status(403).json({ error: t(localeOf(req), DENIED_SELF)});\n  putEditAll.run(",
+    expected: 'Bearbeiten: Haken und Rechte'
+  },
+  {
+    nr: '1250', name: 'Auf dem Telefon kommt der Editor',
+    file: 'server.js',
+    search: "    if (req.query.edit === '1' && !mobile && docserver.editFormat(a.filename) &&",
+    replacement: "    if (req.query.edit === '1' && docserver.editFormat(a.filename) &&",
+    expected: 'Bearbeiten: Haken und Rechte'
+  },
+  {
+    nr: '1251', name: 'Status 2 beendet die Sitzung nicht',
+    file: 'server.js',
+    search: "    countSave.run(id, sessionEnds && current ? 1 : 0);",
+    replacement: "    countSave.run(id, 0);",
+    expected: 'Bearbeiten: der Rueckweg'
+  },
+  {
+    nr: '1252', name: 'Eine fremde Adresse wird geholt',
+    file: 'docserver.js',
+    search: "    if (base && text.startsWith(base + '/')) return internalBase() + text.slice(base.length);\n  return null;",
+    replacement: "    if (base && text.startsWith(base + '/')) return internalBase() + text.slice(base.length);\n  return text || null;",
+    expected: 'Bearbeiten: der Rueckweg'
+  },
+  {
+    nr: '1253', name: 'Der Hochladende sieht den Haken in der Ansicht nicht',
+    file: 'public/app.js',
+    search: "      ${shown && a.mine && a.edit ? `<label class=\"fileview-editall\"",
+    replacement: "      ${shown && false ? `<label class=\"fileview-editall\"",
+    expected: 'Bearbeiten: im Browser'
+  },
+  {
+    nr: '1254', name: 'Die Ansicht fragt nie nach dem Editor',
+    file: 'public/app.js',
+    search: "  let edit = editWanted && a.edit === true;",
+    replacement: "  let edit = false;",
+    expected: 'Bearbeiten: im Browser'
+  },
+  {
+    nr: '1255', name: 'Das Hochladen uebergeht die eigene Vorgabe',
+    file: 'server.js',
+    search: "    if (filesEditAllOf(u.user_id) && docserver.editFormat(u.filename)) putEditAll.run(fresh, 1);",
+    replacement: "    if (getSetting('documentEditAll', false) === true && docserver.editFormat(u.filename)) putEditAll.run(fresh, 1);",
+    expected: 'Bearbeiten: Haken und Rechte'
+  },
+  {
+    nr: '1256', name: 'Der Knopf Speichern schreibt nicht sofort',
+    file: 'docserver.js',
+    search: "      customization: { forcesave: true }",
+    replacement: "      customization: {}",
+    expected: 'Bearbeiten: Haken und Rechte'
+  },
+  {
+    nr: '1257', name: 'Die Umwandlung startet ohne Rueckfrage',
+    file: 'public/app.js',
+    search: "  if (edit && a.convertTo && !isNarrow())",
+    replacement: "  if (false)",
+    expected: 'Bearbeiten: im Browser'
+  },
+  {
+    nr: '1258', name: 'detail() nennt kein Format nach dem Speichern',
+    file: 'server.js',
+    search: "      convertTo: docserver.needsConversion(a2.filename) ? docserver.editFormat(a2.filename) : null,",
+    replacement: "      convertTo: null,",
+    expected: 'Bearbeiten: Haken und Rechte'
+  },
+  {
+    nr: '1259', name: 'Die gezippte Auslieferung verliert Cache-Control',
+    file: 'server.js',
+    search: "  // Wie express.static; ohne den Kopf nimmt der Browser nach einem Update eine Weile die alte Datei.\n  res.set('Cache-Control', 'public, max-age=0');\n",
+    replacement: "",
+    expected: 'Die Auslieferung geht gezippt hinaus — 0.35.0'
+  },
+  {
+    nr: '1260', name: 'Der Name fehlt wieder an Dateien des Verfassers',
+    file: 'public/app.js',
+    search: "    const from = multipleUsers() ? authorName(a.author) : '';",
+    replacement: "    const from = multipleUsers() && (a.author?.id ?? null) !== (item.author?.id ?? null) ? authorName(a.author) : '';",
+    expected: 'Der Name an der Dateikachel'
+  },
+  {
+    nr: '1261', name: 'Der Name fehlt wieder an Links des Verfassers',
+    file: 'public/app.js',
+    search: "      // Ab dem zweiten Account steht der Name an jedem Link, auch am eigenen.\n      const showFrom = multipleUsers();",
+    replacement: "      // Ab dem zweiten Account steht der Name an jedem Link, auch am eigenen.\n      const showFrom = multipleUsers() && (l.author?.id ?? null) !== (item.author?.id ?? null);",
+    expected: 'Der Name an der Linkzeile'
+  },
+  {
+    nr: '1262', name: 'Bearbeiten steht im Menue jeder Buerodatei',
+    file: 'public/app.js',
+    search: "    if (!a.missing && a.preview === 'office' && a.edit && !isNarrow())\n      open.push({ label: t('entry.edit')",
+    replacement: "    if (a.preview === 'office')\n      open.push({ label: t('entry.edit')",
+    expected: 'Bearbeiten: im Browser'
+  },
+  {
+    nr: '1263', name: 'Das Zeichen Oeffnen oeffnet wieder den Editor',
+    file: 'public/app.js',
+    search: "  if (f) return renderFileView(+f[1], +f[2], !!f[3]);",
+    replacement: "  if (f) return renderFileView(+f[1], +f[2], true);",
+    expected: 'Bearbeiten: im Browser'
+  },
+  {
+    nr: '1264', name: 'Zurueck landet wieder oben im Eintrag',
+    file: 'public/app.js',
+    search: "  if (back && back.itemId === Number(id) && !LIT_COMMENT) {",
+    replacement: "  if (false) {",
+    expected: 'Bearbeiten: im Browser'
+  },
+  {
+    nr: '1265', name: 'Das Thema geht nicht an den Document Server',
+    file: 'docserver.js',
+    search: "  if (UI_THEMES[theme]) config.editorConfig.customization.uiTheme = UI_THEMES[theme];\n",
+    replacement: "",
+    expected: 'Bearbeiten: Haken und Rechte'
+  },
+  {
+    nr: '1266', name: 'Der Browser meldet immer das dunkle Thema',
+    file: 'public/app.js',
+    search: "      : document.documentElement.dataset.theme === 'light' ? 'light' : 'dark' });",
+    replacement: "      : 'dark' });",
+    expected: 'Bearbeiten: im Browser'
+  },
+  {
+    nr: '1267', name: 'Die eigene Vorgabe fehlt, es gilt nur die Karte',
+    file: 'server.js',
+    search: "  getUserSetting(userId, 'filesEditAll', getSetting('documentEditAll', false)) === true;",
+    replacement: "  getSetting('documentEditAll', false) === true;",
+    expected: 'Bearbeiten: Haken und Rechte'
+  },
+  {
+    nr: '1268', name: 'Bearbeiten durch alle steht an jeder bearbeitbaren Datei',
+    file: 'public/app.js',
+    search: "    if (a.mine && a.edit) keep.push({ label: t('entry.editAll')",
+    replacement: "    if (a.edit) keep.push({ label: t('entry.editAll')",
+    expected: 'Bearbeiten: im Browser'
+  },
+  {
+    nr: '1269', name: 'Der Kasten Dokumente fehlt im eigenen Bereich',
+    file: 'public/app.js',
+    search: "  { key: 'mydocuments',  section: 'personal', visible: () => !!DOC_SETTINGS,",
+    replacement: "  { key: 'mydocuments',  section: 'personal', visible: () => false,",
+    expected: 'Bearbeiten: im Browser'
+  },
+  {
+    nr: '1270', name: 'Die eigene Darstellung geht nicht an den Document Server',
+    file: 'public/app.js',
+    search: "    theme: ['light', 'dark'].includes(DOC_SETTINGS?.theme) ? DOC_SETTINGS.theme\n      : document",
+    replacement: "    theme: false ? DOC_SETTINGS.theme\n      : document",
+    expected: 'Bearbeiten: im Browser'
+  },
+  {
+    nr: '1271', name: 'Der Server kennt am Verweis keine Dateien',
+    file: 'server.js',
+    search: "  for (const x of numbers(req.query.files)) {",
+    replacement: "  for (const x of numbers(req.query.nothing)) {",
+    expected: 'Verweise auf Dateien: die Auskunft des Servers'
+  },
+  {
+    nr: '1272', name: 'Die Frage nach dem Foto liest wieder die ganze Zeile',
+    file: 'server.js',
+    search: "   WHERE p.item_id = (SELECT item_id FROM photos WHERE id = ?) AND +p.id = ?`);",
+    replacement: "   WHERE p.id = ? AND p.id = ?`);",
+    expected: 'Verweise auf Dateien: die Auskunft des Servers'
+  },
+  {
+    nr: '1273', name: 'Die Buerodatei heisst am Verweis nie office',
+    file: 'server.js',
+    search: "      preview: officeOn && docserver.officeType(row.filename)\n        ? 'office' : attachments.previewKind(row.filename) });",
+    replacement: "      preview: attachments.previewKind(row.filename) });",
+    expected: 'Verweise auf Dateien: die Auskunft des Servers'
+  },
+  {
+    nr: '1274', name: 'Eine Art verdraengt wieder die andere',
+    file: 'public/app.js',
+    search: "  const ask = Object.keys(REF_KINDS).flatMap(sign => fresh.filter(k => k[0] === sign).slice(0, 200));",
+    replacement: "  const ask = fresh.slice(0, 400);",
+    expected: 'Verweise auf Dateien: Marken im Browser'
+  },
+  {
+    nr: '1275', name: 'Die Adresse einer Datei wird wieder keine Marke',
+    file: 'public/app.js',
+    search: "  const file = hash.match(FILE_PATTERN);\n  if (file) return `f${Number(file[2])}`;\n",
+    replacement: "",
+    expected: 'Verweise auf Dateien: Marken im Browser'
+  },
+  {
+    nr: '1276', name: 'Der Betrachter laedt schon beim Zeichnen',
+    file: 'public/app.js',
+    search: "  if (row.preview !== 'office') return a;\n",
+    replacement: "  if (row.preview !== 'office') return a;\n  setTimeout(() => refViewerToggle(a, row), 0);\n",
+    expected: 'Verweise auf Dateien: Marken im Browser'
+  },
+  {
+    nr: '1277', name: 'Der kleine Betrachter kommt als Desktop',
+    file: 'public/app.js',
+    search: "  const query = new URLSearchParams({ mobile: embedded || isNarrow() ? 1 : 0, edit: edit ? 1 : 0,",
+    replacement: "  const query = new URLSearchParams({ mobile: isNarrow() ? 1 : 0, edit: edit ? 1 : 0,",
+    expected: 'Verweise auf Dateien: Marken im Browser'
+  },
+  {
+    nr: '1278', name: 'Ein zweiter Klick oeffnet einen zweiten Betrachter',
+    file: 'public/app.js',
+    search: "  if (shown && REF_VIEWERS.has(shown)) {",
+    replacement: "  if (false) {",
+    expected: 'Verweise auf Dateien: Marken im Browser'
+  },
+  {
+    nr: '1279', name: 'Das Verlassen des Eintrags laesst den Betrachter stehen',
+    file: 'public/app.js',
+    search: "  endFileViewer();\n  endRefViewers();\n",
+    replacement: "  endFileViewer();\n",
+    expected: 'Verweise auf Dateien: Marken im Browser'
+  },
+  {
+    nr: '1280', name: 'Die Bilddatei im Verweis bekommt kein Vorschaubild',
+    file: 'public/app.js',
+    search: "  if (row.preview === 'image' || ((row.preview === 'video' || row.preview === 'audio') && row.still)) {\n    markupThumb(",
+    replacement: "  if (false) {\n    markupThumb(",
+    expected: 'Verweise auf Dateien: Marken im Browser'
+  },
+  {
+    nr: '1281', name: 'Das Video im Verweis traegt kein Zeichen',
+    file: 'public/app.js',
+    search: "thumbLength: row.thumbLength }, 'thumb'), isVideo(row));",
+    replacement: "thumbLength: row.thumbLength }, 'thumb'), false);",
+    expected: 'Verweise auf Dateien: Marken im Browser'
+  },
+  {
+    nr: '1282', name: 'Die Adresse des Fotos oeffnet kein Vollbild',
+    file: 'public/app.js',
+    search: "  if (photoWanted) showPhoto(photoWanted);\n",
+    replacement: "",
+    expected: 'Verweise auf Dateien: Adresse des Fotos und Link kopieren'
+  },
+  {
+    nr: '1283', name: 'Der Klick auf das Foto baut den Eintrag wieder neu auf',
+    file: 'public/app.js',
+    search: "    if (PHOTO_SHOW.show(row.id)) e.preventDefault();",
+    replacement: "    if (false) e.preventDefault();",
+    expected: 'Verweise auf Dateien: Adresse des Fotos und Link kopieren'
+  },
+  {
+    nr: '1284', name: 'Das Vollbild hat keinen Knopf Link kopieren',
+    file: 'public/app.js',
+    search: "  const photoLink = (p) => fullAddress(photoAddress(id, p.id));",
+    replacement: "  const photoLink = null;",
+    expected: 'Verweise auf Dateien: Adresse des Fotos und Link kopieren'
+  },
+  {
+    nr: '1285', name: 'Link kopieren im Menue kopiert den Eintrag',
+    file: 'public/app.js',
+    search: "  const fileLink = (a) => fullAddress(fileAddress(id, a.id));",
+    replacement: "  const fileLink = (a) => fullAddress(entryAddress(id));",
+    expected: 'Verweise auf Dateien: Adresse des Fotos und Link kopieren'
+  },
+  {
+    nr: '1286', name: 'Die eigene Ansicht zeigt nur Dateien fuer den Document Server',
+    file: 'public/app.js',
+    search: "  if (plain && a.preview !== 'keine') filePreview(a, document.querySelector('.fileview-doc'));\n",
+    replacement: "",
+    expected: 'Verweise auf Dateien: die eigene Ansicht jeder Datei'
+  },
+  {
+    nr: '1287', name: 'Ein Klick in den Betrachter oeffnet das Feld der Beschreibung',
+    file: 'public/app.js',
+    search: "    if (!mayEdit() || e.target.closest('.markup-viewer, a')) return;",
+    replacement: "    if (!mayEdit() || e.target.closest('a')) return;",
+    expected: 'Verweise auf Dateien: Marken im Browser'
+  },
+  {
+    nr: '1289', name: 'Der erste Abruf legt die Kachel nicht ab',
+    file: 'server.js',
+    search: "    if (current) putFileTile.run(id, row.thumb);\n",
+    replacement: "",
+    expected: 'Verweise auf Dateien: die Kachel einer Bilddatei'
+  },
+  {
+    nr: '1290', name: 'Die Kachel ist nicht aus der Mitte beschnitten',
+    file: 'server.js',
+    search: "const fileTile = async (bytes) => (await makeVariants(bytes, DEFAULT_CROP, ['thumb'])).thumb;",
+    replacement: "const fileTile = async (bytes) => (await makeVariants(bytes, null, ['thumb'])).thumb;",
+    expected: 'Verweise auf Dateien: die Kachel einer Bilddatei'
+  },
+  {
+    nr: '1291', name: 'Jede Datei bekommt beim Abruf eine Kachel',
+    file: 'server.js',
+    search: "  const picture = kind === 'image' || fromStill;\n  if (!picture && !(a && docTileKind(a.filename))) return res.status(404).end();",
+    replacement: "  const picture = !!a;\n  if (!a) return res.status(404).end();",
+    expected: 'Verweise auf Dateien: die Kachel einer Bilddatei'
+  },
+  {
+    nr: '1292', name: 'Marke und Dateizeile laden wieder die ganze Datei',
+    file: 'public/app.js',
+    search: "const fileTileSource = (a) => `/api/attachments/${Number(a.id)}/raw?size=thumb${a.still || a.thumb\n  ? `&v=${Number(a.still || a.thumb)}` : ''}`;",
+    replacement: "const fileTileSource = (a) => `/api/attachments/${Number(a.id)}/raw?inline=1`;",
+    expected: 'Verweise auf Dateien: Marken im Browser'
+  },
+  {
+    nr: '1293', name: 'Ohne Kachel bleibt die Marke leer',
+    file: 'public/app.js',
+    search: "    img.onerror = () => { a.classList.remove('markup-pic'); markupFileSign(a, row, term, name); };\n",
+    replacement: "",
+    expected: 'Verweise auf Dateien: Marken im Browser'
+  },
+  {
+    nr: '1294', name: 'Die Kachel einer Bilddatei zeigt nur die Endung',
+    file: 'public/app.js',
+    search: "      picture: a.missing ? '' : a.preview === 'image' || ((video || audio) && a.still) || a.thumb ? fileTileSource(a) : coming,",
+    replacement: "      picture: a.missing ? '' : coming,",
+    expected: 'Verweise auf Dateien: Adresse des Fotos und Link kopieren'
+  },
+  {
+    nr: '1295', name: 'Ohne Vorschaubild bleibt die Bildflaeche leer',
+    file: 'public/app.js',
+    search: "        pic.innerHTML = `${withoutPicture()}${video ? '<span class=\"play-badge\">▶</span>' : ''}`\n          + `${shown ? `<span class=\"duration\">${esc(shown)}</span>` : ''}`; };\n",
+    replacement: "        null; };\n",
+    expected: 'Verweise auf Dateien: Adresse des Fotos und Link kopieren'
+  },
+  {
+    nr: '1296', name: 'Der Text der Karte beginnt wieder mit dem Startwert',
+    file: 'public/languages/de.json',
+    search: "\"card.documentsEditAll\": \"Wer bearbeiten darf: Startwert, solange ein Account keinen eigenen gesetzt hat.\",",
+    replacement: "\"card.documentsEditAll\": \"Startwert dafür, wer bearbeiten darf, solange ein Account keinen eigenen gesetzt hat.\",",
+    expected: 'Link am Bild'
+  },
+  {
+    nr: '1297', name: 'Das grosse Bild hat keinen Knopf Link kopieren',
+    file: 'public/app.js',
+    search: "        ${cropMode ? '' : `<button class=\"vlink\"",
+    replacement: "        ${true ? '' : `<button class=\"vlink\"",
+    expected: 'Link am Bild'
+  },
+  {
+    nr: '1298', name: 'Im Ausschnittmodus steht der Knopf Link kopieren',
+    file: 'public/app.js',
+    search: "        ${cropMode ? '' : `<button class=\"vlink\"",
+    replacement: "        ${false ? '' : `<button class=\"vlink\"",
+    expected: 'Link am Bild'
+  },
+  {
+    nr: '1299', name: 'Der Knopf am Bild kopiert den Eintrag',
+    file: 'public/app.js',
+    search: "      () => copyText(photoLink(ps[idx]), t('card.linkCopied')));",
+    replacement: "      () => copyText(fullAddress(entryAddress(id)), t('card.linkCopied')));",
+    expected: 'Link am Bild'
+  },
+  {
+    nr: '1303', name: 'Der Name steht wieder hinter dem Pfad',
+    file: 'public/app.js',
+    search: "      const bottom = search ? '<span class=\"snames\"></span>'\n                          : (path ? `<span class=\"path\">${esc(path)}</span>` : '');\n      row.innerHTML = `${mayEdit() ? `<span class=\"grip\" title=\"${esc(t('entry.dragToSort'))}\">⣿</span>` : ''}\n        <span class=\"lnum\">${Number(n + 1)}</span>\n        <span class=\"lurl\"><span class=\"dom\">${esc(top)}</span>${\n          bottom ? `<span class=\"lbottom\">${bottom}</span>` : ''\n        }</span>\n        ${showFrom ? `<span class=\"lfrom\">(${esc(authorName(l.author))})</span>` : ''}\n",
+    replacement: "      const bottom = (search ? '<span class=\"snames\"></span>'\n                          : (path ? `<span class=\"path\">${esc(path)}</span>` : '')) + (showFrom\n        ? `<span class=\"lfrom\">(${esc(authorName(l.author))})</span>` : '');\n      row.innerHTML = `${mayEdit() ? `<span class=\"grip\" title=\"${esc(t('entry.dragToSort'))}\">⣿</span>` : ''}\n        <span class=\"lnum\">${Number(n + 1)}</span>\n        <span class=\"lurl\"><span class=\"dom\">${esc(top)}</span>${\n          bottom ? `<span class=\"lbottom\">${bottom}</span>` : ''\n        }</span>\n",
+    expected: 'Der Name an der Linkzeile'
+  },
+  {
+    nr: '1304', name: 'Die Linkzeile uebernimmt die Spalten der Liste nicht',
+    file: 'public/style.css',
+    search: "  .lrow { display: grid; grid-template-columns: subgrid; gap: 0; }\n",
+    replacement: "",
+    expected: 'Der Name an der Linkzeile'
+  },
+  {
+    nr: '1305', name: 'Das Kreuz der Linkzeile hat keine eigene Spalte',
+    file: 'public/style.css',
+    search: "  .lrow .mact { grid-column: del; }\n",
+    replacement: "",
+    expected: 'Der Name an der Linkzeile'
+  },
+  {
+    nr: '1306', name: 'Der Name an der Linkzeile darf wieder schrumpfen',
+    file: 'public/style.css',
+    search: ".lrow .lfrom { flex-shrink: 0; font-size: .7rem; color: var(--muted); }",
+    replacement: ".lrow .lfrom { font-size: .7rem; color: var(--muted); }",
+    expected: 'Der Name an der Linkzeile'
+  },
+  {
+    nr: '1307', name: 'Ein Klick auf eine Datei ohne Vorschau laedt sie herunter',
+    file: 'public/app.js',
+    search: "    if (!FILE_READABLE.includes(a.preview) && a.preview !== 'audio') return tileMenu(li);\n",
+    replacement: "    if (!FILE_READABLE.includes(a.preview) && a.preview !== 'audio') {\n      const load = document.createElement('a');\n      load.href = `/api/attachments/${a.id}/raw`;\n      load.setAttribute('download', '');\n      load.click();\n      return;\n    }\n",
+    expected: 'Dateien in Kacheln: Kachel und Klick'
+  },
+  {
+    nr: '1308', name: 'Set statt Nummer: die erste Vorschau bleibt neben der zweiten stehen',
+    file: 'public/app.js',
+    search: "  function showPreview(a) {\n    dropPreview();\n",
+    replacement: "  function showPreview(a) {\n    if (openPreview) previewBox.after(previewBox.cloneNode(true));\n    dropPreview();\n",
+    expected: 'Dateien in Kacheln: Kachel und Klick'
+  },
+  {
+    nr: '1309', name: 'Das Neuzeichnen beendet den Betrachter',
+    file: 'public/app.js',
+    search: "    // Nach einem await kann die Ansicht schon gewechselt haben.\n    if (!attsBox.isConnected) return;\n",
+    replacement: "    // Nach einem await kann die Ansicht schon gewechselt haben.\n    if (!attsBox.isConnected) return;\n    endOfficeViewer();\n",
+    expected: 'Dateien in Kacheln: der Betrachter uebersteht das Neuzeichnen'
+  },
+  {
+    nr: '1310', name: 'Das Menue bietet Datei loeschen ohne Pruefung der Rechte an',
+    file: 'public/app.js',
+    search: "    if (mayDeleteFile(a)) drop.push({ label: t('entry.deleteFile'), danger: true, own: true,",
+    replacement: "    if (true) drop.push({ label: t('entry.deleteFile'), danger: true, own: true,",
+    expected: 'Dateien in Kacheln: das Menue zeigt nur Erlaubtes'
+  },
+  {
+    nr: '1311', name: 'Abbrechen laesst die Datei in der Warteschlange',
+    file: 'public/app.js',
+    search: "  const at = UPLOADS.indexOf(u);\n  if (at >= 0) UPLOADS.splice(at, 1);\n",
+    replacement: "  const at = UPLOADS.indexOf(u);\n",
+    expected: 'Dateien in Kacheln: die Warteschlange'
+  },
+  {
+    nr: '1312', name: 'Die Adresse einer Bilddatei oeffnet wieder die eigene Ansicht',
+    file: 'public/app.js',
+    search: "  if (a && (a.preview === 'video' || a.preview === 'audio' || (a.preview === 'image' && !editWanted))) {",
+    replacement: "  if (a && (a.preview === 'video' || a.preview === 'audio')) {",
+    expected: 'Dateien in Kacheln: Adresse und Vollbild einer Bilddatei'
+  },
+  {
+    nr: '1313', name: 'Der Server zaehlt je Eintrag bis 20',
+    file: 'server.js',
+    search: "  if (fileSlots(itemId) >= FILES_PER_ENTRY)\n    return res.status(400)",
+    replacement: "  if (fileSlots(itemId) >= 20)\n    return res.status(400)",
+    expected: "Dateien in Kacheln: 100 je Eintrag"
+  },
+  {
+    nr: '1314', name: 'Die Warteschlange endet mit der Ansicht des Eintrags',
+    file: 'public/app.js',
+    search: "  /* Von Hand geoeffnete oder geschlossene Bloecke gelten nur fuer einen Eintrag. */\n  GLANCE.clear();\n",
+    replacement: "  /* Von Hand geoeffnete oder geschlossene Bloecke gelten nur fuer einen Eintrag. */\n  GLANCE.clear();\n  for (const u of [...UPLOADS]) uploadCancel(u);\n",
+    expected: 'Dateien in Kacheln: die Warteschlange'
+  },
+  {
+    nr: '1315', name: "/raw schickt die Datei ohne Range",
+    file: 'server.js',
+    search: "    sendRanged(req, res, a.data.subarray(skip));\n",
+    replacement: "    res.send(a.data.subarray(skip));\n",
+    expected: "Audio bei den Fotos: Auslieferung, FLAC mit ID3-Tag"
+  },
+  {
+    nr: '1316', name: "Ein Video ohne Standbild bekommt ein Bild ohne Quelle",
+    file: 'public/app.js',
+    search: "      picture: a.missing ? '' : a.preview === 'image' || ((video || audio) && a.still) || a.thumb ? fileTileSource(a) : coming,",
+    replacement: "      picture: a.missing ? '' : a.preview === 'image' || video || audio || a.thumb ? fileTileSource(a) : coming,",
+    expected: "Videos unter Dateien: Kachel, Vollbild und Tasten"
+  },
+  {
+    nr: '1317', name: "Das Standbild setzt auch der Admin",
+    file: 'server.js',
+    search: "  if (!selfOnly(req, a.user_id)) return res.status(403).json({ error: t(localeOf(req), DENIED_SELF)});\n  if (!playsAsVideo(req.params.id, a.filename))",
+    replacement: "  if (!mayChange(req, a.user_id)) return res.status(403).json({ error: t(localeOf(req), DENIED_SELF)});\n  if (!playsAsVideo(req.params.id, a.filename))",
+    expected: "Videos unter Dateien: Vorschauart, Range und Standbild am Server"
+  },
+  {
+    nr: '1318', name: "Der Umschlag des Papierkorbs traegt kein Standbild",
+    file: 'server.js',
+    search: "                    ...(a2.still ? { duration: a2.duration,\n                                     ['still' + extension]: funnel.take(funnel.blobs ? a2.still : null,",
+    replacement: "                    ...(a2.still && funnel.blobs ? { duration: a2.duration,\n                                     ['still' + extension]: funnel.take(funnel.blobs ? a2.still : null,",
+    expected: "Videos unter Dateien: Papierkorb und Export"
+  },
+  {
+    nr: '1319', name: "Im Vollbild blaettern die Pfeile trotz Fokus auf dem Video",
+    file: 'public/app.js',
+    search: "    else if (document.activeElement === player || document.activeElement?.mediaPlayer === player) { if (seekVideo(e)) e.stopPropagation(); }\n",
+    replacement: "",
+    expected: "Videos unter Dateien: Kachel, Vollbild und Tasten"
+  },
+  {
+    nr: '1320', name: "Im Eintrag blaettern die Pfeile trotz Fokus auf dem Kurzvideo",
+    file: 'public/app.js',
+    search: "    // Ein Video mit Fokus spult, statt zu blaettern.\n    if (seekVideo(e)) return;\n",
+    replacement: "",
+    expected: "Videos unter Dateien: Kachel, Vollbild und Tasten"
+  },
+  {
+    nr: '1321', name: "Die Adresse eines Videos oeffnet die eigene Ansicht",
+    file: 'public/app.js',
+    search: "  if (a && (a.preview === 'video' || a.preview === 'audio' || (a.preview === 'image' && !editWanted))) {",
+    replacement: "  if (a && (a.preview === 'audio' || (a.preview === 'image' && !editWanted))) {",
+    expected: "Videos unter Dateien: Adresse, Marke und Bildleiste"
+  },
+  {
+    nr: '1322', name: "Das Nachholen laeuft bei jedem Zeichnen",
+    file: 'public/app.js',
+    search: "  if (STILLS_TRIED.has(a.id) || STILLS_ON_WAY.has(a.id)) return;",
+    replacement: "  if (STILLS_ON_WAY.has(a.id)) return;",
+    expected: "Videos unter Dateien: Standbild beim Hochladen, von Hand und nachgeholt"
+  },
+  {
+    nr: '1323', name: "Die Bildleiste nennt „Dateien“ ohne Blick auf die Grenze „Datei“",
+    file: 'public/app.js',
+    search: "        + (bigVideo.size > fileLimit() * 1048576 ? '' : ' ' + t('entry.videoToFiles')));",
+    replacement: "        + ' ' + t('entry.videoToFiles'));",
+    expected: "Videos unter Dateien: Adresse, Marke und Bildleiste"
+  },
+  {
+    nr: '1324', name: "Das Wiederherstellen legt das Standbild nicht an",
+    file: 'server.js',
+    search: "        if (a2.still) putStill.run(added.lastInsertRowid, a2.duration, a2.still);\n",
+    replacement: "",
+    expected: "Videos unter Dateien: Papierkorb und Export"
+  },
+  {
+    nr: '1325', name: "Nach dem Upload geht kein Standbild an den Server",
+    file: 'public/app.js',
+    search: "  stillAfterUpload(u, data);\n",
+    replacement: "",
+    expected: "Videos unter Dateien: Standbild beim Hochladen, von Hand und nachgeholt"
+  },
+  {
+    nr: '1326', name: "Ein neues Standbild laesst die alte Kachel stehen",
+    file: 'server.js',
+    search: "      dropFileTile.run(req.params.id);\n",
+    replacement: "",
+    expected: "Videos unter Dateien: Vorschauart, Range und Standbild am Server"
+  },
+  {
+    nr: '1327', name: "Der Browser spult zusaetzlich zum festen Sprung",
+    file: 'public/app.js',
+    search: "  else return false;\n  e.preventDefault();\n",
+    replacement: "  else return false;\n",
+    expected: "Videos unter Dateien: Kachel, Vollbild und Tasten"
+  },
+  {
+    nr: '1328', name: "Der Sprung laeuft ueber Anfang und Ende hinaus",
+    file: 'public/app.js',
+    search: "  v.currentTime = Math.min(end, Math.max(0, v.currentTime + (e.key === 'ArrowLeft' ? -SEEK_STEP : SEEK_STEP)));",
+    replacement: "  v.currentTime = v.currentTime + (e.key === 'ArrowLeft' ? -SEEK_STEP : SEEK_STEP);",
+    expected: "Videos unter Dateien: Kachel, Vollbild und Tasten"
+  },
+  {
+    nr: '1329', name: "Verschieben legt die Datei neu an",
+    file: 'server.js',
+    search: "    putFileFolder.run(a.id, f.id);\n  }\n  touch.run(a.item_id);",
+    replacement: "    const copy = db.prepare(`INSERT INTO attachments (item_id, filename, mime_type, size, data, sort_order, user_id)\n      SELECT item_id, filename, mime_type, size, data, sort_order, user_id FROM attachments WHERE id = ?`)\n      .run(a.id).lastInsertRowid;\n    db.prepare('DELETE FROM attachments WHERE id = ?').run(a.id);\n    putFileFolder.run(copy, f.id);\n  }\n  touch.run(a.item_id);",
+    expected: "Ordner: Schema und Routen"
+  },
+  {
+    nr: '1330', name: "Ordner loeschen loescht die Dateien darin mit",
+    file: 'server.js',
+    search: "  dropFolder.run(f.id);",
+    replacement: "  db.prepare('DELETE FROM attachments WHERE id IN (SELECT attachment_id FROM attachment_folders WHERE folder_id = ?)').run(f.id);\n  dropFolder.run(f.id);",
+    expected: "Ordner: Schema und Routen"
+  },
+  {
+    nr: '1331', name: "Ein Ordner nimmt einen Testtag eines anderen Eintrags an",
+    file: 'server.js',
+    search: "  if (d.item_id !== Number(itemId) || !selfOnly(req, d.user_id)) {",
+    replacement: "  if (!selfOnly(req, d.user_id)) {",
+    expected: "Platte: Ordner mit Testtag"
+  },
+  {
+    nr: '1332', name: "Umbenennen darf auch der Admin",
+    file: 'server.js',
+    search: "  if (!selfOnly(req, f.user_id)) return res.status(403).json({ error: t(localeOf(req), DENIED_SELF)});\n  const b = req.body || {};",
+    replacement: "  if (!mayChange(req, f.user_id)) return res.status(403).json({ error: t(localeOf(req), DENIED_SELF)});\n  const b = req.body || {};",
+    expected: "Ordner: Schema und Routen"
+  },
+  {
+    nr: '1333', name: "Verschieben vergleicht den Eintrag von Datei und Ordner nicht",
+    file: 'server.js',
+    search: "    if (f.item_id !== a.item_id || !selfOnly(req, f.user_id))",
+    replacement: "    if (!selfOnly(req, f.user_id))",
+    expected: "Ordner: Schema und Routen"
+  },
+  {
+    nr: '1334', name: "Der Export traegt keine Ordner",
+    file: 'server.js',
+    search: "    o.folders = folders.map(f => ({ name: f.name, author: authorName(f.user_id), created_at: f.created_at,\n",
+    replacement: "    o.folders = funnel.blobs ? [] : folders.map(f => ({ name: f.name, author: authorName(f.user_id), created_at: f.created_at,\n",
+    expected: "Ordner: Export, Import und Papierkorb"
+  },
+  {
+    nr: '1335', name: "Der Export traegt kein Standbild",
+    file: 'server.js',
+    search: "                    ...(a2.still ? { duration: a2.duration,\n                                     ['still' + extension]: funnel.take(funnel.blobs ? a2.still : null,",
+    replacement: "                    ...(a2.still && !funnel.blobs ? { duration: a2.duration,\n                                     ['still' + extension]: funnel.take(funnel.blobs ? a2.still : null,",
+    expected: "Ordner: Export, Import und Papierkorb"
+  },
+  {
+    nr: '1336', name: "Der Import legt keine Ordner an",
+    file: 'server.js',
+    search: "      const folderIds = (Array.isArray(it.folders) ? it.folders : []).map((f, fi) => {",
+    replacement: "      const folderIds = [].map((f, fi) => {",
+    expected: "Ordner: Export, Import und Papierkorb"
+  },
+  {
+    nr: '1337', name: "Der Papierkorb vergisst die Ordner",
+    file: 'server.js',
+    search: "    o.folders = folders.map(f => ({ name: f.name, author: authorName(f.user_id), created_at: f.created_at,\n",
+    replacement: "    o.folders = !funnel.blobs ? [] : folders.map(f => ({ name: f.name, author: authorName(f.user_id), created_at: f.created_at,\n",
+    expected: "Ordner: Export, Import und Papierkorb"
+  },
+  {
+    nr: '1338', name: "Beim Oeffnen eines Eintrags stehen die Ordner offen",
+    file: 'public/app.js',
+    search: "      const open = FOLDERS_OPEN.open.has(f.id);",
+    replacement: "      const open = true;",
+    expected: "Ordner: Block, Kopf und Menue"
+  },
+  {
+    nr: '1339', name: "Das Vollbild blaettert ueber die Gruppe hinaus",
+    file: 'public/app.js',
+    search: "      .filter(a => ['image', 'video', 'audio'].includes(a.preview) && groupOf(a) === key))",
+    replacement: "      .filter(a => ['image', 'video', 'audio'].includes(a.preview)))",
+    expected: "Ordner: Block, Kopf und Menue"
+  },
+  {
+    nr: '1340', name: "Das Menue eines fremden Ordners steht jedem offen",
+    file: 'public/app.js',
+    search: "    if (f.mine === true || ADMIN)\n      items.push({ label: t('entry.folderDelete')",
+    replacement: "    if (true)\n      items.push({ label: t('entry.folderDelete')",
+    expected: "Ordner: Block, Kopf und Menue"
+  },
+  {
+    nr: '1341', name: "Beim Bearbeiten fehlt das ✕ der eigenen Ansicht",
+    file: 'public/app.js',
+    search: "      <a class=\"fileview-full fileview-close\" href=\"${esc(entryAddress(itemId))}\"",
+    replacement: "      <a class=\"fileview-full fileview-close\"${editWanted ? ' hidden' : ''} href=\"${esc(entryAddress(itemId))}\"",
+    expected: "Ordner: Adresse, Rueckkehr und das ✕ der eigenen Ansicht"
+  },
+  {
+    nr: '1342', name: "Eine 403 ohne Text zeigt beim Hochladen wieder nur den Statuscode",
+    file: 'public/app.js',
+    search: "    : data?.error || proxyAnswer(xhr.status) || t('error.serverStatus', { status: xhr.status }));",
+    replacement: "    : data?.error || t('error.serverStatus', { status: xhr.status }));",
+    expected: "Ordner: Loeschdialoge und die Meldung bei 403"
+  },
+  /* ---- Dateien auf der Platte ---- */
+  {
+    nr: '1343', name: "Ein Testtag nimmt einen zweiten Ordner an",
+    file: 'server.js',
+    search: "  if (taken && taken.id !== folderId) {",
+    replacement: "  if (false) {",
+    expected: "Platte: Ordner mit Testtag"
+  },
+  {
+    nr: '1344', name: "Der Admin verbindet einen fremden Testtag",
+    file: 'server.js',
+    search: "  if (d.item_id !== Number(itemId) || !selfOnly(req, d.user_id)) {",
+    replacement: "  if (d.item_id !== Number(itemId) || !mayChange(req, d.user_id)) {",
+    expected: "Platte: Ordner mit Testtag"
+  },
+  {
+    nr: '1345', name: "Testtag loeschen loescht den Ordner mit",
+    file: 'schema.js',
+    search: "  test_day_id INTEGER UNIQUE REFERENCES test_days(id) ON DELETE SET NULL",
+    replacement: "  test_day_id INTEGER UNIQUE REFERENCES test_days(id) ON DELETE CASCADE",
+    expected: "Platte: Ordner mit Testtag"
+  },
+  {
+    nr: '1346', name: "Der Export traegt den Testtag eines Ordners nicht",
+    file: 'server.js',
+    search: "                                     ...(dayAt.has(f.test_day_id) ? { testDay: dayAt.get(f.test_day_id) } : {}) }));",
+    replacement: "                                     }));",
+    expected: "Platte: Ordner mit Testtag"
+  },
+  {
+    nr: '1347', name: "Der Beginn eines Uploads nennt den Ordner nicht",
+    file: 'public/app.js',
+    search: "      { filename: u.name, size: u.size, modified: u.file.lastModified, folderId: u.folderId || null });",
+    replacement: "      { filename: u.name, size: u.size, modified: u.file.lastModified, folderId: null });",
+    expected: "Ordner: Hochladen und Ablegen"
+  },
+  {
+    nr: '1356', name: "Ein erneutes Stueck wird verschluesselt",
+    file: 'server.js',
+    search: "  const n = Number(req.headers['upload-offset']);\n  if (n !== u.received)",
+    replacement: "  const n = Number(req.headers['upload-offset']);\n  if (n > u.received)",
+    expected: "Platte: Stueck, Laenge und Fortsetzen"
+  },
+  {
+    nr: '1357', name: "Die Laenge der Datei unter upload/ wird nicht geprueft",
+    file: 'server.js',
+    search: "  if (there !== encLen(n)) {",
+    replacement: "  if (there < 0) {",
+    expected: "Platte: Stueck, Laenge und Fortsetzen"
+  },
+  {
+    nr: '1358', name: "Die Zahlen werden vor der Suche nach dem eigenen Upload geprueft",
+    file: 'server.js',
+    search: "  // Fortsetzen ohne Pruefung der Zahlen und Grenzen: sie galten beim Beginn.\n  const own = qOwnUpload.get(itemId, req.user.id, filename, size, modified);",
+    replacement: "  if (fileSlots(itemId) >= FILES_PER_ENTRY)\n    return res.status(400).json({ error: t(locale, 'server.fileCap', { cap: FILES_PER_ENTRY })});\n  const own = qOwnUpload.get(itemId, req.user.id, filename, size, modified);",
+    expected: "Platte: Stueck, Laenge und Fortsetzen"
+  },
+  {
+    nr: '1359', name: "Die Pruefung eines Uploads liest erst den Rumpf",
+    file: 'server.js',
+    search: "app.put('/api/uploads/:id', uploadTurn, uploadBody, async (req, res, next) => {",
+    replacement: "app.put('/api/uploads/:id', express.raw({ type: 'application/octet-stream', limit: '8mb', inflate: false }), uploadTurn, uploadBody, async (req, res, next) => {",
+    expected: "Platte: Pruefungen vor dem Rumpf"
+  },
+  {
+    nr: '1360', name: "Ein fremder Upload nimmt Stuecke an",
+    file: 'server.js',
+    search: "  if (!u || !selfOnly(req, u.user_id)) return res.status(404).json({ error: t(locale, 'server.uploadGone') });",
+    replacement: "  if (!u) return res.status(404).json({ error: t(locale, 'server.uploadGone') });",
+    expected: "Platte: Pruefungen vor dem Rumpf"
+  },
+  {
+    nr: '1361', name: "Ein falscher Offset wird nicht abgewiesen",
+    file: 'server.js',
+    search: "  const n = Number(req.headers['upload-offset']);\n  if (n !== u.received)\n    return res.status(409).json({ error: t(locale, 'server.uploadOffset'), received: u.received });\n",
+    replacement: "  const n = Number(req.headers['upload-offset']);\n",
+    expected: "Platte: Pruefungen vor dem Rumpf"
+  },
+  {
+    nr: '1362', name: "Zu viele Bytes werden nicht abgewiesen",
+    file: 'server.js',
+    search: "  if (Number(req.headers['content-length']) !== piece)\n    return res.status(400).json({ error: t(locale, 'server.uploadPiece') });\n",
+    replacement: "",
+    expected: "Platte: Pruefungen vor dem Rumpf"
+  },
+  {
+    nr: '1363', name: "Ohne Platz nimmt ein Upload weiter Stuecke an",
+    file: 'server.js',
+    search: "  const short = spaceShort(encLen(u.size) - encLen(n), u.id);\n  if (short) return refuseSpace(req, res, short);\n",
+    replacement: "",
+    expected: "Platte: Pruefungen vor dem Rumpf"
+  },
+  {
+    nr: '1364', name: "Die volle Zahl offener Uploads sperrt nicht",
+    file: 'server.js',
+    search: "  if (open.length >= UPLOADS_PER_USER)",
+    replacement: "  if (false)",
+    expected: "Platte: Pruefungen vor dem Rumpf"
+  },
+  {
+    nr: '1365', name: "Scheitert statfs, gilt die Platte als voll",
+    file: 'server.js',
+    search: "  const free = diskFree();\n  if (free === null) return null;",
+    replacement: "  const free = diskFree();\n  if (free === null) return { free: 0, reserved: 0, needed, reserve: 0 };",
+    expected: "Platte: Pruefungen vor dem Rumpf"
+  },
+  {
+    nr: '1366', name: "Die Stueckgrenze ist verschoben",
+    file: 'server.js',
+    search: "    const first = Math.floor(from / f.chunk), last = f.size ? Math.floor(to / f.chunk) : -1;",
+    replacement: "    const first = Math.floor((from + 1) / f.chunk), last = f.size ? Math.floor(to / f.chunk) : -1;",
+    expected: "Platte: Ranges und HEAD"
+  },
+  {
+    nr: '1367', name: "Ein Range hinter dem Ende wird zurechtgebogen",
+    file: 'attachments.js',
+    search: "    if (from >= size) return { invalid: true };",
+    replacement: "    if (from >= size) from = size - 1;",
+    expected: "Platte: Ranges und HEAD"
+  },
+  {
+    nr: '1368', name: "HEAD prueft die Laenge der Datei nicht",
+    file: 'server.js',
+    search: "      if ((await handle.stat()).size !== encLen(f.size, f.chunk)) return res.status(500).end();\n",
+    replacement: "",
+    expected: "Platte: Ranges und HEAD"
+  },
+  {
+    nr: '1369', name: "Ein Proxy darf die Auslieferung umformen",
+    file: 'server.js',
+    search: "  res.set('Cache-Control', 'private, max-age=3600, no-transform');",
+    replacement: "  res.set('Cache-Control', 'private, max-age=3600');",
+    expected: "Platte: Ranges und HEAD"
+  },
+  {
+    nr: '1372', name: "Die Umlagerung leert data nicht",
+    file: 'server.js',
+    search: "      emptyFile.run(id);\n      if (before) emptyPrevious.run(id);",
+    replacement: "      if (before) emptyPrevious.run(id);",
+    expected: "Platte: Umlagerung"
+  },
+  {
+    nr: '1373', name: "Die Umlagerung vergleicht saves nicht",
+    file: 'server.js',
+    search: "      if (editingOf(id).saves !== saves) return 'changed';\n",
+    replacement: "",
+    expected: "Platte: Umlagerung"
+  },
+  {
+    nr: '1375', name: "Der Lauf holt die Umlagerung nicht nach",
+    file: 'server.js',
+    search: "  if (!DATABASE_INCOMPLETE) await relocate(qRelocatePending.all().map(z => z.id));\n",
+    replacement: "",
+    expected: "Platte: Umlagerung"
+  },
+  {
+    nr: '1376', name: "Das Verschieben aus dem Ordner holt die Datei in die Datenbank zurueck",
+    file: 'server.js',
+    search: "  if (wanted === null) dropFileFolder.run(a.id);",
+    replacement: "  if (wanted === null) { dropFileFolder.run(a.id); db.prepare('DELETE FROM disk_files WHERE attachment_id = ?').run(a.id); }",
+    expected: "Platte: kein Weg zurueck"
+  },
+  {
+    nr: '1377', name: "Der Rueckschrieb ueberschreibt die Datei an ihrer Stelle",
+    file: 'server.js',
+    search: "      ? { name: freshName(), key: crypto.randomBytes(32), chunk: CHUNK, size: got.data.length } : null;",
+    replacement: "      ? { name: qDiskName.get(id).name, key: crypto.randomBytes(32), chunk: CHUNK, size: got.data.length } : null;",
+    expected: "Platte: Rueckschrieb des Document Servers"
+  },
+  {
+    nr: '1378', name: "Die aeltere vorige Fassung bleibt",
+    file: 'server.js',
+    search: "      if (first) diskDropPrevious.run(id);\n",
+    replacement: "",
+    expected: "Platte: Rueckschrieb des Document Servers"
+  },
+  {
+    nr: '1379', name: "Wiederherstellen nimmt die Groesse aus data",
+    file: 'server.js',
+    search: "  const before = db.prepare('SELECT filename, mime_type, size FROM attachment_previous WHERE attachment_id = ?').get(id);",
+    replacement: "  const before = db.prepare('SELECT filename, mime_type, length(data) AS size FROM attachment_previous WHERE attachment_id = ?').get(id);",
+    expected: "Platte: Rueckschrieb des Document Servers"
+  },
+  {
+    nr: '1380', name: "Vorschau und Document Server entschluesseln die Datei nicht",
+    file: 'server.js',
+    search: "  if (!f) return data;\n  if (f.large) return null;",
+    replacement: "  if (!f) return data;\n  return null;",
+    expected: "Platte: Rueckschrieb des Document Servers"
+  },
+  {
+    nr: '1381', name: "Der Trigger disk_files_orphaned fehlt",
+    file: 'db.js',
+    search: "  INSERT OR IGNORE INTO disk_files_gone (name) VALUES (new.name);\n  DELETE FROM disk_files WHERE id = new.id;",
+    replacement: "  SELECT 1;",
+    expected: "Platte: Trigger und Loeschliste"
+  },
+  {
+    nr: '1382', name: "Der Trigger disk_files_held fehlt",
+    file: 'db.js',
+    search: "BEGIN SELECT RAISE(ABORT, 'disk file stays with its attachment'); END",
+    replacement: "BEGIN SELECT 1; END",
+    expected: "Platte: Trigger und Loeschliste"
+  },
+  {
+    nr: '1383', name: "Der Trigger disk_files_kept fehlt",
+    file: 'db.js',
+    search: "BEGIN SELECT RAISE(ABORT, 'disk file has an owner'); END",
+    replacement: "BEGIN SELECT 1; END",
+    expected: "Platte: Trigger und Loeschliste"
+  },
+  {
+    nr: '1384', name: "Die Ausnahme in disk_files_held vergleicht old.attachment_id nicht",
+    file: 'db.js',
+    search: "   AND NOT (new.attachment_id IS NULL AND new.previous_of IS old.attachment_id)",
+    replacement: "   AND NOT (new.attachment_id IS NULL AND new.previous_of IS NOT NULL)",
+    expected: "Platte: Trigger und Loeschliste"
+  },
+  {
+    nr: '1385', name: "Die Datei wird vor dem Commit geloescht",
+    file: 'server.js',
+    search: "    fileIntoTrash(Number(req.params.id), req.user.id);\n    db.prepare('DELETE FROM attachments WHERE id = ?').run(req.params.id);",
+    replacement: "    const early = qDiskName.get(req.params.id);\n    if (early) fs.rmSync(diskPath(early.name), { force: true });\n    fileIntoTrash(Number(req.params.id), req.user.id);\n    db.prepare('DELETE FROM attachments WHERE id = ?').run(req.params.id);",
+    expected: "Platte: Trigger und Loeschliste"
+  },
+  {
+    nr: '1386', name: "sweepDisk gleicht das Verzeichnis ab statt der Liste",
+    file: 'server.js',
+    search: "  const names = qGone.all().map(z => z.name);\n  if (!names.length) return;",
+    replacement: "  const known = new Set(qDiskNames.all().map(z => z.name));\n  const names = [...qGone.all().map(z => z.name),\n    ...fs.readdirSync(FILES_DIR).filter(n => DISK_NAME.test(n) && !known.has(n))];\n  if (!names.length) return;",
+    expected: "Platte: unbekannte Dateien und Wiederherstellen"
+  },
+  {
+    nr: '1387', name: "/api/import loest data_stored auf",
+    file: 'server.js',
+    search: "      const stored = bytesSource && typeof a2.data_stored === 'string' && DISK_NAME.test(a2.data_stored)",
+    replacement: "      const stored = typeof a2.data_stored === 'string' && DISK_NAME.test(a2.data_stored)",
+    expected: "Platte: unbekannte Dateien und Wiederherstellen"
+  },
+  {
+    nr: '1388', name: "Wiederherstellen prueft nicht, ob die Datei noch zur Zeile in trash gehoert",
+    file: 'server.js',
+    search: "        const fromTrash = a2.stored ? qTrashDisk.get(a2.stored, trashId) : null;\n        if (a2.stored && !fromTrash) throw trashGone();\n        const size = a2.disk ? a2.disk.size : fromTrash ? fromTrash.size : a2.buf.length;\n        const added = iAttachmentAdd().run(id, a2.name, a2.mime, size, a2.buf || NO_BYTES, i, whose);\n        if (a2.disk) addDiskFile.run(a2.disk.name, a2.disk.size, CHUNK, a2.disk.key, added.lastInsertRowid, null);\n        if (a2.stored && diskFromTrash.run(added.lastInsertRowid, a2.stored, trashId).changes !== 1) throw trashGone();",
+    replacement: "        const fromTrash = a2.stored ? qTrashDisk.get(a2.stored, trashId) : null;\n        const size = a2.disk ? a2.disk.size : fromTrash ? fromTrash.size : a2.buf ? a2.buf.length : 0;\n        const added = iAttachmentAdd().run(id, a2.name, a2.mime, size, a2.buf || NO_BYTES, i, whose);\n        if (a2.disk) addDiskFile.run(a2.disk.name, a2.disk.size, CHUNK, a2.disk.key, added.lastInsertRowid, null);\n        if (a2.stored) diskFromTrash.run(added.lastInsertRowid, a2.stored, trashId);",
+    expected: "Platte: unbekannte Dateien und Wiederherstellen"
+  },
+  {
+    nr: '1389', name: "Die Backup-Kopie haelt das Loeschen nicht an",
+    file: 'server.js',
+    search: "  SWEEP_HELD++;\n  let answered = false;",
+    replacement: "  let answered = false;",
+    expected: "Platte: Backup mit Dateien"
+  },
+  {
+    nr: '1390', name: "Die Liste des Backups kommt aus der laufenden Datenbank",
+    file: 'backup.js',
+    search: "    writeList(file, rows, version, before);",
+    replacement: "    writeList(file, db.prepare('SELECT name, size, chunk FROM disk_files ORDER BY id').all()\n      .map(z => ({ name: z.name, length: encLen(z.size, z.chunk) })), version, before);",
+    expected: "Platte: Backup mit Dateien"
+  },
+  {
+    nr: '1391', name: "Das Backup antwortet immer mit 202",
+    file: 'server.js',
+    search: "        if (!state.running) return;\n        res.status(202)",
+    replacement: "        if (false) return;\n        res.status(202)",
+    expected: "Platte: Backup mit Dateien"
+  },
+  {
+    nr: '1392', name: "Die Sperre des Backups gilt nur im Speicher",
+    file: 'backup.js',
+    search: "      fs.writeFileSync(lock, note, { flag: 'wx' });",
+    replacement: "      fs.writeFileSync(lock, note);",
+    expected: "Platte: Backup mit Dateien"
+  },
+  {
+    nr: '1393', name: "Das Aufraeumen nach dem Backup loescht ohne Muster",
+    file: 'backup.js',
+    search: "    if (!m || (!m[2] && named.has(m[1]))) continue;",
+    replacement: "    if (m && !m[2] && named.has(m[1])) continue;",
+    expected: "Platte: Backup mit Dateien"
+  },
+  {
+    nr: '1394', name: "Dateien ohne Verweis loescht jeder Admin",
+    file: 'server.js',
+    search: "app.delete('/api/files/unknown', ownerOnly, (req, res) => {",
+    replacement: "app.delete('/api/files/unknown', adminOnly, (req, res) => {",
+    expected: "Platte: Dateien ohne Verweis loeschen"
+  },
+  {
+    nr: '1395', name: "Dateien ohne Verweis: die Freigabe des Abgleichs wird nicht geprueft",
+    file: 'server.js',
+    search: "    for (const f of unknownScan().filter(z => z.free && wanted.has(z.name))) {",
+    replacement: "    for (const f of unknownScan().filter(z => wanted.has(z.name))) {",
+    expected: "Platte: Dateien ohne Verweis loeschen"
+  },
+  {
+    nr: '1396', name: "Dateien ohne Verweis: die Laenge der Kopie wird nicht verglichen",
+    file: 'server.js',
+    search: "    else if (folder && backup.copyPresent(folder, { name: f.name, length: f.size })) why = 'copied';",
+    replacement: "    else if (folder && fs.existsSync(path.join(folder, COPY_DIR, f.name))) why = 'copied';",
+    expected: "Platte: Dateien ohne Verweis loeschen"
+  },
+  {
+    nr: '1397', name: "Dateien ohne Verweis: der Abgleich kennt disk_files nicht",
+    file: 'server.js',
+    search: "  const known = new Set([...qDiskNames.all(), ...qGone.all()].map(z => z.name));",
+    replacement: "  const known = new Set(qGone.all().map(z => z.name));",
+    expected: "Platte: Dateien ohne Verweis loeschen"
+  },
+  {
+    nr: '1398', name: "Dateien ohne Verweis: der Abgleich kennt die Loeschliste nicht",
+    file: 'server.js',
+    search: "  const known = new Set([...qDiskNames.all(), ...qGone.all()].map(z => z.name));",
+    replacement: "  const known = new Set(qDiskNames.all().map(z => z.name));",
+    expected: "Platte: Dateien ohne Verweis loeschen"
+  },
+  {
+    nr: '1399', name: "Dateien ohne Verweis: upload/ gilt als fremdes Verzeichnis",
+    file: 'server.js',
+    search: "    if (st.isDirectory() && OWN_DIRS.has(name)) continue;\n",
+    replacement: "",
+    expected: "Platte: Dateien ohne Verweis loeschen"
+  },
+  {
+    nr: '1400', name: "Dateien ohne Verweis: die Sperre des Backups wird nicht genommen",
+    file: 'server.js',
+    search: "  const lock = folder ? takeBackupLock(folder) : null;\n  if (folder ? !lock : BACKUP_BUSY) return res.status(409).json({ error: t(localeOf(req), 'server.backupRunning')});\n",
+    replacement: "  const lock = null;\n",
+    expected: "Platte: Dateien ohne Verweis loeschen"
+  },
+  {
+    nr: '1401', name: "Der Abgleich unter upload/ kennt disk_files nicht",
+    file: 'server.js',
+    search: "  const known = new Set([...qUploadNames.all(), ...qDiskNames.all()].map(z => z.name));",
+    replacement: "  const known = new Set(qUploadNames.all().map(z => z.name));",
+    expected: "Platte: Lauf und upload/"
+  },
+  {
+    nr: '1402', name: "Nur der Start holt ein rename nach",
+    file: 'server.js',
+    search: "    // Abschluesse nachholen: die Zeile steht, die Datei liegt noch unter upload/.\n    try {",
+    replacement: "    // Abschluesse nachholen: die Zeile steht, die Datei liegt noch unter upload/.\n    if (start) try {",
+    expected: "Platte: Lauf und upload/"
+  },
+  {
+    nr: '1403', name: "Der Lauf liest die Namen im Speicher nicht",
+    file: 'server.js',
+    search: "  const known = new Set([...qUploadNames.all(), ...qDiskNames.all()].map(z => z.name));\n  for (const name of names) {\n    if (!DISK_NAME.test(name) || known.has(name) || DISK_WRITING.has(name)) continue;",
+    replacement: "  const known = new Set([...qUploadNames.all(), ...qDiskNames.all()].map(z => z.name));\n  for (const name of names) {\n    if (!DISK_NAME.test(name) || known.has(name)) continue;",
+    expected: "Platte: Lauf und upload/"
+  },
+  {
+    nr: '1404', name: "sweepDisk vergleicht checkpointed nicht mit log",
+    file: 'server.js',
+    search: "  if (!mark || mark.checkpointed !== mark.log) return;",
+    replacement: "  if (!mark) return;",
+    expected: "Platte: Checkpoint und FULL"
+  },
+  {
+    nr: '1405', name: "Der Abschluss committet ohne synchronous = FULL",
+    file: 'server.js',
+    search: "  db.pragma('synchronous = FULL');\n",
+    replacement: "",
+    expected: "Platte: Checkpoint und FULL"
+  },
+  {
+    nr: '1406', name: "Eine Datei auf der Platte geht ohne Inhalt in den Export",
+    file: 'server.js',
+    search: "  if (a2.large) return {};\n  if (funnel.stream)",
+    replacement: "  if (a2.large || a2.stored) return {};\n  if (funnel.stream)",
+    expected: "Platte: Export und Import"
+  },
+  {
+    nr: '1407', name: "Ein grosses Video geht mit Inhalt in den Export",
+    file: 'server.js',
+    search: "  if (a2.large) return {};\n  if (funnel.stream) return { ['data' + extension]: funnel.take(null, ['disk', a2.id]) };",
+    replacement: "  if (funnel.stream) return { ['data' + extension]: funnel.take(null, ['disk', a2.id]) };\n  if (a2.large) return {};",
+    expected: "Platte: Export und Import"
+  },
+  {
+    nr: '1408', name: "Der Import legt alles in die Datenbank",
+    file: 'server.js',
+    search: "      if (buf) {",
+    replacement: "      if (false) {",
+    expected: "Platte: Export und Import"
+  },
+  {
+    nr: '1409', name: "Der Plan zaehlt grosse Videos mit",
+    file: 'server.js',
+    search: "                    WHERE a.item_id = i.id AND d.large = 0), 0) AS attachment,",
+    replacement: "                    WHERE a.item_id = i.id), 0) AS attachment,",
+    expected: "Platte: Export und Import"
+  },
+  {
+    nr: '1410', name: "Der Plan zaehlt Dateien auf der Platte nicht",
+    file: 'server.js',
+    search: "      + COALESCE((SELECT SUM(d.size) FROM disk_files d JOIN attachments a ON a.id = d.attachment_id\n                    WHERE a.item_id = i.id AND d.large = 0), 0) AS attachment,",
+    replacement: "      AS attachment,",
+    expected: "Platte: Export und Import"
+  },
+  {
+    nr: '1411', name: "Der Upload in einen geloeschten Ordner geht verloren",
+    file: 'server.js',
+    search: "function finishUpload(req, res, u) {\n  const added = commitFull(() => {",
+    replacement: "function finishUpload(req, res, u) {\n  if (u.folder_id == null) { dropUpload.run(u.id); return res.status(404).json({ error: t(localeOf(req), 'server.folderGone') }); }\n  const added = commitFull(() => {",
+    expected: "Platte: Upload in einen geloeschten Ordner"
+  },
+  {
+    nr: '1412', name: "Die Sperre eines Uploads faellt bei close",
+    file: 'server.js',
+    search: "  rawPiece(req, res, (err) => {",
+    replacement: "  req.on('close', () => UPLOADS_RUNNING.delete(req.upload.id));\n  rawPiece(req, res, (err) => {",
+    expected: "Platte: Abbruch und zweite Anfrage"
+  },
+  {
+    nr: '1413', name: "Das Entschluesseln gibt ein Stueck vor der Pruefung der Marke heraus",
+    file: 'attachments.js',
+    search: "  try { d.final(); } catch { throw damaged('tag'); }",
+    replacement: "  try { d.final(); } catch {}",
+    expected: "Platte: beschaedigte Datei"
+  },
+  {
+    nr: '1414', name: "Ein Stueck geht unverschluesselt auf die Platte",
+    file: 'attachments.js',
+    search: "  return Buffer.concat([c.update(plain), c.final(), c.getAuthTag()]);",
+    replacement: "  c.update(plain);\n  c.final();\n  return Buffer.concat([plain, c.getAuthTag()]);",
+    expected: "Platte: beschaedigte Datei"
+  },
+  {
+    nr: '1415', name: "Ein Klick auf den Kopf nach einem Sprung schreibt BLOCKS.closed",
+    file: 'public/app.js',
+    search: "      } else if (JUMPED.has(name)) {\n        // Ein Sprung hat ihn geoeffnet: zuklappen, die Einstellung bleibt.\n        JUMPED.delete(name);\n      } else {",
+    replacement: "      } else {",
+    expected: "Platte: ein Sprung oeffnet den Block nur fuer die Ansicht"
+  },
+  {
+    nr: '1416', name: "keytool.sh nennt wieder rm -rf data als Rueckweg",
+    file: 'keytool.sh',
+    search: "      echo \"      find data -mindepth 1 -maxdepth 1 ! -name files -exec rm -rf {} + && cp -a $ZIEL/. data/\"",
+    replacement: "      echo \"      rm -rf data && cp -a $ZIEL data\"",
+    expected: "Dateien auf der Platte im Quelltext"
+  },
+  {
+    nr: '1417', name: "Die Liste der Anweisungen auf data ist gekuerzt",
+    file: 'test/source.js',
+    search: "    'SELECT COALESCE(SUM(length(data)),0) n FROM attachments',\n",
+    replacement: "",
+    expected: "Dateien auf der Platte im Quelltext"
+  },
+  {
+    nr: '1418', name: "file_key wird mit SELECT * gelesen",
+    file: 'server.js',
+    search: "const qDiskFile = db.prepare('SELECT id, name, size, chunk, large, file_key FROM disk_files WHERE attachment_id = ?');",
+    replacement: "const qDiskFile = db.prepare('SELECT * FROM disk_files WHERE attachment_id = ?');",
+    expected: "Dateien auf der Platte im Quelltext"
+  },
+  {
+    nr: '1419', name: "filesView fehlt unter den persoenlichen Schluesseln",
+    file: 'server.js',
+    search: "const PERSONAL_KEYS = ['documentTheme', 'filesEditAll', 'filesView',",
+    replacement: "const PERSONAL_KEYS = ['documentTheme', 'filesEditAll',",
+    expected: "Dateien: die Einstellung Kacheln oder Liste"
+  },
+  {
+    nr: '1420', name: "filesView nimmt jeden Wert an",
+    file: 'server.js',
+    search: "      take('filesView');\n",
+    replacement: "      if (req.body.filesView !== undefined) putUserSetting(req.user.id, 'filesView', JSON.stringify(String(req.body.filesView)));\n",
+    expected: "Dateien: die Einstellung Kacheln oder Liste"
+  },
+  {
+    nr: '1421', name: "Ohne eigene Wahl gilt die Liste",
+    file: 'server.js',
+    search: "  filesView:   { list: ['tiles', 'list'],  cast: String, fallback: 'tiles',",
+    replacement: "  filesView:   { list: ['tiles', 'list'],  cast: String, fallback: 'list',",
+    expected: "Dateien: die Einstellung Kacheln oder Liste"
+  },
+  {
+    nr: '1422', name: "Das SVG aus Text maskiert nichts",
+    file: 'attachments.js',
+    search: "const xmlText = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');",
+    replacement: "const xmlText = (s) => s;",
+    expected: "Dateien: Vorschaubild einer Textdatei"
+  },
+  {
+    nr: '1423', name: "Steuerzeichen bleiben im SVG",
+    file: 'attachments.js',
+    search: "const XML_UNFIT = /[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f\\ufffe\\uffff]/g;",
+    replacement: "const XML_UNFIT = /(?!)/g;",
+    expected: "Dateien: Vorschaubild einer Textdatei"
+  },
+  {
+    nr: '1424', name: "Das SVG aus Text zeigt keine Zeile",
+    file: 'attachments.js',
+    search: "  const spans = rows.map((l, i) =>",
+    replacement: "  const spans = [].map((l, i) =>",
+    expected: "Dateien: Vorschaubild einer Textdatei"
+  },
+  {
+    nr: '1426', name: "Der Upload in Stuecken stellt nichts in die Warteschlange",
+    file: 'server.js',
+    search: "  if (docTileKind(u.filename)) docTilesSoon([added]);\n",
+    replacement: "",
+    expected: "Dateien: Vorschaubild einer Textdatei im Ordner mit Testtag"
+  },
+  {
+    nr: '1427', name: "Ein PDF bekommt kein Vorschaubild",
+    file: 'server.js',
+    search: "  return kind === 'pdf' || docserver.officeType(filename) ? 'office' : null;",
+    replacement: "  return docserver.officeType(filename) ? 'office' : null;",
+    expected: "Dateien: Vorschaubild ueber den Document Server"
+  },
+  {
+    nr: '1428', name: "Die Abrufroute liefert kein PDF",
+    file: 'server.js',
+    search: "  if (!a || docTileKind(a.filename) !== 'office') return res.status(404).end();",
+    replacement: "  if (!a || !docserver.officeType(a.filename)) return res.status(404).end();",
+    expected: "Dateien: Vorschaubild ueber den Document Server"
+  },
+  {
+    nr: '1429', name: "Die Abrufroute liefert jede Datei",
+    file: 'server.js',
+    search: "  if (!a || docTileKind(a.filename) !== 'office') return res.status(404).end();",
+    replacement: "  if (!a) return res.status(404).end();",
+    expected: "Dateien: Vorschaubild ueber den Document Server"
+  },
+  {
+    nr: '1430', name: "Die Umwandlung verlangt keine erste Seite",
+    file: 'docserver.js',
+    search: "      url: fileUrl(attachment.id), thumbnail: { aspect: 1, first: true, width: 512, height: 724 }\n",
+    replacement: "      url: fileUrl(attachment.id)\n",
+    expected: "Dateien: Vorschaubild ueber den Document Server"
+  },
+  {
+    nr: '1431', name: "Der Schluessel des Vorschaubilds kennt keine Speicherung",
+    file: 'docserver.js',
+    search: "      key: 'tile-' + documentKey(attachment, `v${saves}`), title: attachment.filename,",
+    replacement: "      key: 'tile-' + documentKey(attachment, 'v0'), title: attachment.filename,",
+    expected: "Dateien: ein neuer Stand bekommt ein neues Vorschaubild"
+  },
+  {
+    nr: '1432', name: "-3 gilt als voruebergehend",
+    file: 'docserver.js',
+    search: "const PAGE_REFUSED = new Set([-3, -5, -9, -10]);",
+    replacement: "const PAGE_REFUSED = new Set([-5, -9, -10]);",
+    expected: "Dateien: Fehler des Document Servers"
+  },
+  {
+    nr: '1433', name: "Jede Antwort ohne Bild gilt als Absage",
+    file: 'docserver.js',
+    search: "  if (j.endConvert !== true || !j.fileUrl) return {};",
+    replacement: "  if (j.endConvert !== true || !j.fileUrl) return { refused: true };",
+    expected: "Dateien: Fehler des Document Servers"
+  },
+  {
+    nr: '1434', name: "Das Vorschaubild eines Dokuments entsteht beim Abruf",
+    file: 'server.js',
+    search: "  if (!row && picture) {",
+    replacement: "  if (!row) {",
+    expected: "Dateien: Fehler des Document Servers"
+  },
+  {
+    nr: '1435', name: "Ein Fehlschlag steht weiter aus",
+    file: 'server.js',
+    search: "\n                                                  && !TILES_FAILED.has(a2.id) } : {})",
+    replacement: "\n                                                  } : {})",
+    expected: "Dateien: Fehler des Document Servers"
+  },
+  {
+    nr: '1436', name: "Ohne Document Server steht ein Vorschaubild aus",
+    file: 'server.js',
+    search: "thumbSoon: !a2.has_tile && (tileKind === 'text' || officeOn)",
+    replacement: "thumbSoon: !a2.has_tile && (tileKind === 'text' || true)",
+    expected: "Dateien: Nachholen beim Start, stuendlich und beim Einschalten"
+  },
+  {
+    nr: '1437', name: "Beim Start wird nichts nachgeholt",
+    file: 'server.js',
+    search: "  // Erst hier: der Document Server holt die Datei bei diesem Server ab.\n  docTilesSoon();\n",
+    replacement: "",
+    expected: "Dateien: Nachholen beim Start, stuendlich und beim Einschalten"
+  },
+  {
+    nr: '1438', name: "Der wiederkehrende Lauf holt nichts nach",
+    file: 'server.js',
+    search: "  diskRunLogged(false);\n  docTilesAgain();\n",
+    replacement: "  diskRunLogged(false);\n",
+    expected: "Dateien: Nachholen beim Start, stuendlich und beim Einschalten"
+  },
+  {
+    nr: '1439', name: "Das Einschalten des Document Servers holt nichts nach",
+    file: 'server.js',
+    search: "  if (req.body.documentServer === true) docTilesAgain();\n",
+    replacement: "",
+    expected: "Dateien: Nachholen beim Start, stuendlich und beim Einschalten"
+  },
+  {
+    nr: '1440', name: "Das Einschalten versucht nicht, was ohne Antwort blieb",
+    file: 'server.js',
+    search: "  if (req.body.documentServer === true) docTilesAgain();\n",
+    replacement: "  if (req.body.documentServer === true) docTilesSoon();\n",
+    expected: "Dateien: Nachholen beim Start, stuendlich und beim Einschalten"
+  },
+  {
+    nr: '1441', name: "Speichern aus dem Editor behaelt das alte Vorschaubild",
+    file: 'server.js',
+    search: "    recordSave.run(id, by);\n    dropFileTile.run(id);\n",
+    replacement: "    recordSave.run(id, by);\n",
+    expected: "Dateien: ein neuer Stand bekommt ein neues Vorschaubild"
+  },
+  {
+    nr: '1442', name: "Die vorige Fassung behaelt das Vorschaubild",
+    file: 'server.js',
+    search: "  dropFileTile.run(a.id);\n",
+    replacement: "",
+    expected: "Dateien: ein neuer Stand bekommt ein neues Vorschaubild"
+  },
+  {
+    nr: '1443', name: "Import und Papierkorb holen kein Vorschaubild nach",
+    file: 'server.js',
+    search: "  if (stats.attachments) {\n    docTilesSoon();\n",
+    replacement: "  if (stats.attachments) {\n",
+    expected: "Dateien: ein neuer Stand bekommt ein neues Vorschaubild"
+  },
+  {
+    nr: '1444', name: "Ein Bild vom Stand vor dem Speichern wird gespeichert",
+    file: 'server.js',
+    search: "  if (!now || now.has_tile || now.saves !== a.saves || now.size !== a.size || now.filename !== a.filename) return;",
+    replacement: "  if (!now || now.has_tile) return;",
+    expected: "Dateien: ein neuer Stand bekommt ein neues Vorschaubild"
+  },
+  {
+    nr: '1445', name: "Die Gruppe ist keine Karte",
+    file: 'public/style.css',
+    search: ".agroup { padding: 2px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }",
+    replacement: ".agroup { padding: 2px 10px; }",
+    expected: "Dateien: Stilblatt, Dockerfile und Quelltext"
+  },
+  {
+    nr: '1446', name: "Der offene Ordner rueckt wieder ein",
+    file: 'public/style.css',
+    search: ".afolder-body { padding: 0 6px 2px; }",
+    replacement: ".afolder-body { padding-left: 18px; }",
+    expected: "Dateien: Stilblatt, Dockerfile und Quelltext"
+  },
+  {
+    nr: '1447', name: "Das Image hat keine Schrift",
+    file: 'Dockerfile',
+    search: " && apt-get install -y --no-install-recommends fonts-dejavu-core libx264-164",
+    replacement: " && apt-get install -y --no-install-recommends libx264-164",
+    expected: "Dateien: Stilblatt, Dockerfile und Quelltext"
+  },
+  {
+    nr: '1448', name: "Die gespeicherte Wahl wird nicht gelesen",
+    file: 'public/app.js',
+    search: "  if (SETTINGS.filesView === 'tiles' || SETTINGS.filesView === 'list') FILES_VIEW = SETTINGS.filesView;\n",
+    replacement: "",
+    expected: "Dateien: Kacheln oder Liste im Browser"
+  },
+  {
+    nr: '1449', name: "Der Umschalter setzt die Klasse nicht",
+    file: 'public/app.js',
+    search: "    fileBlock.classList.toggle('alist', FILES_VIEW === 'list');\n",
+    replacement: "",
+    expected: "Dateien: Kacheln oder Liste im Browser"
+  },
+  {
+    nr: '1450', name: "Der Umschalter speichert nicht",
+    file: 'public/app.js',
+    search: "    try { await api('PUT', '/api/settings', { filesView: FILES_VIEW }); }\n",
+    replacement: "    try { await Promise.resolve(); }\n",
+    expected: "Dateien: Kacheln oder Liste im Browser"
+  },
+  {
+    nr: '1451', name: "Die Spalte Von steht immer",
+    file: 'public/app.js',
+    search: "    fileBlock.classList.toggle('afrom-on', multipleUsers());\n",
+    replacement: "    fileBlock.classList.toggle('afrom-on', true);\n",
+    expected: "Dateien: Kacheln oder Liste im Browser"
+  },
+  {
+    nr: '1452', name: "Die Spalte Datum bleibt leer",
+    file: 'public/app.js',
+    search: "    li.querySelector('.adate').textContent = date;\n",
+    replacement: "",
+    expected: "Dateien: Kacheln oder Liste im Browser"
+  },
+  {
+    nr: '1453', name: "„+“ hat in der Liste keinen Namen",
+    file: 'public/app.js',
+    search: "    li.querySelector('.aname').textContent = t('entry.fileAdd');\n",
+    replacement: "",
+    expected: "Dateien: Kacheln oder Liste im Browser"
+  },
+  {
+    nr: '1454', name: "Ein Dokument mit Vorschaubild zeigt die Endung",
+    file: 'public/app.js',
+    search: "      picture: a.missing ? '' : a.preview === 'image' || ((video || audio) && a.still) || a.thumb ? fileTileSource(a) : coming,",
+    replacement: "      picture: a.missing ? '' : a.preview === 'image' || ((video || audio) && a.still) ? fileTileSource(a) : coming,",
+    expected: "Dateien: Vorschaubild und Nachladen im Browser"
+  },
+  {
+    nr: '1455', name: "Das Vorschaubild eines Dokuments hat kein v=",
+    file: 'public/app.js',
+    search: "const fileTileSource = (a) => `/api/attachments/${Number(a.id)}/raw?size=thumb${a.still || a.thumb\n  ? `&v=${Number(a.still || a.thumb)}` : ''}`;",
+    replacement: "const fileTileSource = (a) => `/api/attachments/${Number(a.id)}/raw?size=thumb${a.still\n  ? `&v=${Number(a.still)}` : ''}`;",
+    expected: "Dateien: Vorschaubild und Nachladen im Browser"
+  },
+  {
+    nr: '1456', name: "Ueber dem Vorschaubild steht keine Endung",
+    file: 'public/app.js',
+    search: "badge: a.thumb ? kind : '',",
+    replacement: "badge: '',",
+    expected: "Dateien: Vorschaubild und Nachladen im Browser"
+  },
+  {
+    nr: '1457', name: "Der Browser fragt nicht nach",
+    file: 'public/app.js',
+    search: "    setUpBlocksOut(item);\n    awaitTiles();\n",
+    replacement: "    setUpBlocksOut(item);\n",
+    expected: "Dateien: Vorschaubild und Nachladen im Browser"
+  },
+  {
+    nr: '1458', name: "Der Browser fragt auch nach dem Verlassen nach",
+    file: 'public/app.js',
+    search: "      tileTries++;\n      if (!attsBox.isConnected) return;\n",
+    replacement: "      tileTries++;\n",
+    expected: "Dateien: Vorschaubild und Nachladen im Browser"
+  },
+  {
+    nr: '1459', name: "Der Pfad fuer NPMplus traegt wieder {32}",
+    file: 'README-de.md',
+    search: "  `^/api/(import|uploads/[0-9a-f]+|(items|comments)/[0-9]+/(photos|videos|audio|comments|images))$`",
+    replacement: "  `^/api/(import|uploads/[0-9a-f]{32}|(items|comments)/[0-9]+/(photos|videos|audio|comments|images))$`",
+    expected: "Reverse Proxy: die Pfade fuer NPMplus in der README"
+  },
+  /* ---- 0.50.0: ein Weg fuer Dateien, Umlagerung, Videostelle, Ordnerzustand, Auswahl ---- */
+  {
+    nr: '1460', name: "Die Umlagerung nach dem Start faellt weg",
+    file: 'server.js',
+    search: "  if (!DATABASE_INCOMPLETE) await relocate(qRelocatePending.all().map(z => z.id));\n",
+    replacement: "",
+    expected: "Umlagerung: der Bestand der Datenbank geht nach dem Start auf die Platte"
+  },
+  {
+    nr: '1461', name: "Die vorige Fassung bleibt bei der Umlagerung zurueck",
+    file: 'server.js',
+    search: "                 ...(before ? [{ data: before.data, current: null, previous: id }] : [])]",
+    replacement: "                 ...([])]",
+    expected: "Umlagerung: der Bestand der Datenbank geht nach dem Start auf die Platte"
+  },
+  {
+    nr: '1462', name: "Der Start prueft den Platz fuer die Umlagerung nicht",
+    file: 'server.js',
+    search: "  if (free === null || free >= need + DB_SPARE) return;",
+    replacement: "  return;",
+    expected: "Umlagerung: zu wenig Platz verweigert den Start"
+  },
+  {
+    nr: '1463', name: "„Kennzahlen\" zaehlt auch die Dateien auf der Platte als wartend",
+    file: 'server.js',
+    search: "  const an = db.prepare(`SELECT COUNT(*) AS n, COALESCE(SUM(size),0) AS o FROM attachments a\n    WHERE NOT EXISTS (SELECT 1 FROM disk_files d WHERE d.attachment_id = a.id)`).get();",
+    replacement: "  const an = db.prepare(`SELECT COUNT(*) AS n, COALESCE(SUM(size),0) AS o FROM attachments a`).get();",
+    expected: "Umlagerung: der Bestand der Datenbank geht nach dem Start auf die Platte"
+  },
+  {
+    nr: '1464', name: "Ueber „Anhang\" ist ein Upload nicht large",
+    file: 'server.js',
+    search: "  const large = size > limits.attachment * MB;",
+    replacement: "  const large = false;",
+    expected: "Platte: Upload in Stuecken, Weg und Ordner"
+  },
+  {
+    nr: '1465', name: "Die Grenze „Datei\" gilt beim Beginn nicht",
+    file: 'server.js',
+    search: "  if (size > most * MB) return res.status(413)",
+    replacement: "  if (false) return res.status(413)",
+    expected: "Platte: Upload in Stuecken, Weg und Ordner"
+  },
+  {
+    nr: '1466', name: "In einen fremden Ordner beginnt ein Upload",
+    file: 'server.js',
+    search: "  if (target && (target.item_id !== itemId || !selfOnly(req, target.user_id)))",
+    replacement: "  if (target && target.item_id !== itemId)",
+    expected: "Ordner: Schema und Routen"
+  },
+  {
+    nr: '1467', name: "Die kompatiblen Marken im ftyp-Kasten zaehlen nicht",
+    file: 'attachments.js',
+    search: "    for (let at = 16; at + 4 <= end; at += 4)",
+    replacement: "    for (let at = 16; at < 0; at += 4)",
+    expected: "Ein Weg fuer Dateien: Grenze „Datei\" und Erkennung"
+  },
+  {
+    nr: '1468', name: "Eine grosse Datei bekommt die Textvorschau",
+    file: 'server.js',
+    search: "  if (kind !== 'text' && kind !== 'docx') return res.status(400).json({ error: t(localeOf(req), 'server.noTextPreview')});\n  if (largeFile(a.id)) return res.status(400).json({ error: t(localeOf(req), 'server.largeDownloadOnly')});\n",
+    replacement: "  if (kind !== 'text' && kind !== 'docx') return res.status(400).json({ error: t(localeOf(req), 'server.noTextPreview')});\n",
+    expected: "Grosse Dokumente: nur zum Herunterladen"
+  },
+  {
+    nr: '1469', name: "Der Document Server oeffnet eine grosse Datei",
+    file: 'server.js',
+    search: "      return res.status(409).json({ error: t(localeOf(req), 'server.docOff')});\n    if (largeFile(a.id)) return res.status(400).json({ error: t(localeOf(req), 'server.largeDownloadOnly')});\n",
+    replacement: "      return res.status(409).json({ error: t(localeOf(req), 'server.docOff')});\n",
+    expected: "Grosse Dokumente: nur zum Herunterladen"
+  },
+  {
+    nr: '1470', name: "Ueber „Anhang\" behaelt jede Datei ihre Vorschau",
+    file: 'server.js',
+    search: "      preview: large ? (['image', 'video', 'audio', 'pdf'].includes(kind) ? kind : 'keine')",
+    replacement: "      preview: large ? kind",
+    expected: "Grosse Dokumente: nur zum Herunterladen"
+  },
+  {
+    nr: '1471', name: "Die Stelle wird auch unter 10 s gemerkt",
+    file: 'server.js',
+    search: "  const kept = seconds >= POSITION_MIN_S && !seen;",
+    replacement: "  const kept = !seen;",
+    expected: "Stelle im Video: Regeln am Server"
+  },
+  {
+    nr: '1472', name: "Das Ende eines Videos zaehlt nicht als gesehen",
+    file: 'server.js',
+    search: "  const seen = duration !== null && seconds >= duration - Math.max(POSITION_MIN_S, duration * POSITION_END_SHARE);",
+    replacement: "  const seen = false;",
+    expected: "Stelle im Video: Regeln am Server"
+  },
+  {
+    nr: '1473', name: "Eine Datei ohne Video nimmt eine Stelle an",
+    file: 'server.js',
+    search: "  if (!target || (b.kind === 'file' && !playsAsVideo(id, target.filename) && !isAudioFile(target.filename)))",
+    replacement: "  if (!target)",
+    expected: "Stelle im Video: Regeln am Server"
+  },
+  {
+    nr: '1474', name: "detail() nennt die Stellen der anderen Accounts",
+    file: 'server.js',
+    search: "  FROM video_positions WHERE user_id = ? AND (attachment_id IN",
+    replacement: "  FROM video_positions WHERE user_id IS NOT ? AND (attachment_id IN",
+    expected: "Stelle im Video: Regeln am Server"
+  },
+  {
+    nr: '1475', name: "Ein neuer Ordner steht fuer seinen Verfasser nicht offen",
+    file: 'server.js',
+    search: "  putFolderOpen.run(req.user.id, made);\n",
+    replacement: "",
+    expected: "Ordner: offen oder zu je Account"
+  },
+  {
+    nr: '1476', name: "Der Zustand eines Ordners gilt fuer alle Accounts",
+    file: 'server.js',
+    search: "  WHERE o.user_id = ? AND f.item_id = ?`);",
+    replacement: "  WHERE ? IS NOT NULL AND f.item_id = ?`);",
+    expected: "Ordner: offen oder zu je Account"
+  },
+  {
+    nr: '1477', name: "Der Browser merkt sich den Klick auf den Ordnerkopf nicht",
+    file: 'public/app.js',
+    search: "    api('PUT', `/api/folders/${Number(folderId)}/open`, { open })",
+    replacement: "    Promise.resolve()",
+    expected: "Ordnerzustand im Browser"
+  },
+  {
+    nr: '1478', name: "Beim Oeffnen eines Eintrags sind wieder alle Ordner zu",
+    file: 'public/app.js',
+    search: "    FOLDERS_OPEN = { itemId: Number(id), open: new Set((item.folders || []).filter(f => f.open).map(f => f.id)) };",
+    replacement: "    FOLDERS_OPEN = { itemId: Number(id), open: new Set() };",
+    expected: "Ordnerzustand im Browser"
+  },
+  {
+    nr: '1479', name: "Das Video springt nicht an die gemerkte Stelle",
+    file: 'public/app.js',
+    search: "    if (!(at > 0) || player.currentTime >= 1) return;\n    player.currentTime = at;\n",
+    replacement: "    if (!(at > 0) || player.currentTime >= 1) return;\n",
+    expected: "Stelle im Video im Browser"
+  },
+  {
+    nr: '1480', name: "Der Hinweis „ab 3:12\" fehlt",
+    file: 'public/app.js',
+    search: "    box.appendChild(hint);\n",
+    replacement: "",
+    expected: "Stelle im Video im Browser"
+  },
+  {
+    nr: '1481', name: "Beim Anhalten wird die Stelle nicht gespeichert",
+    file: 'public/app.js',
+    search: "  const onPause = () => { save(); if (!player.isConnected) watcher.stop(); };",
+    replacement: "  const onPause = () => { if (!player.isConnected) watcher.stop(); };",
+    expected: "Stelle im Video im Browser"
+  },
+  {
+    nr: '1482', name: "Die Stelle geht ohne keepalive",
+    file: 'public/app.js',
+    search: "      method: 'PUT', credentials: 'same-origin', keepalive: true,",
+    replacement: "      method: 'PUT', credentials: 'same-origin',",
+    expected: "Stelle im Video im Browser"
+  },
+  {
+    nr: '1483', name: "Die Auswahl laesst Dateien ohne Recht zum Loeschen waehlen",
+    file: 'public/app.js',
+    search: "    pickState(li, filesPicked && mayDeleteFile(a) ? filesPicked.has(a.id) : null);",
+    replacement: "    pickState(li, filesPicked ? filesPicked.has(a.id) : null);",
+    expected: "Auswahl unter „Dateien\" im Browser"
+  },
+  {
+    nr: '1484', name: "Die Auswahl loescht ohne Rueckfrage",
+    file: 'public/app.js',
+    search: "    if (!await confirmBox(t('entry.pickDeleteAsk', { n: chosen.length }),\n      t('entry.pickTrashHint', { trashDays: TRASH_DAYS }), t('dialog.delete'), 'danger')) return;\n",
+    replacement: "",
+    expected: "Auswahl unter „Dateien\" im Browser"
+  },
+  {
+    nr: '1485', name: "Die Bildleiste bietet die Auswahl ohne Recht zum Loeschen an",
+    file: 'public/app.js',
+    search: "      !!photosPicked || !item.photos.length || !mayEdit();",
+    replacement: "      !!photosPicked || !item.photos.length;",
+    expected: "Auswahl in der Bildleiste im Browser"
+  },
+  {
+    nr: '1486', name: "Das Kaestchen im Ordnerkopf fehlt in der Auswahl",
+    file: 'public/app.js',
+    search: "    check.hidden = !choosable.length;",
+    replacement: "    check.hidden = true;",
+    expected: "Auswahl unter „Dateien\" im Browser"
+  },
+  {
+    nr: '1487', name: "Die Liste nennt die Version nicht mehr",
+    file: 'backup.js',
+    search: "  const head = [`# version ${version}\\n`, ...(before ? [`# vor ${before}\\n`] : [])];",
+    replacement: "  const head = before ? [`# vor ${before}\\n`] : [];",
+    expected: "Backup: die Liste mit Version, auch ohne Dateien"
+  },
+  {
+    nr: '1488', name: "Ohne Dateien entsteht keine Liste",
+    file: 'backup.js',
+    search: "    writeList(file, rows, version, before);",
+    replacement: "    if (rows.length) writeList(file, rows, version, before);",
+    expected: "Backup: die Liste mit Version, auch ohne Dateien"
+  },
+  {
+    nr: '1489', name: "Das Alter kommt aus dem Namen statt aus der Aenderungszeit",
+    file: 'backup.js',
+    search: "      if (st.isFile()) files.push({ name: n, time: st.mtimeMs, bytes: st.size });",
+    replacement: "      if (st.isFile()) files.push({ name: n, time: Date.parse(n.slice(10, 20) + 'T' + n.slice(21, 29).replace(/-/g, ':') + 'Z') || st.mtimeMs, bytes: st.size });",
+    expected: "Backup: die Liste mit Version, auch ohne Dateien"
+  },
+  {
+    nr: '1490', name: "list nennt die Version nicht",
+    file: 'backuptool.js',
+    search: "      return [String(i + 1), localTime(d.time), (info.list && info.list.version) || '–', size(d.bytes),",
+    replacement: "      return [String(i + 1), localTime(d.time), '–', size(d.bytes),",
+    expected: "backuptool.js: list und show"
+  },
+  {
+    nr: '1491', name: "show vergleicht nicht mit dem laufenden Stand",
+    file: 'backuptool.js',
+    search: "    try { compare(info.probe, ctx.live.db, options.all); }",
+    replacement: "    try { }",
+    expected: "backuptool.js: list und show"
+  },
+  {
+    nr: '1492', name: "Ein falscher Aufruf endet mit 1 statt 2",
+    file: 'backuptool.js',
+    search: "    process.exit(e instanceof Misuse ? 2 : 1);",
+    replacement: "    process.exit(1);",
+    expected: "backuptool.js: list und show"
+  },
+  {
+    nr: '1493', name: "restore spielt bei laufendem Server zurueck",
+    file: 'backuptool.js',
+    search: "  if (inUse(key))",
+    replacement: "  if (false)",
+    expected: "backuptool.js: abgelehnt, ohne etwas zu aendern"
+  },
+  {
+    nr: '1494', name: "restore prueft die Kopien im Backup-Ordner nicht",
+    file: 'backuptool.js',
+    search: "    const missing = list.rows.filter(z => !z.absent && !backup.copyPresent(folder, z));",
+    replacement: "    const missing = [];",
+    expected: "backuptool.js: abgelehnt, ohne etwas zu aendern"
+  },
+  {
+    nr: '1495', name: "restore prueft das Schema nicht",
+    file: 'backuptool.js',
+    search: "  if (info.schema.differences.length)\n    problems.push(`Das Schema passt nicht zu Version",
+    replacement: "  if (false)\n    problems.push(`Das Schema passt nicht zu Version",
+    expected: "backuptool.js: abgelehnt, ohne etwas zu aendern"
+  },
+  {
+    nr: '1496', name: "restore uebergeht ein gehaltenes Lockfile",
+    file: 'backuptool.js',
+    search: "  const lock = backup.takeLock(folder);\n  if (!lock)",
+    replacement: "  const lock = backup.takeLock(folder) || path.join(folder, backup.COPY_DIR, '.lock');\n  if (!lock)",
+    expected: "backuptool.js: abgelehnt, ohne etwas zu aendern"
+  },
+  {
+    nr: '1497', name: "Eine mehrdeutige Auswahl nimmt das juengste Backup",
+    file: 'backuptool.js',
+    search: "  if (hits.length > 1) {",
+    replacement: "  if (hits.length > 1) hits = hits.slice(0, 1);\n  if (false) {",
+    expected: "backuptool.js: abgelehnt, ohne etwas zu aendern"
+  },
+  {
+    nr: '1498', name: "restore legt kein Backup davor an",
+    file: 'backuptool.js',
+    search: "    if (!verdict.same && ctx.live.db) {\n      out('', 'Backup des aktuellen Stands …');",
+    replacement: "    if (false) {\n      out('', 'Backup des aktuellen Stands …');",
+    expected: "backuptool.js: restore und der Rueckweg"
+  },
+  {
+    nr: '1499', name: "Das Backup davor traegt kein „# vor\"",
+    file: 'backuptool.js',
+    search: "        dbFile: DB_FILE, filesDir: FILES_DIR, keyHex: ctx.key, version: VERSION, before: chosen.d.name,",
+    replacement: "        dbFile: DB_FILE, filesDir: FILES_DIR, keyHex: ctx.key, version: VERSION, before: null,",
+    expected: "backuptool.js: restore und der Rueckweg"
+  },
+  {
+    nr: '1500', name: "restore loescht in data/files/ nichts",
+    file: 'backuptool.js',
+    search: "    if (named.has(n) && backup.copyPresent(folder, { name: n, length })) {",
+    replacement: "    if (false) {",
+    expected: "backuptool.js: restore und der Rueckweg"
+  },
+  {
+    nr: '1501', name: "restore loescht auch Dateien ohne Kopie und ohne Liste",
+    file: 'backuptool.js',
+    search: "    if (named.has(n) && backup.copyPresent(folder, { name: n, length })) {",
+    replacement: "    if (true) {",
+    expected: "backuptool.js: ohne und mit unlesbarer laufender Datenbank"
+  },
+  {
+    nr: '1502', name: "Eine unlesbare Datenbank wird ersetzt statt beiseitegelegt",
+    file: 'backuptool.js',
+    search: "      } else if (ctx.live.error) aside = setAside();",
+    replacement: "      }",
+    expected: "backuptool.js: ohne und mit unlesbarer laufender Datenbank"
+  },
+  {
+    nr: '1503', name: "Der zweite Aufruf legt ueber den zurueckgespielten Stand ein weiteres Backup",
+    file: 'backuptool.js',
+    search: "  verdict.same = sameBytes(DB_FILE, file);",
+    replacement: "  verdict.same = false;",
+    expected: "backuptool.js: Abbruch nach Schritt 3, 5 und 6; ein zweiter Aufruf fuehrt zu Ende"
+  },
+  {
+    nr: '1504', name: "Die Auswahl loescht auch gesperrte Backups",
+    file: 'server.js',
+    search: "    if (chosen.some(n => !known.has(n) || locked.has(n)))",
+    replacement: "    if (chosen.some(n => !known.has(n)))",
+    expected: "Alte Backups: mehrere auswaehlen und loeschen"
+  },
+  {
+    nr: '1505', name: "Ein unbekanntes Backup in der Auswahl haelt das Loeschen nicht an",
+    file: 'server.js',
+    search: "    if (chosen.some(n => !known.has(n) || locked.has(n)))",
+    replacement: "    if (false)",
+    expected: "Alte Backups: mehrere auswaehlen und loeschen"
+  },
+  {
+    nr: '1506', name: "Die Auswahl schreibt nichts ins Sicherheitsprotokoll",
+    file: 'server.js',
+    search: "    logRemoved(req.user.id, out2.removed);",
+    replacement: "    if (kind !== 'selected') logRemoved(req.user.id, out2.removed);",
+    expected: "Alte Backups: mehrere auswaehlen und loeschen"
+  },
+  {
+    nr: '1507', name: "Gesperrt ist jedes Backup statt der juengsten",
+    file: 'backup.js',
+    search: "    .sort((a, b) => b.time - a.time).slice(0, keep).map(d => d.name));",
+    replacement: "    .sort((a, b) => b.time - a.time).map(d => d.name));",
+    expected: "Alte Backups: mehrere auswaehlen und loeschen"
+  },
+  {
+    nr: '1508', name: "Die Karte zaehlt die Dateien nicht, die nur ein Backup nennt",
+    file: 'backup.js',
+    search: "      if (named.get(z.name) === 1) { sum.onlyCount++; sum.onlyBytes += z.length; }",
+    replacement: "",
+    expected: "Alte Backups: mehrere auswaehlen und loeschen"
+  },
+  {
+    nr: '1509', name: "Die Rueckfrage der Auswahl bekommt keine Groesse",
+    file: 'server.js',
+    search: "    ? { freed: copiesFreed(root, req.query.freed.split('|').slice(0, 1000)) } : {};",
+    replacement: "    ? { freed: 0 } : {};",
+    expected: "Alte Backups: mehrere auswaehlen und loeschen"
+  },
+  {
+    nr: '1510', name: "„pruefen\" nennt das Schema nicht",
+    file: 'server.js',
+    search: "    out.schema = { ok: !differences.length, differences };",
+    replacement: "",
+    expected: "Alte Backups: mehrere auswaehlen und loeschen"
+  },
+  {
+    nr: '1511', name: "filesSort nimmt jeden Wert an",
+    file: 'server.js',
+    search: "      take('filesSort');\n",
+    replacement: "      if (req.body.filesSort !== undefined) putUserSetting(req.user.id, 'filesSort', JSON.stringify(String(req.body.filesSort)));\n",
+    expected: "Dateien sortieren: die Einstellung"
+  },
+  {
+    nr: '1512', name: "filesSort fehlt unter den persoenlichen Schluesseln",
+    file: 'server.js',
+    search: "                                'filesSort', 'filesGroup', 'filters', 'font',",
+    replacement: "                                'filesGroup', 'filters', 'font',",
+    expected: "Dateien sortieren: die Einstellung"
+  },
+  {
+    nr: '1513', name: "Die Karte zeigt die zweite Zeile je Backup nicht",
+    file: 'public/app.js',
+    search: "        ${filesLine(z)}\n",
+    replacement: "\n",
+    expected: "Alte Backups: die Auswahl in der Oberflaeche"
+  },
+  {
+    nr: '1514', name: "Gesperrte Backups lassen sich auswaehlen",
+    file: 'public/app.js',
+    search: "        aria-label=\"${esc(label)}\"${z.locked ? ` disabled title=\"${esc(label)}\"` : ''}${",
+    replacement: "        aria-label=\"${esc(label)}\"${''}${",
+    expected: "Alte Backups: die Auswahl in der Oberflaeche"
+  },
+  {
+    nr: '1515', name: "„Alle auswählen\" nimmt auch die gesperrten",
+    file: 'public/app.js',
+    search: "    const pickable = all.filter(z => !z.locked);",
+    replacement: "    const pickable = all;",
+    expected: "Alte Backups: die Auswahl in der Oberflaeche"
+  },
+  {
+    nr: '1516', name: "Die Rueckfrage fragt den freien Platz nicht ab",
+    file: 'public/app.js',
+    search: "      try { freed = (await api('GET', `/api/backup?freed=${encodeURIComponent(names.join('|'))}`)).freed || 0; }",
+    replacement: "      try { freed = 0; }",
+    expected: "Alte Backups: die Auswahl in der Oberflaeche"
+  },
+  {
+    nr: '1517', name: "Die Auswahl loescht nach der Regel statt der Namen",
+    file: 'public/app.js',
+    search: "      try { r = await api('POST', '/api/backup/cleanup', { kind: 'selected', names }); }",
+    replacement: "      try { r = await api('POST', '/api/backup/cleanup', { kind: 'rule' }); }",
+    expected: "Alte Backups: die Auswahl in der Oberflaeche"
+  },
+  {
+    nr: '1518', name: "Der Hinweis beim Weiterspielen steht wieder 5 s",
+    file: 'public/app.js',
+    search: "const SPOT_HINT_MS = 10000;",
+    replacement: "const SPOT_HINT_MS = 5000;",
+    expected: "Hinweis beim Weiterspielen: 10 s"
+  },
+  {
+    nr: '1519', name: "Die Richtung kehrt die Folge der Dateien nicht um",
+    file: 'public/app.js',
+    search: "    const sign = FILES_SORT.asc ? 1 : -1;\n",
+    replacement: "    const sign = 1;\n",
+    expected: "Dateien sortieren im Browser"
+  },
+  {
+    nr: '1520', name: "Name sortiert Zahlen nicht in natuerlicher Folge",
+    file: 'public/app.js',
+    search: "  const byName = (x, y) => x.localeCompare(y, LOCALE, { numeric: true, sensitivity: 'accent' });",
+    replacement: "  const byName = (x, y) => x.localeCompare(y, LOCALE);",
+    expected: "Dateien sortieren im Browser"
+  },
+  {
+    nr: '1521', name: "Die Ordner folgen der Sortierung nicht",
+    file: 'public/app.js',
+    search: "    sortedFolders(folders).forEach((f, at) => {",
+    replacement: "    folders.forEach((f, at) => {",
+    expected: "Dateien sortieren im Browser"
+  },
+  {
+    nr: '1522', name: "Die Sortierung wird nicht gespeichert",
+    file: 'public/app.js',
+    search: "    try { await api('PUT', '/api/settings', { filesSort: `${key}_${asc ? 'asc' : 'desc'}` }); }",
+    replacement: "    try { await Promise.resolve(); }",
+    expected: "Dateien sortieren im Browser"
+  },
+  {
+    nr: '1523', name: "Laufende Uploads stehen vor den Dateien ihrer Gruppe",
+    file: 'public/app.js',
+    search: "      ...fileEntries(key, shown),\n      ...remote.filter(x => remoteGroup(x) === key).map(x => ['s' + x.id, li => fillRemoteTile(li, x)]),",
+    replacement: "      ...remote.filter(x => remoteGroup(x) === key).map(x => ['s' + x.id, li => fillRemoteTile(li, x)]),\n      ...fileEntries(key, shown),",
+    expected: "Dateien sortieren im Browser"
+  },
+  {
+    nr: '1524', name: "„Bearbeiten\" steht auch ohne Recht zum Bearbeiten und am Telefon",
+    file: 'public/app.js',
+    search: "    edit.hidden = !!filesPicked || !(a.preview === 'office' && a.edit && !isNarrow());",
+    replacement: "    edit.hidden = !!filesPicked || a.preview !== 'office';",
+    expected: "Bearbeiten in der Listenzeile"
+  },
+  {
+    nr: '1525', name: "„Bearbeiten\" oeffnet die Ansicht statt des Editors",
+    file: 'public/app.js',
+    search: "    edit.onclick = () => { location.hash = fileAddress(id, a.id, true); };",
+    replacement: "    edit.onclick = () => { location.hash = fileAddress(id, a.id); };",
+    expected: "Bearbeiten in der Listenzeile"
+  },
+  {
+    nr: '1526', name: "Die Kacheln zeigen „Bearbeiten\"",
+    file: 'public/style.css',
+    search: ".aacts { display: none; }\n",
+    replacement: "",
+    expected: "Bearbeiten in der Listenzeile"
+  },
+  {
+    nr: '1527', name: "backuptool.sh spielt zurueck, ohne die Instanz anzuhalten",
+    file: 'backuptool.sh',
+    search: "    docker compose stop\n",
+    replacement: "",
+    expected: "Quelltext: backuptool.sh und backuptool.js"
+  },
+  {
+    nr: '1528', name: "Alte Werte ohne Richtung gelten nicht mehr",
+    file: 'server.js',
+    search: "  const v = a.alias?.[raw] ?? raw;\n",
+    replacement: "  const v = raw;\n",
+    expected: "Dateien sortieren und gruppieren: die Einstellungen"
+  },
+  {
+    nr: '1529', name: "filesGroup nimmt jeden Wert an",
+    file: 'server.js',
+    search: "      take('filesGroup');\n",
+    replacement: "      if (req.body.filesGroup !== undefined) putUserSetting(req.user.id, 'filesGroup', JSON.stringify(String(req.body.filesGroup)));\n",
+    expected: "Dateien sortieren und gruppieren: die Einstellungen"
+  },
+  {
+    nr: '1530', name: "Nach dem Upload liest niemand die Angaben",
+    file: 'server.js',
+    search: "  if (attachments.mediaKind(u.filename)) mediaSoon([added]);\n",
+    replacement: "",
+    expected: "Erweiterte Infos: Warteschlange nach dem Upload und Route"
+  },
+  {
+    nr: '1531', name: "Die Liste nennt den Codec nicht",
+    file: 'server.js',
+    search: "      ...(kind === 'video' ? { codec: a2.codec, width:",
+    replacement: "      ...(kind === 'video' ? { codec: null, width:",
+    expected: "Erweiterte Infos: Warteschlange nach dem Upload und Route"
+  },
+  {
+    nr: '1532', name: "Erweiterte Infos auch fuer Textdateien",
+    file: 'attachments.js',
+    search: "  : ['image', 'video', 'audio'].includes(previewKind(filename)) ? previewKind(filename) : null);",
+    replacement: "  : previewKind(filename));",
+    expected: "Erweiterte Infos: Warteschlange nach dem Upload und Route"
+  },
+  {
+    nr: '1533', name: "Nur die erste Tonspur kommt an",
+    file: 'attachments.js',
+    search: "    audio: of('Audio').map(tr => ({",
+    replacement: "    audio: of('Audio').slice(0, 1).map(tr => ({",
+    expected: "Erweiterte Infos: Warteschlange nach dem Upload und Route"
+  },
+  {
+    nr: '1534', name: "Beim Start liest niemand nach",
+    file: 'server.js',
+    search: "  // Erst hier: der Document Server holt die Datei bei diesem Server ab.\n  docTilesSoon();\n  mediaSoon();\n",
+    replacement: "  // Erst hier: der Document Server holt die Datei bei diesem Server ab.\n  docTilesSoon();\n",
+    expected: "Erweiterte Infos: sofort, beim Start, ohne Datei und mit der Datei geloescht"
+  },
+  {
+    nr: '1535', name: "GET /info liest nicht sofort",
+    file: 'server.js',
+    search: "    const facts = await inMediaTurn(() => makeMedia(a.id));",
+    replacement: "    const facts = qMedia.get(a.id) ? JSON.parse(qMedia.get(a.id).info) : undefined;",
+    expected: "Erweiterte Infos: sofort, beim Start, ohne Datei und mit der Datei geloescht"
+  },
+  {
+    nr: '1536', name: "Die Zeile faellt nicht mit der Datei",
+    file: 'schema.js',
+    search: "CREATE TABLE IF NOT EXISTS attachment_media (\n  attachment_id INTEGER PRIMARY KEY REFERENCES attachments(id) ON DELETE CASCADE,",
+    replacement: "CREATE TABLE IF NOT EXISTS attachment_media (\n  attachment_id INTEGER PRIMARY KEY,",
+    expected: "Erweiterte Infos: sofort, beim Start, ohne Datei und mit der Datei geloescht"
+  },
+  {
+    nr: '1537', name: "Ohne lesbare Datei fragt der Browser ohne Ende nach",
+    file: 'server.js',
+    search: "    if (!e.damaged) throw e;\n    MEDIA_FAILED.add(id);\n    return known;",
+    replacement: "    if (!e.damaged) throw e;\n    return known;",
+    expected: "Erweiterte Infos: sofort, beim Start, ohne Datei und mit der Datei geloescht"
+  },
+  {
+    nr: '1538', name: "GET /info liest neben der Warteschlange",
+    file: 'server.js',
+    search: "    const facts = await inMediaTurn(() => makeMedia(a.id));",
+    replacement: "    const facts = await makeMedia(a.id);",
+    expected: "Erweiterte Infos: Quelltext"
+  },
+  {
+    nr: '1539', name: "Die Instanz von MediaInfo bleibt offen",
+    file: 'attachments.js',
+    search: "  finally { mi.close(); }\n",
+    replacement: "  finally { mi.reset(); }\n",
+    expected: "Erweiterte Infos: Quelltext"
+  },
+  {
+    nr: '1540', name: "Groesse beginnt mit klein nach gross",
+    file: 'public/app.js',
+    search: "up: 'entry.dirSmallLarge', down: 'entry.dirLargeSmall', start: false }",
+    replacement: "up: 'entry.dirSmallLarge', down: 'entry.dirLargeSmall', start: true }",
+    expected: "Sortieren mit Richtung"
+  },
+  {
+    nr: '1541', name: "Die Ordner zaehlen nach Groesse ihre Nummer",
+    file: 'public/app.js',
+    search: "    const by = key === 'name' || key === 'type' ? (x, y) => byName(x.name, y.name) : (x, y) => sum(x) - sum(y);",
+    replacement: "    const by = key === 'name' || key === 'type' ? (x, y) => byName(x.name, y.name) : (x, y) => x.id - y.id;",
+    expected: "Sortieren mit Richtung"
+  },
+  {
+    nr: '1542', name: "Die gespeicherte Richtung gilt nach dem Laden nicht",
+    file: 'public/app.js',
+    search: "  if (sortSet) FILES_SORT = { key: sortSet[1], asc: sortSet[2] === 'asc' };",
+    replacement: "  if (sortSet) FILES_SORT = { key: sortSet[1], asc: true };",
+    expected: "Sortieren mit Richtung"
+  },
+  {
+    nr: '1543', name: "Der zweite Klick in der Kopfzeile kehrt nicht um",
+    file: 'public/app.js',
+    search: "    ? takeFilesSort(FILES_SORT.key, !FILES_SORT.asc)\n    : takeFilesSort(b.dataset.sort",
+    replacement: "    ? takeFilesSort(FILES_SORT.key, FILES_SORT.asc)\n    : takeFilesSort(b.dataset.sort",
+    expected: "Kopfzeile der Liste"
+  },
+  {
+    nr: '1544', name: "Die Kopfzeile zeigt die sortierte Spalte nicht an",
+    file: 'public/app.js',
+    search: "      b.textContent = on ? `${word} ${FILES_SORT.asc ? '▲' : '▼'}` : word;\n      b.setAttribute('aria-pressed', String(on));",
+    replacement: "      b.textContent = on ? `${word} ${FILES_SORT.asc ? '▲' : '▼'}` : word;\n      b.setAttribute('aria-pressed', 'false');",
+    expected: "Kopfzeile der Liste"
+  },
+  {
+    nr: '1545', name: "Die Kopfzeile steht auch ueber den Kacheln",
+    file: 'public/style.css',
+    search: "\n.acols { display: none; }\n",
+    replacement: "\n",
+    expected: "Kopfzeile der Liste"
+  },
+  {
+    nr: '1546', name: "Nach Typ zeigt keine Zwischenzeilen",
+    file: 'public/app.js',
+    search: "        if (FILES_GROUP !== 'type' || (at && kindOf(files[at - 1]) === k)) return [row];",
+    replacement: "        if (true) return [row];",
+    expected: "Nach Typ gruppiert"
+  },
+  {
+    nr: '1547', name: "Sonstige steht nicht zuletzt",
+    file: 'public/app.js',
+    search: "  const kindOrder = (x, y) => (x === 'other') - (y === 'other') || byName(",
+    replacement: "  const kindOrder = (x, y) => byName(",
+    expected: "Nach Typ gruppiert"
+  },
+  {
+    nr: '1548', name: "Das Vollbild blaettert nach der Sortierung statt nach der Anzeige",
+    file: 'public/app.js',
+    search: "    const pictures = shownFiles((item.attachments || [])",
+    replacement: "    const pictures = sortedFiles((item.attachments || [])",
+    expected: "Nach Typ gruppiert"
+  },
+  {
+    nr: '1549', name: "Die Gruppierung wird nicht gespeichert",
+    file: 'public/app.js',
+    search: "    try { await api('PUT', '/api/settings', { filesGroup: FILES_GROUP }); }",
+    replacement: "    try { await Promise.resolve(); }",
+    expected: "Nach Typ gruppiert"
+  },
+  {
+    nr: '1550', name: "Art zeigt wieder die Endung",
+    file: 'public/app.js',
+    search: "kindCell: kindText(a), codec:",
+    replacement: "kindCell: kind, codec:",
+    expected: "Zeile: Art, Bearbeiten und Link"
+  },
+  {
+    nr: '1551', name: "Link fehlt in der Zeile",
+    file: 'public/app.js',
+    search: "    link.hidden = !!filesPicked;",
+    replacement: "    link.hidden = true;",
+    expected: "Zeile: Art, Bearbeiten und Link"
+  },
+  {
+    nr: '1552', name: "Link kopiert die Adresse der Seite",
+    file: 'public/app.js',
+    search: "    link.onclick = () => copyText(fileLink(a), t('card.linkCopied'));",
+    replacement: "    link.onclick = () => copyText(location.href, t('card.linkCopied'));",
+    expected: "Zeile: Art, Bearbeiten und Link"
+  },
+  {
+    nr: '1553', name: "Bearbeiten und Link haben keine feste Zelle",
+    file: 'public/style.css',
+    search: ".aedit { grid-column: 1; }\n",
+    replacement: "",
+    expected: "Zeile: Art, Bearbeiten und Link"
+  },
+  {
+    nr: '1554', name: "Link steht auch waehrend der Auswahl",
+    file: 'public/app.js',
+    search: "    link.hidden = !!filesPicked;",
+    replacement: "    link.hidden = false;",
+    expected: "Zeile: Art, Bearbeiten und Link"
+  },
+  {
+    nr: '1555', name: "Das Menue hat keine Trennlinien",
+    file: 'public/app.js',
+    search: "      .flatMap((g, at) => at ? [{ line: true }, ...g] : g);",
+    replacement: "      .flatMap(g => g);",
+    expected: "Menü „…\" in fünf Gruppen"
+  },
+  {
+    nr: '1556', name: "Oeffnen fehlt bei Bildern und Videos",
+    file: 'public/app.js',
+    search: "    else if (a.preview === 'image' || a.preview === 'video' || a.preview === 'audio')\n      open.push(",
+    replacement: "    else if (false)\n      open.push(",
+    expected: "Menü „…\" in fünf Gruppen"
+  },
+  {
+    nr: '1557', name: "Infos stehen an jeder Datei",
+    file: 'public/app.js',
+    search: "    if (a.preview === 'image' || kindOf(a) === 'video' || a.preview === 'audio' || DOCUMENT_KINDS.includes(kindOf(a)))\n      pass.push(",
+    replacement: "    if (true)\n      pass.push(",
+    expected: "Menü „…\" in fünf Gruppen"
+  },
+  {
+    nr: '1558', name: "Das Menue sagt wieder „Dieses Bild als Vorschaubild\"",
+    file: 'public/app.js',
+    search: "sort.push({ label: t('entry.chooseStill')",
+    replacement: "sort.push({ label: t('entry.setStill')",
+    expected: "Menü „…\" in fünf Gruppen"
+  },
+  {
+    nr: '1559', name: "Die Trennlinie ist ein Menueeintrag",
+    file: 'public/app.js',
+    search: "      line.setAttribute('role', 'separator');",
+    replacement: "      line.setAttribute('role', 'menuitem');",
+    expected: "Menü „…\" in fünf Gruppen"
+  },
+  {
+    nr: '1560', name: "Der Codec fehlt am Vorschaubild",
+    file: 'public/app.js',
+    search: "codec: video || image || audio ? codecName(a.codec) : '',",
+    replacement: "codec: '',",
+    expected: "Erweiterte Infos: Dialog und Codec am Vorschaubild"
+  },
+  {
+    nr: '1561', name: "Die Liste zeigt den Codec am kleinen Bild",
+    file: 'public/style.css',
+    search: ".alist .apic .play-badge,\n.alist .apic .acodec { display: none; }",
+    replacement: ".alist .apic .play-badge { display: none; }",
+    expected: "Erweiterte Infos: Dialog und Codec am Vorschaubild"
+  },
+  {
+    nr: '1562', name: "Der Dialog steht leer, bis die Angaben kommen",
+    file: 'public/app.js',
+    search: "<div class=\"minfo-body\" aria-live=\"polite\"><p>${tH('entry.mediaReading')}</p></div>",
+    replacement: "<div class=\"minfo-body\" aria-live=\"polite\"></div>",
+    expected: "Erweiterte Infos: Dialog und Codec am Vorschaubild"
+  },
+  {
+    nr: '1563', name: "Die Tonspuren tragen keine Nummer",
+    file: 'public/app.js',
+    search: "    ...audio.map((s, at) => mediaGroup(audio.length > 1\n",
+    replacement: "    ...audio.map((s, at) => mediaGroup(false\n",
+    expected: "Erweiterte Infos: Dialog und Codec am Vorschaubild"
+  },
+  {
+    nr: '1564', name: "Nach dem Dialog steht der Fokus nirgends",
+    file: 'public/app.js',
+    search: "      () => { if (back && back.isConnected) back.focus(); }, null);",
+    replacement: "      () => {}, null);",
+    expected: "Erweiterte Infos: Dialog und Codec am Vorschaubild"
+  },
+  {
+    nr: '1565', name: "Zeilen ohne Wert stehen im Dialog",
+    file: 'public/app.js',
+    search: "  const shown = rows.filter(([, v]) => v !== '' && v !== null && v !== undefined);",
+    replacement: "  const shown = rows;",
+    expected: "Erweiterte Infos: Dialog und Codec am Vorschaubild"
+  },
+  {
+    nr: '1566', name: "Die Zahl der Tonspuren fehlt",
+    file: 'public/app.js',
+    search: "    ['entry.mediaAudioTracks', video.length ? String(audio.length) : '']]) + (video.length ? moreGroup(tracks) : tracks);",
+    replacement: "    ['entry.mediaAudioTracks', '']]) + (video.length ? moreGroup(tracks) : tracks);",
+    expected: "Erweiterte Infos: Dialog und Codec am Vorschaubild"
+  },
+  {
+    nr: '1567', name: "Bitraten unter 1 Mbit/s stehen in Mbit/s",
+    file: 'public/app.js',
+    search: "  return bps >= 1e6 ? t('entry.mediaMbits'",
+    replacement: "  return bps >= 1e3 ? t('entry.mediaMbits'",
+    expected: "Erweiterte Infos: Dialog und Codec am Vorschaubild"
+  },
+  {
+    nr: '1568', name: "Das Video laedt wieder beim Abspielen statt auf Knopfdruck",
+    file: 'public/app.js',
+    search: "  wholeButton.onclick = () => (loading ? stopLoading(true) : wholeButton.classList.contains('done') ? null : loadWhole());",
+    replacement: "  wholeButton.onclick = () => (loading ? stopLoading(true) : wholeButton.classList.contains('done') ? null : loadWhole());\n  videoPlayer.addEventListener('play', loadWhole);",
+    expected: "Video ganz laden"
+  },
+  {
+    nr: '1569', name: "Der ganze Abruf geht durch den Cache",
+    file: 'public/app.js',
+    search: "{ credentials: 'same-origin', cache: 'no-store', signal: mine.stop.signal }",
+    replacement: "{ credentials: 'same-origin', signal: mine.stop.signal }",
+    expected: "Video ganz laden"
+  },
+  {
+    nr: '1570', name: "Beim Laden steht keine Anzeige",
+    file: 'public/app.js',
+    search: "        mine.percent = Math.floor(got * 100 / total);\n        markWhole();\n",
+    replacement: "        mine.percent = Math.floor(got * 100 / total);\n",
+    expected: "Video ganz laden"
+  },
+  {
+    nr: '1571', name: "Nach dem Wechsel beginnt das Video von vorn",
+    file: 'public/app.js',
+    search: "      player.src = wholeCopy.url;\n      player.currentTime = mine.at;\n",
+    replacement: "      player.src = wholeCopy.url;\n      player.currentTime = 0;\n",
+    expected: "Video ganz laden"
+  },
+  {
+    nr: '1572', name: "Die Kopie geht beim Schliessen verloren",
+    file: 'public/app.js',
+    search: "    stopLoading(false);\n  };",
+    replacement: "    stopLoading(false);\n    if (wholeCopy) { URL.revokeObjectURL(wholeCopy.url); wholeCopy = null; }\n  };",
+    expected: "Video ganz laden"
+  },
+  {
+    nr: '1573', name: "Schliessen bricht den Abruf nicht ab",
+    file: 'public/app.js',
+    search: "    loading = null;\n    was.stop.abort();\n",
+    replacement: "    loading = null;\n",
+    expected: "Video ganz laden"
+  },
+  {
+    nr: '1574', name: "Am Telefon gilt die Grenze des Rechners",
+    file: 'public/app.js',
+    search: "const WHOLE_BYTES = () => (isNarrow() ? 500 : 2048) * 1024 * 1024;",
+    replacement: "const WHOLE_BYTES = () => 2048 * 1024 * 1024;",
+    expected: "Video ganz laden"
+  },
+  {
+    nr: '1575', name: "Bei Datensparen fehlt der Knopf",
+    file: 'public/app.js',
+    search: "    wholeButton.hidden = player !== videoPlayer || player.hidden || !note.hidden || bytes > WHOLE_BYTES() || (!loading && !source);",
+    replacement: "    wholeButton.hidden = player !== videoPlayer || player.hidden || !note.hidden || !!navigator.connection?.saveData || bytes > WHOLE_BYTES() || (!loading && !source);",
+    expected: "Video ganz laden"
+  },
+  {
+    nr: '1576', name: "Content-Length zaehlt nicht",
+    file: 'public/app.js',
+    search: "      if (!r.ok || !r.body || !(total > 0) || total > limit) throw new Error('not whole');",
+    replacement: "      if (!r.ok || !r.body || !(total > 0)) throw new Error('not whole');",
+    expected: "Video ganz laden"
+  },
+  {
+    nr: '1577', name: "Ein kurzer Blob ersetzt die Quelle",
+    file: 'public/app.js',
+    search: "      if (ready.size !== total) throw new Error('not whole');\n",
+    replacement: "",
+    expected: "Video ganz laden"
+  },
+  {
+    nr: '1578', name: "Die zweite Kopie gibt die erste nicht frei",
+    file: 'public/app.js',
+    search: "      if (wholeCopy) URL.revokeObjectURL(wholeCopy.url);\n",
+    replacement: "",
+    expected: "Video ganz laden"
+  },
+  {
+    nr: '1579', name: "Eine geloeschte Datei geht nicht in den Papierkorb",
+    file: 'server.js',
+    search: "    fileIntoTrash(Number(req.params.id), req.user.id);\n",
+    replacement: "",
+    expected: "Papierkorb fuer Dateien: Loeschen legt ab"
+  },
+  {
+    nr: '1580', name: "Der Papierkorb haelt die Datei nicht auf der Platte",
+    file: 'server.js',
+    search: "  diskFileIntoTrash.run(row, id);\n",
+    replacement: "",
+    expected: "Papierkorb fuer Dateien: Loeschen legt ab"
+  },
+  {
+    nr: '1581', name: "Jeder Admin stellt Dateien wieder her",
+    file: 'server.js',
+    search: "app.post('/api/trash/:id/restore', ownerOnly,",
+    replacement: "app.post('/api/trash/:id/restore', adminOnly,",
+    expected: "Papierkorb fuer Dateien: Wiederherstellen"
+  },
+  {
+    nr: '1582', name: "Der geloeschte Ordner entsteht nicht neu",
+    file: 'server.js',
+    search: "function folderBack(itemId, old, made) {\n  if (!old) return null;\n",
+    replacement: "function folderBack(itemId, old, made) {\n  return null;\n",
+    expected: "Papierkorb fuer Dateien: Wiederherstellen"
+  },
+  {
+    nr: '1583', name: "Die Datei kommt ohne Verfasser zurueck",
+    file: 'server.js',
+    search: "  if (!p || p.id == null) return null;\n  const u = qAccountOf.get(p.id);\n",
+    replacement: "  return null;\n  const u = qAccountOf.get(p.id);\n",
+    expected: "Papierkorb fuer Dateien: Wiederherstellen"
+  },
+  {
+    nr: '1584', name: "Das Standbild kommt nicht zurueck",
+    file: 'server.js',
+    search: "  const still = bytes(f.still);\n  if (still) putStill.run(id, f.duration ?? null, still);\n",
+    replacement: "",
+    expected: "Papierkorb fuer Dateien: Wiederherstellen"
+  },
+  {
+    nr: '1585', name: "Der Papierkorb fuellt den Eintrag ueber 100 Dateien",
+    file: 'server.js',
+    search: "  if (itemId == null) throw refusal(404, 'server.fileEntryGone');\n  if (fileSlots(itemId) >= FILES_PER_ENTRY) throw refusal(400, 'server.fileCap', { cap: FILES_PER_ENTRY });\n",
+    replacement: "  if (itemId == null) throw refusal(404, 'server.fileEntryGone');\n",
+    expected: "Papierkorb fuer Dateien: Frist, Grenze und geloeschter Eintrag"
+  },
+  {
+    nr: '1586', name: "Nach dem Papierkorb findet die Datei ihren Eintrag nicht",
+    file: 'server.js',
+    search: "const entryOf = (e) => (e ? (qEntrySame.get(e.id, e.created_at) || qEntryLike.get(e.created_at, e.title))?.id ?? null",
+    replacement: "const entryOf = (e) => (e ? qEntrySame.get(e.id, e.created_at)?.id ?? null",
+    expected: "Papierkorb fuer Dateien: Frist, Grenze und geloeschter Eintrag"
+  },
+  {
+    nr: '1587', name: "Nach der Frist bleibt die Datei auf der Platte",
+    file: 'server.js',
+    search: "  if (cleanupTrash()) sweepSoon();\n",
+    replacement: "  cleanupTrash();\n",
+    expected: "Papierkorb fuer Dateien: Frist, Grenze und geloeschter Eintrag"
+  },
+  {
+    nr: '1588', name: "Die Karte haelt jeden Eintrag fuer vorhanden",
+    file: 'server.js',
+    search: "    size: f.size, entryThere: entryOf(item) != null };",
+    replacement: "    size: f.size, entryThere: true };",
+    expected: "Papierkorb fuer Dateien: Frist, Grenze und geloeschter Eintrag"
+  },
+  {
+    nr: '1589', name: "Der Dialog liest keine Backups",
+    file: 'server.js',
+    search: "  for (const d of list) {\n    let probe;\n",
+    replacement: "  for (const d of []) {\n    let probe;\n",
+    expected: "Dateien aus Backups zurueckholen: B zurueck, D bleibt"
+  },
+  {
+    nr: '1590', name: "Jeder Admin sieht die geloeschten Dateien",
+    file: 'server.js',
+    search: "app.get('/api/items/:id/deleted-files', ownerOnly,",
+    replacement: "app.get('/api/items/:id/deleted-files', adminOnly,",
+    expected: "Dateien aus Backups zurueckholen: B zurueck, D bleibt"
+  },
+  {
+    nr: '1591', name: "Das Zurueckholen steht nicht im Sicherheitsprotokoll",
+    file: 'server.js',
+    search: "                auth.log('backup.fetch', { actor: req.user.id });\n",
+    replacement: "",
+    expected: "Dateien aus Backups zurueckholen: B zurueck, D bleibt"
+  },
+  {
+    nr: '1592', name: "Oefter gespeicherte Dateien fehlen im Dialog",
+    file: 'server.js',
+    search: "  if (now !== undefined && !(now > r.saves)) return null;\n",
+    replacement: "  if (now !== undefined) return null;\n",
+    expected: "Dateien aus Backups zurueckholen: aeltere Fassung, fehlende Kopie, fremder Schluessel"
+  },
+  {
+    nr: '1593', name: "Die aeltere Fassung traegt den Namen der jetzigen",
+    file: 'server.js',
+    search: "  const dot = filename.lastIndexOf('.');\n  return dot > 0 ? filename.slice(0, dot) + mark + filename.slice(dot) : filename + mark;\n",
+    replacement: "  return filename;\n",
+    expected: "Dateien aus Backups zurueckholen: aeltere Fassung, fehlende Kopie, fremder Schluessel"
+  },
+  {
+    nr: '1594', name: "Eine fehlende Kopie wird nicht abgelehnt",
+    file: 'server.js',
+    search: "  if (from && !backup.copyPresent(folder, { name: r.disk, length: encLen(f.size, f.chunk) }))\n    throw refusal(409, 'server.backupCopyMissing');\n",
+    replacement: "",
+    expected: "Dateien aus Backups zurueckholen: aeltere Fassung, fehlende Kopie, fremder Schluessel"
+  },
+  {
+    nr: '1595', name: "Aus der Datenbank eines Backups kommen leere Stuecke",
+    file: 'server.js',
+    search: "    const bytes = part.get(i * f.chunk + 1, f.chunk, id)?.part || NO_BYTES;\n",
+    replacement: "    const bytes = NO_BYTES;\n",
+    expected: "Dateien aus Backups zurueckholen: aus der Datenbank eines alten Backups"
+  },
+  {
+    nr: '1596', name: "Das Lockfile eines anderen Laufs haelt nichts auf",
+    file: 'server.js',
+    search: "    const lock = list ? takeBackupLock(target.filePath) : null;\n",
+    replacement: "    const lock = list ? (takeBackupLock(target.filePath) || 'ohne') : null;\n",
+    expected: "Dateien aus Backups zurueckholen: Eintrag aus dem Papierkorb, Grenze, laufendes Backup"
+  },
+  {
+    nr: '1597', name: "Der Server nimmt filesSort nach Typ nicht an",
+    file: 'server.js',
+    search: "'size_asc', 'size_desc', 'type_asc', 'type_desc'],",
+    replacement: "'size_asc', 'size_desc'],",
+    expected: "Sortieren nach Typ: die Einstellung"
+  },
+  {
+    nr: '1598', name: "Nach dem Hochladen eines Fotos liest niemand die Angaben",
+    file: 'server.js',
+    search: "    photoMediaSoon(added);\n",
+    replacement: "",
+    expected: "Erweiterte Infos zu Fotos und Videos des Eintrags"
+  },
+  {
+    nr: '1599', name: "Mit dem Foto bleiben seine Angaben",
+    file: 'schema.js',
+    search: "CREATE TABLE IF NOT EXISTS photo_media (\n  photo_id INTEGER PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,",
+    replacement: "CREATE TABLE IF NOT EXISTS photo_media (\n  photo_id INTEGER PRIMARY KEY REFERENCES photos(id),",
+    expected: "Erweiterte Infos zu Fotos und Videos des Eintrags"
+  },
+  {
+    nr: '1600', name: "Jeder sieht „Gelöschte Dateien …“",
+    file: 'public/app.js',
+    search: "${OWNER\n          ? `<button class=\"link-btn\" id=\"adeleted\">",
+    replacement: "${true\n          ? `<button class=\"link-btn\" id=\"adeleted\">",
+    expected: "Gelöschte Dateien: Knopf, Dialog und Zurückholen"
+  },
+  {
+    nr: '1601', name: "Die Rueckfrage nennt die Frist nicht",
+    file: 'public/app.js',
+    search: "t('entry.fileDeleteHint', { filename: a.filename, trashDays: TRASH_DAYS })",
+    replacement: "t('entry.fileDeleteHint', { filename: a.filename })",
+    expected: "Papierkorb: Dateien in der Karte, die Rückfrage beim Löschen"
+  },
+  {
+    nr: '1602', name: "Die Karte nennt nur den Dateinamen",
+    file: 'public/app.js',
+    search: "      const name = file ? [z.entry, z.folder, z.title].filter(Boolean).join(' › ') : z.title;\n",
+    replacement: "      const name = z.title;\n",
+    expected: "Papierkorb: Dateien in der Karte, die Rückfrage beim Löschen"
+  },
+  {
+    nr: '1603', name: "Der fehlende Eintrag steht nicht in der Zeile",
+    file: 'public/app.js',
+    search: "        file && !z.entryThere ? t('card.trashEntryGone') : ''\n",
+    replacement: "        ''\n",
+    expected: "Papierkorb: Dateien in der Karte, die Rückfrage beim Löschen"
+  },
+  {
+    nr: '1604', name: "„Typ“ fehlt in der Auswahl",
+    file: 'public/app.js',
+    search: "Object.entries(FILES_SORTS).map(([v, s]) => `<option",
+    replacement: "Object.entries(FILES_SORTS).filter(([v]) => v !== 'type').map(([v, s]) => `<option",
+    expected: "Sortieren nach Typ: Auswahl, Kopfzeile und Ordner"
+  },
+  {
+    nr: '1605', name: "Nach Typ zaehlt nur der Name",
+    file: 'public/app.js',
+    search: "    type: (a, b) => kindOrder(kindOf(a), kindOf(b)) || byName(a.filename, b.filename)",
+    replacement: "    type: (a, b) => byName(a.filename, b.filename)",
+    expected: "Sortieren nach Typ: Auswahl, Kopfzeile und Ordner"
+  },
+  {
+    nr: '1606', name: "Ordner stehen bei „Typ“ nach Groesse",
+    file: 'public/app.js',
+    search: "    const by = key === 'name' || key === 'type' ? (x, y)",
+    replacement: "    const by = key === 'name' ? (x, y)",
+    expected: "Sortieren nach Typ: Auswahl, Kopfzeile und Ordner"
+  },
+  {
+    nr: '1607', name: "Die Spalte „Typ“ ist kein Knopf",
+    file: 'public/app.js',
+    search: "<button type=\"button\" class=\"acol\" data-sort=\"type\"></button>",
+    replacement: "<span class=\"acol\" data-sort=\"type\"></span>",
+    expected: "Sortieren nach Typ: Auswahl, Kopfzeile und Ordner"
+  },
+  {
+    nr: '1608', name: "Der Codec heisst wie bei MediaInfo",
+    file: 'public/app.js',
+    search: "const CODEC_NAMES = { AVC: 'H.264', HEVC: 'H.265', avif: 'AVIF', Bitmap: 'BMP', 'MPEG Audio': 'MP3' };",
+    replacement: "const CODEC_NAMES = {};",
+    expected: "Erweiterte Infos: Audio, Container und H.264"
+  },
+  {
+    nr: '1609', name: "Auch bei Videos steht „Format“",
+    file: 'public/app.js',
+    search: "[[video.length ? 'entry.mediaContainer' : 'entry.mediaFormat', g.format],",
+    replacement: "[['entry.mediaFormat', g.format],",
+    expected: "Erweiterte Infos: Audio, Container und H.264"
+  },
+  {
+    nr: '1610', name: "Hinter einem Dialog blaettert das Vollbild weiter",
+    file: 'public/app.js',
+    search: "nur ihn.\n    if (document.querySelector('.backdrop')) return;\n",
+    replacement: "nur ihn.\n",
+    expected: "ⓘ im Vollbild und die Tasten bei offenem Dialog"
+  },
+  {
+    nr: '1611', name: "ⓘ fehlt im Vollbild der Dateien",
+    file: 'public/app.js',
+    search: "      info: fileInfo, stillWanted\n",
+    replacement: "      stillWanted\n",
+    expected: "ⓘ im Vollbild und die Tasten bei offenem Dialog"
+  },
+  {
+    nr: '1612', name: "ⓘ fehlt im Vollbild der Fotos",
+    file: 'public/app.js',
+    search: "        openLightbox([...item.photos], idx, item.title, photoRemove(), innerPlayer, photoLink, { info: photoInfo });\n    };\n",
+    replacement: "        openLightbox([...item.photos], idx, item.title, photoRemove(), innerPlayer, photoLink);\n    };\n",
+    expected: "ⓘ im Vollbild und die Tasten bei offenem Dialog"
+  },
+  {
+    nr: '1613', name: "Die englische README weicht im Codeblock ab",
+    file: 'README.md',
+    search: "docker compose logs --tail 30 kriterion",
+    replacement: "docker compose logs --tail 50 kriterion",
+    expected: "README und Anleitung in drei Sprachen"
+  },
+  {
+    nr: '1614', name: "Die englische README nennt nicht alle Sprachen",
+    file: 'README.md',
+    search: "English · [Deutsch](README-de.md) · [Türkçe](README-tr.md)",
+    replacement: "English · [Deutsch](README-de.md)",
+    expected: "README und Anleitung in drei Sprachen"
+  },
+  {
+    nr: '1615', name: "Auf Tuerkisch steht yedek allein",
+    file: 'README-tr.md',
+    search: "Önce bir yedekleme oluştur.",
+    replacement: "Önce bir yedek oluştur.",
+    expected: "README und Anleitung in drei Sprachen"
+  },
+  {
+    nr: '1616', name: "Das CHANGELOG verweist auf die deutsche Fassung von Keep a Changelog",
+    file: 'CHANGELOG.md',
+    search: "https://keepachangelog.com/en/1.1.0/",
+    replacement: "https://keepachangelog.com/de/1.1.0/",
+    expected: "Das CHANGELOG ist englisch und kurz"
+  },
+  {
+    nr: '1617', name: "Ein Admin benennt fremde Dateien um",
+    file: 'server.js',
+    search: "  if (!selfOnly(req, a.user_id)) return res.status(403).json({ error: t(localeOf(req), DENIED_SELF)});\n  const ext = path.extname(a.filename);",
+    replacement: "  const ext = path.extname(a.filename);",
+    expected: "Dateien umbenennen: die Route"
+  },
+  {
+    nr: '1618', name: "Die Endung geht beim Umbenennen verloren",
+    file: 'server.js',
+    search: "  const filename = stem + ext;\n",
+    replacement: "  const filename = stem;\n",
+    expected: "Dateien umbenennen: die Route"
+  },
+  {
+    nr: '1619', name: "Gleiche Namen im selben Ordner gehen durch",
+    file: 'server.js',
+    search: "  if (qNamesBeside.all(a.item_id, a.id, a.folder_id).some(o => o.filename.toLowerCase() === lower))",
+    replacement: "  if (false)",
+    expected: "Dateien umbenennen: die Route"
+  },
+  {
+    nr: '1620', name: "Gross- und Kleinschreibung trennt gleiche Namen",
+    file: 'server.js',
+    search: "some(o => o.filename.toLowerCase() === lower)",
+    replacement: "some(o => o.filename === lower)",
+    expected: "Dateien umbenennen: die Route"
+  },
+  {
+    nr: '1621', name: "Die vorige Fassung behaelt den alten Namen",
+    file: 'server.js',
+    search: "    if (before) renamePrevious.run(stem + path.extname(before.filename), a.id);\n",
+    replacement: "",
+    expected: "Dateien umbenennen: die Route"
+  },
+  {
+    nr: '1622', name: "Steuerzeichen im Namen gehen durch",
+    file: 'server.js',
+    search: "  return /^[.\\s]*$/.test(stem) || /[\\x00-\\x1f\\x7f]/.test(stem) ? null : stem;",
+    replacement: "  return /^[.\\s]*$/.test(stem) ? null : stem;",
+    expected: "Dateien umbenennen: die Route"
+  },
+  {
+    nr: '1623', name: "Nach dem Umbenennen gilt der Eintrag nicht als geaendert",
+    file: 'server.js',
+    search: "renamePrevious.run(stem + path.extname(before.filename), a.id);\n    touch.run(a.item_id);",
+    replacement: "renamePrevious.run(stem + path.extname(before.filename), a.id);",
+    expected: "Dateien umbenennen: die Route"
+  },
+  {
+    nr: '1624', name: "„Umbenennen …“ steht auch an fremden Dateien",
+    file: 'public/app.js',
+    search: "    if (a.mine === true) sort.push({ label: t('entry.renameFileMenu')",
+    replacement: "    if (true) sort.push({ label: t('entry.renameFileMenu')",
+    expected: "Dateien umbenennen: Menü und Dialog"
+  },
+  {
+    nr: '1625', name: "Der Dialog zeigt die Endung im Feld",
+    file: 'public/app.js',
+    search: "value=\"${esc(a.filename.slice(0, a.filename.length - ext.length))}\"",
+    replacement: "value=\"${esc(a.filename)}\"",
+    expected: "Dateien umbenennen: Menü und Dialog"
+  },
+  {
+    nr: '1626', name: "Nach dem Dialog steht der Fokus nicht auf „…“",
+    file: 'public/app.js',
+    search: "    const back = () => attsBox.querySelector(`[data-key=\"f${Number(a.id)}\"] .amore`)?.focus();",
+    replacement: "    const back = () => {};",
+    expected: "Dateien umbenennen: Menü und Dialog"
+  },
+  {
+    nr: '1627', name: "Eine Ablehnung schliesst den Dialog",
+    file: 'public/app.js',
+    search: "      catch (e) {\n        yes.disabled = false;\n        return e.message === SESSION_GONE ? done() : fieldError(field, e.message);\n      }\n      const fresh = fileOf('f' + a.id);",
+    replacement: "      catch (e) { toast(e.message, true); return done(); }\n      const fresh = fileOf('f' + a.id);",
+    expected: "Dateien umbenennen: Menü und Dialog"
+  },
+  {
+    nr: '1628', name: "Die Pixel kennen keine Ausrichtung",
+    file: 'server.js',
+    search: "  (orientation >= 5 && orientation <= 8 ? { width: height, height: width } : { width, height });",
+    replacement: "  ({ width, height });",
+    expected: "Bilder: Format, Pixel, EXIF und das Nachlesen"
+  },
+  {
+    nr: '1629', name: "Bilder tragen kein Format",
+    file: 'server.js',
+    search: "      ...(kind === 'image' ? { codec: a2.image_format,",
+    replacement: "      ...(kind === 'image' ? { codec: null,",
+    expected: "Bilder: Format, Pixel, EXIF und das Nachlesen"
+  },
+  {
+    nr: '1630', name: "EXIF wird nicht gelesen",
+    file: 'attachments.js',
+    search: "    exif: meta.exif ? exifSummary(meta.exif) : null };",
+    replacement: "    exif: null };",
+    expected: "Bilder: Format, Pixel, EXIF und das Nachlesen"
+  },
+  {
+    nr: '1631', name: "Die Koordinaten werden gespeichert",
+    file: 'attachments.js',
+    search: "    focal35: exifNumber(photo.FocalLengthIn35mmFilm), gps: Array.isArray(gps.GPSLatitude) && Array.isArray(gps.GPSLongitude) };",
+    replacement: "    focal35: exifNumber(photo.FocalLengthIn35mmFilm), gps: Array.isArray(gps.GPSLatitude) && Array.isArray(gps.GPSLongitude), place: gps };",
+    expected: "Bilder: Format, Pixel, EXIF und das Nachlesen"
+  },
+  {
+    nr: '1632', name: "Alte Zeilen von Bildern werden nicht nachgelesen",
+    file: 'server.js',
+    search: "  if (known && !(kind === 'image' && a.stale) && !a.soundless && !a.unscanned) return known;",
+    replacement: "  if (known) return known;",
+    expected: "Bilder: Format, Pixel, EXIF und das Nachlesen"
+  },
+  {
+    nr: '1633', name: "Videos mit alter Zeile liest der Server neu",
+    file: 'server.js',
+    search: "  if (known && !(kind === 'image' && a.stale) && !a.soundless && !a.unscanned) return known;",
+    replacement: "  if (known && !a.stale && !a.soundless && !a.unscanned) return known;",
+    expected: "Bilder: Format, Pixel, EXIF und das Nachlesen"
+  },
+  {
+    nr: '1634', name: "Alte Zeilen von Fotos werden nicht nachgelesen",
+    file: 'server.js',
+    search: "  if (known && !p.stale) return known;",
+    replacement: "  if (known) return known;",
+    expected: "Bilder: Format, Pixel, EXIF und das Nachlesen"
+  },
+  {
+    nr: '1635', name: "Office-Dateien ohne Ersteller",
+    file: 'attachments.js',
+    search: "  return { title: xmlValue(core, 'title'), createdBy: xmlValue(core, 'creator'),",
+    replacement: "  return { title: xmlValue(core, 'title'), createdBy: null,",
+    expected: "Infos zu Dokumenten: aus Kriterion und aus der Datei"
+  },
+  {
+    nr: '1636', name: "In meta.xml gilt dc:creator als Ersteller",
+    file: 'attachments.js',
+    search: "  return { title: xmlValue(meta, 'title'), createdBy: xmlValue(meta, 'initial-creator'),",
+    replacement: "  return { title: xmlValue(meta, 'title'), createdBy: xmlValue(meta, 'creator'),",
+    expected: "Infos zu Dokumenten: aus Kriterion und aus der Datei"
+  },
+  {
+    nr: '1637', name: "Die Grenze fuer Dokumente liegt bei 4 MiB",
+    file: 'attachments.js',
+    search: "const DOCUMENT_PART = 1024 * 1024;",
+    replacement: "const DOCUMENT_PART = 4 * 1024 * 1024;",
+    expected: "Infos zu Dokumenten: aus Kriterion und aus der Datei"
+  },
+  {
+    nr: '1638', name: "PDF-Texte in UTF-16 bleiben unlesbar",
+    file: 'attachments.js',
+    search: "  if (bytes[0] === 0xfe && bytes[1] === 0xff) {",
+    replacement: "  if (false) {",
+    expected: "Infos zu Dokumenten: aus Kriterion und aus der Datei"
+  },
+  {
+    nr: '1639', name: "Der Rueckruf vergisst, wer gespeichert hat",
+    file: 'server.js',
+    search: "      const by = Number([].concat(cb.data.users || [])[0]) || null;",
+    replacement: "      const by = null;",
+    expected: "Infos zu Dokumenten: aus Kriterion und aus der Datei"
+  },
+  {
+    nr: '1640', name: "Eine fremde Nummer aus `users` gilt als Account",
+    file: 'server.js',
+    search: "  VALUES (?, datetime('now'), (SELECT id FROM users WHERE id = ?))",
+    replacement: "  VALUES (?, datetime('now'), ?)",
+    expected: "Infos zu Dokumenten: aus Kriterion und aus der Datei"
+  },
+  {
+    nr: '1641', name: "Die Angaben gehen im Papierkorb verloren",
+    file: 'server.js',
+    search: "  if (f.changes) putChanges.run(",
+    replacement: "  if (false) putChanges.run(",
+    expected: "Infos zu Dokumenten: aus Kriterion und aus der Datei"
+  },
+  {
+    nr: '1642', name: "Die Aenderungszeit beim Hochladen fehlt",
+    file: 'server.js',
+    search: "    if (u.modified > 0) recordModified.run(fresh, u.modified);\n",
+    replacement: "",
+    expected: "Infos zu Dokumenten: aus Kriterion und aus der Datei"
+  },
+  {
+    nr: '1643', name: "Dokumente bekommen keine Infos",
+    file: 'server.js',
+    search: "    if (a && attachments.isDocument(a.filename)) {",
+    replacement: "    if (false) {",
+    expected: "Infos zu Dokumenten: aus Kriterion und aus der Datei"
+  },
+  {
+    nr: '1644', name: "„Infos“ fehlt im Menue",
+    file: 'public/app.js',
+    search: " || DOCUMENT_KINDS.includes(kindOf(a)))\n      pass.push(",
+    replacement: ")\n      pass.push(",
+    expected: "Infos zu Dokumenten: Menüpunkt und Dialog"
+  },
+  {
+    nr: '1645', name: "Dokumente zeigen im Dialog die Gruppen eines Bildes oder Videos",
+    file: 'public/app.js',
+    search: "      body.innerHTML = facts.document ? documentInfoHtml(facts) : mediaInfoHtml(facts);",
+    replacement: "      body.innerHTML = mediaInfoHtml(facts);",
+    expected: "Infos zu Dokumenten: Menüpunkt und Dialog"
+  },
+  {
+    nr: '1646', name: "Zugeklappt steht „Dateien“ wieder in Klammern",
+    file: 'public/app.js',
+    search: "    sum.textContent = !short ? '' : name === 'dateien' ? short : `(${short})`;",
+    replacement: "    sum.textContent = short ? `(${short})` : '';",
+    expected: "Der zugeklappte Kopf von „Dateien“"
+  },
+  {
+    nr: '1647', name: "Zugeklappt bleiben die Bedienelemente stehen",
+    file: 'public/style.css',
+    search: ".block.closed > *:not(.block-head), .block.closed .ahead-acts, .block.closed #acount { display: none; }",
+    replacement: ".block.closed > *:not(.block-head) { display: none; }",
+    expected: "Der zugeklappte Kopf von „Dateien“"
+  },
+  {
+    nr: '1648', name: "Videos zaehlen unter „weitere“",
+    file: 'public/app.js',
+    search: "  const videos = files.filter(a => kindOf(a) === 'video').length,",
+    replacement: "  const videos = 0,",
+    expected: "Der zugeklappte Kopf von „Dateien“"
+  },
+  {
+    nr: '1649', name: "Die Ablehnung nennt „am“ und „von“ fest",
+    file: 'public/app.js',
+    search: "    const head = when && who ? t('entry.rejectedBy', { date: when, name: who })",
+    replacement: "    const head = when && who ? `Abgelehnt am ${when} von ${who}`",
+    expected: "Texte ohne festes Deutsch: Ablehnung und Aufgabenknopf"
+  },
+  {
+    nr: '1650', name: "Der Aufgabenknopf sagt „offen“ fest",
+    file: 'public/app.js',
+    search: "    ? t('list.openTitle', { n: open, task: vTask(open) })",
+    replacement: "    ? `${open} ${vTask(open)} offen`",
+    expected: "Texte ohne festes Deutsch: Ablehnung und Aufgabenknopf"
+  },
+  {
+    nr: '1651', name: "„keine“ steht fest im Code",
+    file: 'public/app.js',
+    search: "    case 'kategorie': return item.category ? item.category.name : t('entry.sumNone');",
+    replacement: "    case 'kategorie': return item.category ? item.category.name : 'keine';",
+    expected: "Texte ohne festes Deutsch: Ablehnung und Aufgabenknopf"
+  },
+  {
+    nr: '1652', name: "Die Schwelle selbst gilt als teilweise",
+    file: 'server.js',
+    search: "n * 100 < share * total ? 'partial' : 'full';",
+    replacement: "n * 100 <= share * total ? 'partial' : 'full';",
+    expected: "Filter nach Potenzial und Bewertung: der Server"
+  },
+  {
+    nr: '1653', name: "Fremde Werte zaehlen mit",
+    file: 'server.js',
+    search: "JOIN rating_criteria c ON c.id = r.criterion_id WHERE r.user_id = ? AND r.value > 0 GROUP BY r.item_id, c.phase`);",
+    replacement: "JOIN rating_criteria c ON c.id = r.criterion_id WHERE (r.user_id = ? OR 1) AND r.value > 0 GROUP BY r.item_id, c.phase`);",
+    expected: "Filter nach Potenzial und Bewertung: der Server"
+  },
+  {
+    nr: '1654', name: "Ungetestete Eintraege zaehlen bei „Bewertung“",
+    file: 'server.js',
+    search: "      out[phase] = phase === 'after' && !tested ? null : ",
+    replacement: "      out[phase] = ",
+    expected: "Filter nach Potenzial und Bewertung: der Server"
+  },
+  {
+    nr: '1655', name: "Die Schwelle nimmt 0 und 101 an",
+    file: 'server.js',
+    search: "        if (!Number.isInteger(n) || n < PARTIAL_SHARE.min || n > PARTIAL_SHARE.max)",
+    replacement: "        if (!Number.isInteger(n))",
+    expected: "Filter nach Potenzial und Bewertung: der Server"
+  },
+  {
+    nr: '1656', name: "Ohne Potenzialmodus bleibt die Phase stehen",
+    file: 'server.js',
+    search: "  if (!potentialMode()) delete totals.before;\n",
+    replacement: "",
+    expected: "Filter nach Potenzial und Bewertung: der Server"
+  },
+  {
+    nr: '1657', name: "Der Filter „Eigene Werte“ wirkt nicht",
+    file: 'public/app.js',
+    search: "  if (own !== 'all') out = out.filter(i => i.share?.[sharePhase(i)] === own);\n",
+    replacement: "",
+    expected: "Eigene Werte: eine Gruppe in der Statuszeile"
+  },
+  {
+    nr: '1658', name: "Der Filter „Eigene Werte“ zaehlt nicht als aktiv",
+    file: 'public/app.js',
+    search: "  if (shareWanted(f) !== 'all') n++;\n",
+    replacement: "",
+    expected: "Eigene Werte: eine Gruppe in der Statuszeile"
+  },
+  {
+    nr: '1659', name: "Eine ausgeblendete Gruppe filtert weiter",
+    file: 'public/app.js',
+    search: "const shareWanted = (f) => (shareShown() ? f.own : 'all');",
+    replacement: "const shareWanted = (f) => f.own;",
+    expected: "Eigene Werte: alte Filter, ohne Potenzialmodus, ohne Kriterien"
+  },
+  {
+    nr: '1660', name: "Das Feld fuer die Schwelle steht auch ohne Adminrechte da",
+    file: 'public/app.js',
+    search: "  { key: 'criteria',     section: 'inventory', visible: () => ADMIN,",
+    replacement: "  { key: 'criteria',     section: 'inventory', visible: () => true,",
+    expected: "Filter „Teilweise“: die Schwelle in den Einstellungen"
+  },
+  {
+    nr: '1661', name: "Eine abgelehnte Schwelle bleibt im Feld stehen",
+    file: 'public/app.js',
+    search: "    } catch (e) { toast(e.message, true); }\n    shareField.value = String(PARTIAL_SHARE);",
+    replacement: "    } catch (e) { toast(e.message, true); }",
+    expected: "Filter „Teilweise“: die Schwelle in den Einstellungen"
+  },
+  {
+    nr: '1662', name: "Bilder heissen in der Spalte „Typ“ nur „Bild“",
+    file: 'public/app.js',
+    search: "  if (kind === 'image') return [codecName(a.codec), pixelText(a.width, a.height)].filter(Boolean).join(' · ') || t(KIND_WORDS.image);\n",
+    replacement: "",
+    expected: "Bilder: Typ, Vorschaubild und Erweiterte Infos"
+  },
+  {
+    nr: '1663', name: "Die Vorschaubilder in der Datei fehlen",
+    file: 'public/app.js',
+    search: "  const [main, ...thumbs] = f.image || [];",
+    replacement: "  const [main] = f.image || [], thumbs = [];",
+    expected: "Bilder: Typ, Vorschaubild und Erweiterte Infos"
+  },
+  {
+    nr: '1664', name: "„Aufnahmedatum“ bleibt neben der Zeit aus EXIF",
+    file: 'public/app.js',
+    search: "    ['entry.mediaRecorded', shot.taken ? '' : recorded ? fmtDate(recorded[0]) : g.recorded],",
+    replacement: "    ['entry.mediaRecorded', recorded ? fmtDate(recorded[0]) : g.recorded],",
+    expected: "Bilder: Typ, Vorschaubild und Erweiterte Infos"
+  },
+  {
+    nr: '1665', name: "Die Belichtungszeit steht als Dezimalzahl",
+    file: 'public/app.js',
+    search: "t('entry.mediaSeconds', { n: s < 0.4 ? `1/${Math.round(1 / s)}` : number(s, 0, 1) });",
+    replacement: "t('entry.mediaSeconds', { n: number(s, 0, 3) });",
+    expected: "Bilder: Typ, Vorschaubild und Erweiterte Infos"
+  },
+  {
+    nr: '1666', name: "Die Pixel im Dialog kennen keine Ausrichtung",
+    file: 'public/app.js',
+    search: "    ['entry.mediaResolution', turned ? pixelText(main.height, main.width) : pixelText(main.width, main.height)],",
+    replacement: "    ['entry.mediaResolution', pixelText(main.width, main.height)],",
+    expected: "Bilder: Typ, Vorschaubild und Erweiterte Infos"
+  },
+  {
+    nr: '1667', name: "Die deutsche Anleitung beschreibt wieder „Eintrag exportieren“",
+    file: 'manual-de.md',
+    search: "## Kommentare\n\nEin Kommentar hat eine **Art**",
+    replacement: "### Eintrag exportieren\n\nNur für den Eigentümer-Admin.\n\n## Kommentare\n\nEin Kommentar hat eine **Art**",
+    expected: "Anleitung, README und Namen"
+  },
+  {
+    nr: '1668', name: "Die Anleitung sagt wieder „Ähnlich:“",
+    file: 'manual-de.md',
+    search: "Beim Anlegen zeigt „Ähnliche Titel: …“",
+    replacement: "Beim Anlegen zeigt „Ähnlich: …“",
+    expected: "Anleitung, README und Namen"
+  },
+  {
+    nr: '1669', name: "Die Anleitung beschreibt „Infos“ nicht",
+    file: 'manual-de.md',
+    search: "- **Infos zu Dokumenten:** „Infos“ im Menü ⋯ einer Word-, Excel-, PowerPoint-",
+    replacement: "- „Infos“ im Menü ⋯ einer Word-, Excel-, PowerPoint-",
+    expected: "Anleitung, README und Namen"
+  },
+  {
+    nr: '1670', name: "Die englische README nennt `exif-reader` nicht",
+    file: 'README.md',
+    search: "`sharp`, `nodemailer`, `mediainfo.js` and `exif-reader`. The frontend uses no",
+    replacement: "`sharp`, `nodemailer` and `mediainfo.js`. The frontend uses no",
+    expected: "Anleitung, README und Namen"
+  },
+  {
+    nr: '1671', name: "Der Abschnitt heisst englisch wieder „User“",
+    file: 'public/app.js',
+    search: "  { key: 'users',        name: () => t('card.users') },",
+    replacement: "  { key: 'users',        name: () => t('card.user') },",
+    expected: "Anleitung, README und Namen"
+  },
+  {
+    nr: '1672', name: "Der Player behaelt waehrend des Ladens seine Quelle",
+    file: 'public/app.js',
+    search: "    player.removeAttribute('src');\n    player.load();\n    markWhole();",
+    replacement: "    markWhole();",
+    expected: "Video ganz laden"
+  },
+  {
+    nr: '1673', name: "Abbrechen gibt die Adresse nicht zurueck",
+    file: 'public/app.js',
+    search: "    if (backToAddress) {\n      player.src = was.source;",
+    replacement: "    if (false) {\n      player.src = was.source;",
+    expected: "Video ganz laden"
+  },
+  {
+    nr: '1674', name: "Dasselbe Video laedt nach dem Schliessen wieder aus dem Netz",
+    file: 'public/app.js',
+    search: "      videoPlayer.src = wholeCopy?.source === address ? wholeCopy.url : address;",
+    replacement: "      videoPlayer.src = address;",
+    expected: "Video ganz laden"
+  },
+  {
+    nr: '1675', name: "Nach dem Laden spielt das Video nicht weiter",
+    file: 'public/app.js',
+    search: "      if (mine.playing) player.play()?.catch?.(() => {});\n      markWhole();",
+    replacement: "      markWhole();",
+    expected: "Video ganz laden"
+  },
+  {
+    nr: '1676', name: "Der Abschnitt „Backup“ fehlt",
+    file: 'public/app.js',
+    search: "  { key: 'backup',       name: () => t('card.backupSection') },\n",
+    replacement: "",
+    expected: "Der Systembereich nach Rolle"
+  },
+  {
+    nr: '1677', name: "„Zweiter Faktor“ fehlt in „Mein Account“",
+    file: 'public/app.js',
+    search: "        <h4 class=\"sys-sub\">${tH('card.twoFactorTitle')}</h4>\n        <div class=\"two-factor-block\" id=\"two-factor-block\"></div>\n",
+    replacement: "",
+    expected: "Die Karte „Zugang“: der zweite Faktor"
+  },
+  {
+    nr: '1678', name: "Die Leiste der Abschnitte steht auch mit nur einem Abschnitt",
+    file: 'public/app.js',
+    search: "    ${visibleOnes.length > 1 ? `<button class=\"btn btn-sm sys-toggle\" id=\"sys-toggle\"",
+    replacement: "    ${visibleOnes.length > 0 ? `<button class=\"btn btn-sm sys-toggle\" id=\"sys-toggle\"",
+    expected: "Der Systembereich nach Rolle"
+  },
+  {
+    nr: '1679', name: "In „Mein Account“ fehlt der Hinweis auf einen Admin",
+    file: 'public/app.js',
+    search: " ||\n          `<p class=\"desc\">${tH('card.passwordAskAdmin')}</p>`}</div>",
+    replacement: "}</div>",
+    expected: "Der Systembereich nach Rolle"
+  },
+  {
+    nr: '1680', name: "Bei den Wiederherstellungscodes fehlt der Hinweis auf einen Admin",
+    file: 'public/app.js',
+    search: " ||\n        `<p class=\"desc\" style=\"margin:8px 0 0\">${tH('card.twoFactorAskAdmin')}</p>`}`;",
+    replacement: "}`;",
+    expected: "Der Systembereich nach Rolle"
+  },
+  {
+    nr: '1681', name: "Admins sehen die Grenzen wieder als Felder",
+    file: 'public/app.js',
+    search: "          if (!OWNER) return `<div class=\"kv\"><span class=\"k\">${tH(label)}</span><span class=\"v\">${",
+    replacement: "          if (false) return `<div class=\"kv\"><span class=\"k\">${tH(label)}</span><span class=\"v\">${",
+    expected: "Die Bildablage in der Oberflaeche"
+  },
+  {
+    nr: '1682', name: "Der Hinweis zum Schluessel steht wieder beim Admin",
+    file: 'public/app.js',
+    search: "              ${serverBox(t('card.restartHint'), 'docker compose up -d')}\n            </div>` : '')}",
+    replacement: "              ${serverBox(t('card.restartHint'), 'docker compose up -d')}\n            </div>` : `<div class=\"warn-box\">${tH('card.keyBesideHint')}</div>`)}",
+    expected: "Die Rollenweichen — 0.22.0"
+  },
+  {
+    nr: '1683', name: "„Vokabular“ ist wieder eine schmale Karte",
+    file: 'public/app.js',
+    search: "function cardVocabulary() {\n  return `<div class=\"sys-card wide\" data-watch>",
+    replacement: "function cardVocabulary() {\n  return `<div class=\"sys-card\" data-watch>",
+    expected: "Der Systembereich nach Rolle"
+  },
+  {
+    nr: '1684', name: "Ohne Mailversand steht der Schalter wieder da",
+    file: 'public/app.js',
+    search: "        ${requests.an || requests.deliveryReady ? `<div class=\"row-in\" style=\"margin-top:10px\">",
+    replacement: "        ${true ? `<div class=\"row-in\" style=\"margin-top:10px\">",
+    expected: "Die Karte „Anfragen“"
+  },
+  {
+    nr: '1685', name: "Die Linkzeilen fehlen in „Darstellung“",
+    file: 'public/app.js',
+    search: "  drawStrip();\n  drawLinkRows();\n  drawSearchNames();\n",
+    replacement: "  drawStrip();\n",
+    expected: "Der Systembereich nach Rolle"
+  },
+  {
+    nr: '1686', name: "Die Karte „Speicher und Wartung“ fehlt",
+    file: 'public/app.js',
+    search: "  { key: 'storage',      section: 'database', visible: () => ADMIN,\n    markup: cardStorage,  wireUp: setUpStorageOut },\n",
+    replacement: "",
+    expected: "Der Systembereich nach Rolle"
+  },
+  {
+    nr: '1687', name: "Den Modus „Potenzial“ sieht der Admin wieder als gesperrtes Kaestchen",
+    file: 'public/app.js',
+    search: "          ${OWNER ? `<label class=\"ex-files\"><input type=\"checkbox\" id=\"pot-mode\">",
+    replacement: "          ${ADMIN ? `<label class=\"ex-files\"><input type=\"checkbox\" id=\"pot-mode\" disabled>",
+    expected: "Der Systembereich nach Rolle"
+  },
+  {
+    nr: '1688', name: "Ein Benutzer holt die Kategorien wieder, ohne die Karte zu sehen",
+    file: 'public/app.js',
+    search: "      ADMIN ? api('GET', '/api/product-categories') : null, ADMIN ? api('GET', '/api/tags') : null,",
+    replacement: "      api('GET', '/api/product-categories'), ADMIN ? api('GET', '/api/tags') : null,",
+    expected: "Der Systembereich nach Rolle"
+  },
+  {
+    nr: '1689', name: "Den Abgleich ruft jeder Admin",
+    file: 'server.js',
+    search: "app.get('/api/maintenance', ownerOnly, async (req, res, next) => {",
+    replacement: "app.get('/api/maintenance', adminOnly, async (req, res, next) => {",
+    expected: "Wartung: der Abgleich nennt jeden Eintrag ohne Verweis"
+  },
+  {
+    nr: '1690', name: "Der Abgleich kennt wieder nur Namen aus 32 Hexzeichen",
+    file: 'server.js',
+    search: "    if (known.has(name)) continue;\n    const file = path.join(FILES_DIR, name);",
+    replacement: "    if (known.has(name) || !DISK_NAME.test(name)) continue;\n    const file = path.join(FILES_DIR, name);",
+    expected: "Wartung: der Abgleich nennt jeden Eintrag ohne Verweis"
+  },
+  {
+    nr: '1691', name: "Ein Verzeichnis zaehlt seinen Inhalt nicht",
+    file: 'server.js',
+    search: "    if (kind === 'dir') try { tree = treeSize(file); } catch { tree = { files: 0, bytes: 0 }; }",
+    replacement: "    if (kind === 'dir') tree = null;",
+    expected: "Wartung: der Abgleich nennt jeden Eintrag ohne Verweis"
+  },
+  {
+    nr: '1692', name: "Eine Datei, die kein Backup nennt, darf nicht weg",
+    file: 'server.js',
+    search: "const FREE_WHY = new Set(['foreign', 'copied', 'unnamed']);",
+    replacement: "const FREE_WHY = new Set(['foreign', 'copied']);",
+    expected: "Wartung: der Abgleich nennt jeden Eintrag ohne Verweis"
+  },
+  {
+    nr: '1693', name: "Ein Backup ohne Dateiliste zaehlt nicht",
+    file: 'server.js',
+    search: "    if (!list) { unlisted++; continue; }",
+    replacement: "    if (!list) continue;",
+    expected: "Wartung: ohne Backup-Ordner und mit einem Backup ohne Liste"
+  },
+  {
+    nr: '1694', name: "Ohne Backup-Ordner nennt kein Backup den Namen",
+    file: 'server.js',
+    search: "  const files = folder ? backup.backupList(folder) : null;\n  if (!files) return null;",
+    replacement: "  const files = folder ? backup.backupList(folder) : [];\n  if (!files) return null;",
+    expected: "Wartung: ohne Backup-Ordner und mit einem Backup ohne Liste"
+  },
+  {
+    nr: '1695', name: "Ein Verzeichnis wird nur leer geloescht",
+    file: 'server.js',
+    search: "        if (f.kind === 'dir') fs.rmSync(f.file, { recursive: true, force: true });",
+    replacement: "        if (f.kind === 'dir') fs.rmdirSync(f.file);",
+    expected: "Wartung: Loeschen nach Namen"
+  },
+  {
+    nr: '1696', name: "Geloescht wird das Ziel eines symbolischen Links",
+    file: 'server.js',
+    search: "        else fs.unlinkSync(f.file);",
+    replacement: "        else fs.unlinkSync(f.kind === 'link' ? fs.realpathSync(f.file) : f.file);",
+    expected: "Wartung: Loeschen nach Namen"
+  },
+  {
+    nr: '1697', name: "Geloescht wird jeder freie Eintrag, auch ungewaehlt",
+    file: 'server.js',
+    search: "    for (const f of unknownScan().filter(z => z.free && wanted.has(z.name))) {",
+    replacement: "    for (const f of unknownScan().filter(z => z.free)) {",
+    expected: "Wartung: Loeschen nach Namen"
+  },
+  {
+    nr: '1698', name: "Das Server-Log nennt die geloeschten Namen nicht",
+    file: 'server.js',
+    search: "  if (removed) logLine(`Disk files without a reference removed: ${removed} (${bytes} bytes): ${gone.join(', ')}.`);",
+    replacement: "  if (removed) logLine(`Disk files without a reference removed: ${removed} (${bytes} bytes).`);",
+    expected: "Wartung: Loeschen nach Namen"
+  },
+  {
+    nr: '1699', name: "Der Abgleich prueft die Dateien nicht neu",
+    file: 'server.js',
+    search: "    findMissing();\n    if (!CHECK || CHECK.delivered) {",
+    replacement: "    if (!CHECK || CHECK.delivered) {",
+    expected: "Wartung: fehlende Dateien"
+  },
+  {
+    nr: '1700', name: "Zurueckholen nimmt eine Kopie anderer Laenge",
+    file: 'server.js',
+    search: "      if (!r || !backup.copyPresent(folder, { name, length })) continue;",
+    replacement: "      if (!r || !fs.existsSync(path.join(folder, COPY_DIR, name))) continue;",
+    expected: "Wartung: fehlende Dateien"
+  },
+  {
+    nr: '1701', name: "Zurueckholen laeuft auch waehrend eines Backups",
+    file: 'server.js',
+    search: "  let lock;\n  try { lock = takeBackupLock(folder); } catch (e) { return next(e); }\n  if (!lock) return res.status(409).json({ error: t(locale, 'server.backupRunning') });\n  const wanted = pickedNames(req.body);",
+    replacement: "  const lock = takeBackupLock(folder) || path.join(folder, COPY_DIR, '.gestellt');\n  const wanted = pickedNames(req.body);",
+    expected: "Wartung: waehrend eines Backups"
+  },
+  {
+    nr: '1702', name: "Die Pruefung liest die Fremdschluessel nicht",
+    file: 'batchrun.js',
+    search: "  for (const z of db.pragma('foreign_key_check')) {",
+    replacement: "  for (const z of []) {",
+    expected: "Wartung: Pruefung der Datenbank"
+  },
+  {
+    nr: '1703', name: "Ein verletzter Fremdschluessel gilt als in Ordnung",
+    file: 'server.js',
+    search: "      done({ ...r, ok: r.quick.length === 1 && r.quick[0] === 'ok' && !r.keys.length, ms: Date.now() - started });",
+    replacement: "      done({ ...r, ok: r.quick[0] === 'ok', ms: Date.now() - started });",
+    expected: "Wartung: Pruefung der Datenbank"
+  },
+  {
+    nr: '1704', name: "Die Kennzahlen nennen die freien Seiten nicht",
+    file: 'server.js',
+    search: "    dbBytes, dbFree: dbFreeBytes(), photoCount: p.n, photoBytes: p.o,",
+    replacement: "    dbBytes, dbFree: 0, photoCount: p.n, photoBytes: p.o,",
+    expected: "Wartung: Pruefung der Datenbank"
+  },
+  {
+    nr: '1705', name: "Den Knopf „Abgleich“ sieht jeder Admin",
+    file: 'public/app.js',
+    search: "        ${OWNER ? `<div class=\"sys-part\"></div>\n        ${setting(tH('card.setMaint'), tH('card.maintHint'), tH('card.maintHintMore'))}",
+    replacement: "        ${ADMIN ? `<div class=\"sys-part\"></div>\n        ${setting(tH('card.setMaint'), tH('card.maintHint'), tH('card.maintHintMore'))}",
+    expected: "Wartung: die Karte"
+  },
+  {
+    nr: '1706', name: "Die Karte schickt alle Namen statt der gewaehlten",
+    file: 'public/app.js',
+    search: "    const names = chosen('maint-pick');",
+    replacement: "    const names = unknown.map(f => f.name);",
+    expected: "Wartung: die Karte"
+  },
+  {
+    nr: '1707', name: "Eine Datei, die bleibt, ist in der Karte waehlbar",
+    file: 'public/app.js',
+    search: "          f.free ? '' : ' disabled'}>",
+    replacement: "          ''}>",
+    expected: "Wartung: die Karte"
+  },
+  {
+    nr: '1708', name: "Eine fehlende Datei zeigt nichts an",
+    file: 'public/app.js',
+    search: "    const missing = a.missing ? t('entry.fileMissing') : '';",
+    replacement: "    const missing = '';",
+    expected: "Wartung: „fehlt“ an der Datei"
+  },
+  {
+    nr: '1709', name: "Der Abgleich zeigt die Pruefung der Datenbank nicht",
+    file: 'public/app.js',
+    search: "      MAINT_CHECK = m.check;",
+    replacement: "      MAINT_CHECK = null;",
+    expected: "Wartung: die Karte"
+  },
+  {
+    nr: '1710', name: "Die Route wartet auf die Pruefung, so lange sie dauert",
+    file: 'server.js',
+    search: "    await Promise.race([mine.done, new Promise(ok => { clock = setTimeout(ok, CHECK_WAIT_MS); })]);",
+    replacement: "    await mine.done;",
+    expected: "Wartung: Pruefung der Datenbank"
+  },
+  {
+    nr: '1711', name: "Ein neuer Abgleich bekommt die alte Pruefung",
+    file: 'server.js',
+    search: "    if (mine.result) mine.delivered = true;\n",
+    replacement: "",
+    expected: "Wartung: Pruefung der Datenbank"
+  },
+  {
+    nr: '1712', name: "Die Karte fragt nicht nach, solange die Pruefung laeuft",
+    file: 'public/app.js',
+    search: "        if (!m.check || !m.check.running || !out.isConnected) break;",
+    replacement: "        break;",
+    expected: "Wartung: die Karte"
+  },
+  {
+    nr: '1713', name: "Ein Video ueber 1080 Pixel bekommt keinen Proxy",
+    file: 'videoproxy.js',
+    search: "  if (Math.min(v.width || 0, v.height || 0) > SHORT_SIDE) return true;\n",
+    replacement: "",
+    expected: "Proxy: Auswahl, Bitrate und Weg"
+  },
+  {
+    nr: '1714', name: "Ton in PCM bekommt keinen Proxy",
+    file: 'videoproxy.js',
+    search: "  if ((info.audio || []).some(a => !PLAIN_AUDIO.includes(a.format))) return true;\n",
+    replacement: "",
+    expected: "Proxy: Auswahl, Bitrate und Weg"
+  },
+  {
+    nr: '1715', name: "Ueber 12 Mbit/s bekommt keinen Proxy",
+    file: 'videoproxy.js',
+    search: "  return (v.bitRate || 0) > MAX_VIDEO_BPS;",
+    replacement: "  return false;",
+    expected: "Proxy: Auswahl, Bitrate und Weg"
+  },
+  {
+    nr: '1716', name: "mkv, avi, wmv und flv bekommen keinen Proxy",
+    file: 'videoproxy.js',
+    search: "  if (proxyOnly(filename)) return true;\n",
+    replacement: "",
+    expected: "Proxy: Auswahl, Bitrate und Weg"
+  },
+  {
+    nr: '1717', name: "Die Bitrate hat keine Obergrenze",
+    file: 'videoproxy.js',
+    search: "  return Math.round(Math.min(MAX_PROXY_BPS, base * frameRateOf(v) / 30 * pixels / (1920 * 1080)));",
+    replacement: "  return Math.round(base * frameRateOf(v) / 30 * pixels / (1920 * 1080));",
+    expected: "Proxy: Bitrate aus Basis, Bildrate und Pixeln"
+  },
+  {
+    nr: '1718', name: "HEVC geht ueber Weg B",
+    file: 'videoproxy.js',
+    search: "  return plainH264(v) || HW_DECODE.includes(v.format) ? 'A' : 'B';",
+    replacement: "  return plainH264(v) ? 'A' : 'B';",
+    expected: "Proxy: Auswahl, Bitrate und Weg"
+  },
+  {
+    nr: '1719', name: "ffmpeg dreht ein Hochkant-Video",
+    file: 'videoproxy.js',
+    search: "...decode, '-noautorotate',",
+    replacement: "...decode,",
+    expected: "Proxy: Auswahl, Bitrate und Weg"
+  },
+  {
+    nr: '1720', name: "Der Puffer ist so gross wie die Bitrate",
+    file: 'videoproxy.js',
+    search: "'-bufsize', String(2 * bps)",
+    replacement: "'-bufsize', String(bps)",
+    expected: "Proxy: Auswahl, Bitrate und Weg"
+  },
+  {
+    nr: '1721', name: "Eine ungerade Hoehe bleibt ungerade",
+    file: 'videoproxy.js',
+    search: "min(1080,trunc(ih/2)*2)",
+    replacement: "min(1080,ih)",
+    expected: "Proxy: Auswahl, Bitrate und Weg"
+  },
+  {
+    nr: '1722', name: "Ein Keyframe nur alle 250 Bilder",
+    file: 'videoproxy.js',
+    search: "  const gop = Math.max(1, Math.round(2 * frameRateOf(v)));",
+    replacement: "  const gop = 250;",
+    expected: "Proxy: Auswahl, Bitrate und Weg"
+  },
+  {
+    nr: '1723', name: "ffmpeg laeuft unter der Nummer von Kriterion",
+    file: 'videoproxy.js',
+    search: "ids: { uid: FFMPEG_UID, gid }",
+    replacement: "ids: {}",
+    expected: "Proxy: Auswahl, Bitrate und Weg"
+  },
+  {
+    nr: '1724', name: "ffmpeg erbt die Umgebung von Kriterion",
+    file: 'videoproxy.js',
+    search: "{ cwd, env: {}, stdio:",
+    replacement: "{ cwd, env: process.env, stdio:",
+    expected: "Proxy: Umwandlung mit dem Ersatz fuer ffmpeg"
+  },
+  {
+    nr: '1725', name: "ffmpeg laeuft mit normaler Prioritaet",
+    file: 'videoproxy.js',
+    search: "if (bench) return { file: nice, prefix: ['-n', '19', process.execPath, ...bench], ids: {} };",
+    replacement: "if (bench) return { file: process.execPath, prefix: bench, ids: {} };",
+    expected: "Proxy: Umwandlung mit dem Ersatz fuer ffmpeg"
+  },
+  {
+    nr: '1726', name: "Das Arbeitsverzeichnis behaelt die Rechte von mkdtemp nicht",
+    file: 'videoproxy.js',
+    search: "  fs.chmodSync(dir, 0o700);",
+    replacement: "  fs.chmodSync(dir, 0o755);",
+    expected: "Proxy: Umwandlung mit dem Ersatz fuer ffmpeg"
+  },
+  {
+    nr: '1727', name: "Ohne HuC-Firmware nennt die Karte keinen Grund",
+    file: 'videoproxy.js',
+    search: "reason: free.code === 0 ? 'huc' : firmware ? 'firmware' : 'failed',",
+    replacement: "reason: firmware ? 'firmware' : 'failed',",
+    expected: "Proxy: ohne Quick Sync, ohne Firmware und Schalter aus"
+  },
+  {
+    nr: '1728', name: "Die fehlende Firmware fuer i915 wird nicht erkannt",
+    file: 'videoproxy.js',
+    search: "  const firmware = /iHD_drv_video\\.so init failed/.test(fixed.log);",
+    replacement: "  const firmware = false;",
+    expected: "Proxy: ohne Quick Sync, ohne Firmware und Schalter aus"
+  },
+  {
+    nr: '1729', name: "Proxys sind von Anfang an eingeschaltet",
+    file: 'server.js',
+    search: "const proxyOn = () => getSetting('proxyOn', false) === true;",
+    replacement: "const proxyOn = () => getSetting('proxyOn', true) === true;",
+    expected: "Proxy: Umwandlung mit dem Ersatz fuer ffmpeg"
+  },
+  {
+    nr: '1730', name: "Den Schalter setzt auch ein Admin",
+    file: 'server.js',
+    search: "                                'uploadLimits', 'proxyOn', 'proxyRate'];",
+    replacement: "                                'uploadLimits', 'proxyRate'];",
+    expected: "Proxy: Umwandlung mit dem Ersatz fuer ffmpeg"
+  },
+  {
+    nr: '1731', name: "GET /api/settings nennt den Schalter nicht",
+    file: 'server.js',
+    search: "  proxyOn: proxyOn(),\n",
+    replacement: "",
+    expected: "Proxy: Umwandlung mit dem Ersatz fuer ffmpeg"
+  },
+  {
+    nr: '1732', name: "Der Server des Originals fragt die Marke nicht ab",
+    file: 'server.js',
+    search: "    if (req.url !== `/${mark}` || (req.method !== 'GET' && req.method !== 'HEAD'))",
+    replacement: "    if (req.method !== 'GET' && req.method !== 'HEAD')",
+    expected: "Proxy: Umwandlung mit dem Ersatz fuer ffmpeg"
+  },
+  {
+    nr: '1733', name: "Das Arbeitsverzeichnis bleibt unter /tmp",
+    file: 'server.js',
+    search: "  } finally { fs.rmSync(dir, { recursive: true, force: true }); }",
+    replacement: "  } finally { }",
+    expected: "Proxy: Umwandlung mit dem Ersatz fuer ffmpeg"
+  },
+  {
+    nr: '1734', name: "Der Proxy liegt unverschluesselt auf der Platte",
+    file: 'server.js',
+    search: "      await attachments.sealInto(path.join(PROXY_DIR, p.name), p, first, block.subarray(0, bytesRead), { fresh: at === 0 });",
+    replacement: "      await fs.promises.appendFile(path.join(PROXY_DIR, p.name), block.subarray(0, bytesRead));",
+    expected: "Proxy: Umwandlung mit dem Ersatz fuer ffmpeg"
+  },
+  {
+    nr: '1735', name: "Die Tabelle nennt die Pixel des Originals",
+    file: 'videoproxy.js',
+    search: "  if (w > h) { const ph = Math.min(SHORT_SIDE, 2 * Math.floor(h / 2));",
+    replacement: "  if (w > h) { const ph = 2 * Math.floor(h / 2);",
+    expected: "Proxy: Umwandlung mit dem Ersatz fuer ffmpeg"
+  },
+  {
+    nr: '1736', name: "Die Liste nennt keinen Proxy",
+    file: 'server.js',
+    search: "      proxy: proxyReady ? { size: a2.proxy_size, width: a2.proxy_width, height: a2.proxy_height } : null,",
+    replacement: "      proxy: null,",
+    expected: "Proxy: Umwandlung mit dem Ersatz fuer ffmpeg"
+  },
+  {
+    nr: '1737', name: "Der Proxy kommt als Download",
+    file: 'server.js',
+    search: "{ inline: !!out.filename || shownInline(req) }",
+    replacement: "{ inline: shownInline(req) }",
+    expected: "Proxy: Umwandlung mit dem Ersatz fuer ffmpeg"
+  },
+  {
+    nr: '1738', name: "Erweiterte Infos nennen keinen Proxy",
+    file: 'server.js',
+    search: "    const proxy = await proxyInfo(a.id, facts, a.filename);",
+    replacement: "    const proxy = null;",
+    expected: "Proxy: Umwandlung mit dem Ersatz fuer ffmpeg"
+  },
+  {
+    nr: '1739', name: "?size=proxy liefert das Original",
+    file: 'server.js',
+    search: "    if (req.query.size === 'proxy') return await sendProxy(req, res);\n",
+    replacement: "",
+    expected: "Proxy: Umwandlung mit dem Ersatz fuer ffmpeg"
+  },
+  {
+    nr: '1740', name: "mkv wird nicht analysiert",
+    file: 'attachments.js',
+    search: "const mediaKind = (filename) => (proxyOnly(filename) ? 'video'",
+    replacement: "const mediaKind = (filename) => (false ? 'video'",
+    expected: "Proxy: Umwandlung mit dem Ersatz fuer ffmpeg"
+  },
+  {
+    nr: '1741', name: "Ein neues Video wartet bis zum naechsten Lauf",
+    file: 'server.js',
+    search: "  if (facts.video.length && !known) proxySoon([id], { front: true });\n",
+    replacement: "",
+    expected: "Proxy: die vier Endungen, Pixel und Auswahl im Server"
+  },
+  {
+    nr: '1742', name: "mkv bleibt auch mit Proxy ohne Vorschau",
+    file: 'server.js',
+    search: "    const kind = proxyReady && attachments.proxyOnly(a2.filename) ? 'video' : attachments.previewKind(a2.filename);",
+    replacement: "    const kind = attachments.previewKind(a2.filename);",
+    expected: "Proxy: die vier Endungen, Pixel und Auswahl im Server"
+  },
+  {
+    nr: '1743', name: "Fuer mkv nimmt der Server kein Standbild an",
+    file: 'server.js',
+    search: "  if (!playsAsVideo(req.params.id, a.filename)) return",
+    replacement: "  if (!isVideoFile(a.filename)) return",
+    expected: "Proxy: die vier Endungen, Pixel und Auswahl im Server"
+  },
+  {
+    nr: '1744', name: "Nach Weg A folgt kein Weg B",
+    file: 'server.js',
+    search: "  for (const way of first === 'A' ? ['A', 'B'] : [first]) {",
+    replacement: "  for (const way of [first]) {",
+    expected: "Proxy: Fehler, Neustart und fehlende Datei"
+  },
+  {
+    nr: '1745', name: "Der Start versucht einen Fehlschlag nicht neu",
+    file: 'server.js',
+    search: "    for (const id of [...b.missing, ...(start ? b.failed : []), ...b.stale.filter(z => !PROXY_KEPT.has(z))])",
+    replacement: "    for (const id of [...b.missing, ...b.stale.filter(z => !PROXY_KEPT.has(z))])",
+    expected: "Proxy: Fehler, Neustart und fehlende Datei"
+  },
+  {
+    nr: '1746', name: "Nach dem Start fehlen Proxys ohne Datei weiter",
+    file: 'server.js',
+    search: "    .then(r => { PROXY_HW = r; proxyFilesThere(); proxySoon(null, { start: true }); });",
+    replacement: "    .then(r => { PROXY_HW = r; proxySoon(null, { start: true }); });",
+    expected: "Proxy: Fehler, Neustart und fehlende Datei"
+  },
+  {
+    nr: '1747', name: "Ein verlorener Proxy entsteht nicht neu",
+    file: 'server.js',
+    search: "  if (d) dropProxy().run(d.id);\n  proxySoon([id], { front: true });",
+    replacement: "  if (d) dropProxy().run(d.id);",
+    expected: "Proxy: Fehler, Neustart und fehlende Datei"
+  },
+  {
+    nr: '1748', name: "Dateien ohne Zeile bleiben in data/files/proxy/",
+    file: 'server.js',
+    search: "    sweepUploadDir();\n    sweepProxyDir();",
+    replacement: "    sweepUploadDir();",
+    expected: "Proxy: Fehler, Neustart und fehlende Datei"
+  },
+  {
+    nr: '1749', name: "Der Abgleich nennt data/files/proxy/",
+    file: 'server.js',
+    search: "const OWN_DIRS = new Set(['upload', 'proxy']);",
+    replacement: "const OWN_DIRS = new Set(['upload']);",
+    expected: "Proxy: Fehler, Neustart und fehlende Datei"
+  },
+  {
+    nr: '1750', name: "Die Zeile haengt nicht mehr an disk_files",
+    file: 'schema.js',
+    search: "  disk_file_id INTEGER PRIMARY KEY REFERENCES disk_files(id) ON DELETE CASCADE,",
+    replacement: "  disk_file_id INTEGER PRIMARY KEY REFERENCES disk_files(id),",
+    expected: "Proxy: Papierkorb, Backup und Export"
+  },
+  {
+    nr: '1751', name: "Der Trigger meldet den Proxy nicht zum Loeschen",
+    file: 'db.js',
+    search: "  INSERT OR IGNORE INTO disk_files_gone (name) VALUES ('proxy/' || old.name);",
+    replacement: "  SELECT 1;",
+    expected: "Proxy: Papierkorb, Backup und Export"
+  },
+  {
+    nr: '1752', name: "Der Lauf loescht keinen Proxy",
+    file: 'server.js',
+    search: "      : name.startsWith('proxy/') && DISK_NAME.test(name.slice(6)) ? path.join(PROXY_DIR, name.slice(6)) : null;",
+    replacement: "      : null;",
+    expected: "Proxy: Papierkorb, Backup und Export"
+  },
+  {
+    nr: '1753', name: "Ausschalten haelt ffmpeg nicht an",
+    file: 'server.js',
+    search: "  PROXY_WAITING.clear();\n  if (proxyStop) proxyStop();",
+    replacement: "  PROXY_WAITING.clear();",
+    expected: "Proxy: ohne Quick Sync, ohne Firmware und Schalter aus"
+  },
+  {
+    nr: '1754', name: "Ein abgebrochener Lauf gilt als fehlgeschlagen",
+    file: 'server.js',
+    search: "    if (!proxyOn()) return 'stopped';\n",
+    replacement: "",
+    expected: "Proxy: ohne Quick Sync, ohne Firmware und Schalter aus"
+  },
+  {
+    nr: '1755', name: "Die laufende Umwandlung zaehlt nicht als wartend",
+    file: 'server.js',
+    search: "waiting: PROXY_WAITING.size + (proxyRunning ? 1 : 0),",
+    replacement: "waiting: PROXY_WAITING.size,",
+    expected: "Proxy: ohne Quick Sync, ohne Firmware und Schalter aus"
+  },
+  {
+    nr: '1756', name: "Die Laufzeit ist kuerzer begrenzt",
+    file: 'server.js',
+    search: "(seconds * 4 + 600) * 1000",
+    replacement: "(seconds * 2 + 600) * 1000",
+    expected: "Proxy: ohne Quick Sync, ohne Firmware und Schalter aus"
+  },
+  {
+    nr: '1757', name: "Der freie RAM unter /tmp zaehlt nicht",
+    file: 'server.js',
+    search: "  if (tmp.free != null && need > tmp.free) return failed('tmpSpace');\n",
+    replacement: "",
+    expected: "Proxy: ohne Quick Sync, ohne Firmware und Schalter aus"
+  },
+  {
+    nr: '1758', name: "Der freie Platz auf der Platte zaehlt nicht",
+    file: 'server.js',
+    search: "  if (spaceShort(encLen(need))) return failed('space');\n",
+    replacement: "",
+    expected: "Proxy: ohne Quick Sync, ohne Firmware und Schalter aus"
+  },
+  {
+    nr: '1759', name: "Ohne tmpfs wandelt Kriterion trotzdem um",
+    file: 'server.js',
+    search: " ||\n  (!PROXY_BENCH && !videoproxy.tmpState().tmpfs);",
+    replacement: ";",
+    expected: "Proxy: ohne Quick Sync, ohne Firmware und Schalter aus"
+  },
+  {
+    nr: '1760', name: "Beim Beenden laeuft ffmpeg weiter",
+    file: 'server.js',
+    search: "    if (proxyStop) proxyStop();\n    if (HELD_LOCK) backup.dropLock(HELD_LOCK);\n    try { db.pragma('wal_checkpoint(TRUNCATE)'); db.close(); } catch {}",
+    replacement: "    if (HELD_LOCK) backup.dropLock(HELD_LOCK);\n    try { db.pragma('wal_checkpoint(TRUNCATE)'); db.close(); } catch {}",
+    expected: "Proxy: ohne Quick Sync, ohne Firmware und Schalter aus"
+  },
+  {
+    nr: '1761', name: "Der Player spielt immer das Original",
+    file: 'public/app.js',
+    search: "  : p.proxy && !original ? proxySource(p) : `/api/attachments/${Number(p.id)}/raw?inline=1`);",
+    replacement: "  : p.proxy && !original ? `/api/attachments/${Number(p.id)}/raw?inline=1` : `/api/attachments/${Number(p.id)}/raw?inline=1`);",
+    expected: "Proxy: Abspielen und Umschalter"
+  },
+  {
+    nr: '1762', name: "Der Proxy hat keine Adresse je Fassung",
+    file: 'public/app.js',
+    search: "raw?size=proxy&v=${Number(a.proxy.size)}`;",
+    replacement: "raw?size=proxy`;",
+    expected: "Proxy: Abspielen und Umschalter"
+  },
+  {
+    nr: '1763', name: "Der Umschalter springt an den Anfang",
+    file: 'public/app.js',
+    search: "    player.currentTime = at;\n    if (playing) player.play()?.catch?.(() => {});\n    markOriginal();",
+    replacement: "    if (playing) player.play()?.catch?.(() => {});\n    markOriginal();",
+    expected: "Proxy: Abspielen und Umschalter"
+  },
+  {
+    nr: '1764', name: "Das Original bleibt ueber das Abspielen hinaus",
+    file: 'public/app.js',
+    search: "    proxyFailed = false;\n    original = false;\n",
+    replacement: "    proxyFailed = false;\n",
+    expected: "Proxy: Abspielen und Umschalter"
+  },
+  {
+    nr: '1765', name: "Ein kaputter Proxy zeigt die Meldung statt des Originals",
+    file: 'public/app.js',
+    search: "    if (withProxy && !original) { proxyFailed = true; return switchFile(true); }\n",
+    replacement: "",
+    expected: "Proxy: Abspielen und Umschalter"
+  },
+  {
+    nr: '1766', name: "Ganz laden misst am Original",
+    file: 'public/app.js',
+    search: "    const p = photos[i], bytes = playBytes(p, original), source = player.getAttribute('src');",
+    replacement: "    const p = photos[i], bytes = p.size, source = player.getAttribute('src');",
+    expected: "Proxy: Abspielen und Umschalter"
+  },
+  {
+    nr: '1767', name: "Das Standbild entsteht aus dem Original",
+    file: 'public/app.js',
+    search: "    source: a.proxy ? proxySource(a) : `/api/attachments/${Number(a.id)}/raw?inline=1` });",
+    replacement: "    source: `/api/attachments/${Number(a.id)}/raw?inline=1` });",
+    expected: "Proxy: Standbild, die vier Endungen und Erweiterte Infos"
+  },
+  {
+    nr: '1768', name: "mkv und avi heissen nicht Video",
+    file: 'public/app.js',
+    search: "  mkv: 'video', avi: 'video', wmv: 'video', flv: 'video' };",
+    replacement: "  };",
+    expected: "Proxy: Standbild, die vier Endungen und Erweiterte Infos"
+  },
+  {
+    nr: '1769', name: "avi ohne Proxy hat keine Infos",
+    file: 'public/app.js',
+    search: "    if (a.preview === 'image' || kindOf(a) === 'video' || ",
+    replacement: "    if (a.preview === 'image' || a.preview === 'video' || ",
+    expected: "Proxy: Standbild, die vier Endungen und Erweiterte Infos"
+  },
+  {
+    nr: '1770', name: "Erweiterte Infos ohne Gruppe Proxy",
+    file: 'public/app.js',
+    search: "    imageGroup(f), shotGroup(shot), proxyGroup(f.proxy)",
+    replacement: "    imageGroup(f), shotGroup(shot)",
+    expected: "Proxy: Standbild, die vier Endungen und Erweiterte Infos"
+  },
+  {
+    nr: '1771', name: "Die Karte Proxy fehlt",
+    file: 'public/app.js',
+    search: "  { key: 'proxy',        section: 'installation', visible: () => ADMIN,\n    markup: cardProxy,        wireUp: setUpProxyOut },\n",
+    replacement: "",
+    expected: "Proxy: die Karte"
+  },
+  {
+    nr: '1772', name: "Den Schalter sieht jeder Admin",
+    file: 'public/app.js',
+    search: "        ${OWNER ? `<label class=\"ex-files\"><input type=\"checkbox\" id=\"proxy-on\">",
+    replacement: "        ${ADMIN ? `<label class=\"ex-files\"><input type=\"checkbox\" id=\"proxy-on\">",
+    expected: "Proxy: die Karte"
+  },
+  {
+    nr: '1773', name: "Die Karte nennt keinen Grund",
+    file: 'public/app.js',
+    search: ": tH(PROXY_REASONS[p.reason] || 'card.proxyCpu')}",
+    replacement: ": tH('card.proxyCpu')}",
+    expected: "Proxy: die Karte"
+  },
+  {
+    nr: '1774', name: "Im Container startet ffmpeg ohne nice, mit Prioritaet 0",
+    file: 'videoproxy.js',
+    search: "  return { file: nice, prefix: ['-n', '19', file], ids: { uid: FFMPEG_UID, gid } };",
+    replacement: "  return { file, prefix: [], ids: { uid: FFMPEG_UID, gid } };",
+    expected: "Proxy: Auswahl, Bitrate und Weg"
+  },
+  {
+    nr: '1775', name: "Orange ist das Feld, das nicht spielt",
+    file: 'public/app.js',
+    search: "      const on = (b.dataset.source === 'original') === original;",
+    replacement: "      const on = (b.dataset.source === 'original') !== original;",
+    expected: "Vollbild: „Proxy · Original“ als verbundene Leiste"
+  },
+  {
+    nr: '1776', name: "Die Felder melden nicht, welches gewaehlt ist",
+    file: 'public/app.js',
+    search: "      b.classList.toggle('on', on);\n      b.setAttribute('aria-pressed', String(on));\n    }",
+    replacement: "      b.classList.toggle('on', on);\n    }",
+    expected: "Vollbild: „Proxy · Original“ als verbundene Leiste"
+  },
+  {
+    nr: '1777', name: "Das Stilblatt faerbt den Knopf Original wieder orange",
+    file: 'public/style.css',
+    search: '.lb-btn.whole[aria-pressed="true"], .lb-btn.zoom[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }',
+    replacement: '.lb-btn.whole[aria-pressed="true"], .lb-btn.zoom[aria-pressed="true"], .lb-btn.original[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }',
+    expected: "Proxy: Abspielen und Umschalter"
+  },
+  {
+    nr: '1778', name: "Die Gruppe Proxy nennt keine Bitraten",
+    file: 'public/app.js',
+    search: ",\n    ['entry.proxyVideoRate', bitRateText(p.videoBitRate)], ['entry.proxyAudioRate', bitRateText(p.audioBitRate)]]);",
+    replacement: "]);",
+    expected: "Proxy: Standbild, die vier Endungen und Erweiterte Infos"
+  },
+  {
+    nr: '1779', name: "Der Server misst die Bitraten am Proxy nicht",
+    file: 'server.js',
+    search: "  const rates = await inMediaTurn(() => proxyRates(p));",
+    replacement: "  const rates = null;",
+    expected: "Proxy: Umwandlung mit dem Ersatz fuer ffmpeg"
+  },
+  {
+    nr: '1780', name: "Die Bitraten von Video und Audio sind vertauscht",
+    file: 'server.js',
+    search: "    return { video: m.video[0]?.bitRate ?? null, audio: m.audio[0]?.bitRate ?? null };",
+    replacement: "    return { video: m.audio[0]?.bitRate ?? null, audio: m.video[0]?.bitRate ?? null };",
+    expected: "Proxy: Umwandlung mit dem Ersatz fuer ffmpeg"
+  },
+  {
+    nr: '1781', name: "Die Bitrate kennt die Pixel des Proxys nicht",
+    file: 'videoproxy.js',
+    search: "  const pixels = width && height ? width * height : 1920 * 1080;",
+    replacement: "  const pixels = 1920 * 1080;",
+    expected: "Proxy: Bitrate aus Basis, Bildrate und Pixeln"
+  },
+  {
+    nr: '1782', name: "Die Bitrate kennt die Bildrate nicht",
+    file: 'videoproxy.js',
+    search: "base * frameRateOf(v) / 30 * pixels / (1920 * 1080)",
+    replacement: "base * pixels / (1920 * 1080)",
+    expected: "Proxy: Bitrate aus Basis, Bildrate und Pixeln"
+  },
+  {
+    nr: '1783', name: "ffmpeg bekommt immer die Vorgabe",
+    file: 'videoproxy.js',
+    search: "  const bps = videoBitRate(base, v);",
+    replacement: "  const bps = videoBitRate(5e6, v);",
+    expected: "Proxy: Bitrate aus Basis, Bildrate und Pixeln"
+  },
+  {
+    nr: '1784', name: "Der Platz im RAM rechnet mit der Vorgabe",
+    file: 'videoproxy.js',
+    search: "videoBitRate(base, info.video[0]) + AUDIO_BPS",
+    replacement: "videoBitRate(5e6, info.video[0]) + AUDIO_BPS",
+    expected: "Proxy: Bitrate aus Basis, Bildrate und Pixeln"
+  },
+  {
+    nr: '1785', name: "Die Bitrate setzt auch ein Admin",
+    file: 'server.js',
+    search: "                                'uploadLimits', 'proxyOn', 'proxyRate'];",
+    replacement: "                                'uploadLimits', 'proxyOn'];",
+    expected: "Proxy: die Bitrate in den Einstellungen"
+  },
+  {
+    nr: '1786', name: "Zwei Stellen nach dem Komma gelten",
+    file: 'server.js',
+    search: "  Math.abs(n * 10 - Math.round(n * 10)) < 1e-9;",
+    replacement: "  true;",
+    expected: "Proxy: die Bitrate in den Einstellungen"
+  },
+  {
+    nr: '1787', name: "Die Bitrate wird nicht gespeichert",
+    file: 'server.js',
+    search: "      if (rateWanted !== null) putSetting.run('proxyRate', JSON.stringify(rateWanted));\n",
+    replacement: "",
+    expected: "Proxy: die Bitrate in den Einstellungen"
+  },
+  {
+    nr: '1788', name: "GET /api/settings nennt die Bitrate nicht",
+    file: 'server.js',
+    search: "  proxyRate: proxyRate(),\n",
+    replacement: "",
+    expected: "Proxy: die Bitrate in den Einstellungen"
+  },
+  {
+    nr: '1789', name: "Eine neue Bitrate stoesst den Ersatz nicht an",
+    file: 'server.js',
+    search: "  if (req.body.proxyOn !== undefined || req.body.proxyRate !== undefined) proxySwitched();",
+    replacement: "  if (req.body.proxyOn !== undefined) proxySwitched();",
+    expected: "Proxy: Ersatz im Hintergrund"
+  },
+  {
+    nr: '1790', name: "Ein fertiger Proxy gilt nie als veraltet",
+    file: 'server.js',
+    search: "  r.state === 'ready' && r.video_bps !== videoproxy.videoBitRate(base, info.video[0]);",
+    replacement: "  false;",
+    expected: "Proxy: Ersatz im Hintergrund"
+  },
+  {
+    nr: '1791', name: "Die Bitrate eines Proxys wird nicht gemerkt",
+    file: 'server.js',
+    search: "        putProxyRate().run(r.disk_id, videoproxy.videoBitRate(base, v));\n",
+    replacement: "",
+    expected: "Proxy: Ersatz im Hintergrund"
+  },
+  {
+    nr: '1792', name: "Die Karte zaehlt die veralteten nicht",
+    file: 'server.js',
+    search: "    stale: proxyBacklog().stale.length };",
+    replacement: "    stale: 0 };",
+    expected: "Proxy: Ersatz im Hintergrund"
+  },
+  {
+    nr: '1793', name: "Der laufende Ersatz kommt beim Abspielen noch einmal in die Warteschlange",
+    file: 'server.js',
+    search: "  if (PROXY_KEPT.has(id) || proxyNow === id || PROXY_WAITING.values().next().value === id) return;",
+    replacement: "  if (PROXY_KEPT.has(id) || PROXY_WAITING.values().next().value === id) return;",
+    expected: "Proxy: Ersatz im Hintergrund"
+  },
+  {
+    nr: '1794', name: "Der stuendliche Lauf stellt den laufenden noch einmal an",
+    file: 'server.js',
+    search: "      if (id !== proxyNow) PROXY_WAITING.add(id);",
+    replacement: "      PROXY_WAITING.add(id);",
+    expected: "Proxy: Ersatz im Hintergrund"
+  },
+  {
+    nr: '1795', name: "Der ersetzte Proxy wird nicht gehalten",
+    file: 'server.js',
+    search: "      if (replaced) holdFormer(r.id, old);\n",
+    replacement: "",
+    expected: "Proxy: Ersatz im Hintergrund"
+  },
+  {
+    nr: '1796', name: "Das alte `v` bekommt den neuen Proxy",
+    file: 'server.js',
+    search: "  const f = former && former.size !== p.size && Number(req.query.v) === former.size ? former : p;",
+    replacement: "  const f = p;",
+    expected: "Proxy: Ersatz im Hintergrund"
+  },
+  {
+    nr: '1797', name: "Der Lauf ueber data/files/proxy/ loescht den gehaltenen Proxy",
+    file: 'server.js',
+    search: "  const known = new Set([...qProxyNames().all(), ...PROXY_FORMER.values()].map(z => z.name));",
+    replacement: "  const known = new Set(qProxyNames().all().map(z => z.name));",
+    expected: "Proxy: Ersatz im Hintergrund"
+  },
+  {
+    nr: '1798', name: "Das Log nennt den Ersatz nicht",
+    file: 'server.js',
+    search: "`Proxy for file ${r.id} ${replaced ? 'replaced' : 'made'} in",
+    replacement: "`Proxy for file ${r.id} made in",
+    expected: "Proxy: Ersatz im Hintergrund"
+  },
+  {
+    nr: '1799', name: "Ein abgespieltes Video kommt nicht nach vorn",
+    file: 'server.js',
+    search: "  proxyPlayed(id);\n",
+    replacement: "",
+    expected: "Proxy: abgespielte zuerst, Fehlschlag und Neustart"
+  },
+  {
+    nr: '1800', name: "Ein fehlgeschlagener Ersatz loescht den alten Proxy",
+    file: 'server.js',
+    search: "  const failed = (reason) => r.state === 'ready' ? proxyKept(r, reason) : proxyFailed(r, reason);",
+    replacement: "  const failed = (reason) => proxyFailed(r, reason);",
+    expected: "Proxy: abgespielte zuerst, Fehlschlag und Neustart"
+  },
+  {
+    nr: '1801', name: "Nach einem Fehlschlag versucht es das Abspielen wieder",
+    file: 'server.js',
+    search: "  if (PROXY_KEPT.has(id) || proxyNow === id || PROXY_WAITING.values().next().value === id) return;",
+    replacement: "  if (proxyNow === id || PROXY_WAITING.values().next().value === id) return;",
+    expected: "Proxy: abgespielte zuerst, Fehlschlag und Neustart"
+  },
+  {
+    nr: '1802', name: "Nach einem Fehlschlag versucht es der stuendliche Lauf wieder",
+    file: 'server.js',
+    search: "...b.stale.filter(z => !PROXY_KEPT.has(z))])",
+    replacement: "...b.stale])",
+    expected: "Proxy: abgespielte zuerst, Fehlschlag und Neustart"
+  },
+  {
+    nr: '1803', name: "Eine neue Bitrate versucht einen Fehlschlag nicht wieder",
+    file: 'server.js',
+    search: "  if (req.body.proxyRate !== undefined) PROXY_KEPT.clear();\n",
+    replacement: "",
+    expected: "Proxy: abgespielte zuerst, Fehlschlag und Neustart"
+  },
+  {
+    nr: '1804', name: "Ohne gemerkte Bitrate gilt ein Proxy als aktuell",
+    file: 'server.js',
+    search: "  r.state === 'ready' && r.video_bps !== videoproxy.videoBitRate(base, info.video[0]);",
+    replacement: "  r.state === 'ready' && r.video_bps != null && r.video_bps !== videoproxy.videoBitRate(base, info.video[0]);",
+    expected: "Proxy: Bestand ohne gemerkte Bitrate"
+  },
+  {
+    nr: '1805', name: "Die gemerkte Bitrate haengt nicht am Proxy",
+    file: 'schema.js',
+    search: "  disk_file_id INTEGER PRIMARY KEY REFERENCES proxy_files(disk_file_id) ON DELETE CASCADE,\n  video_bps",
+    replacement: "  disk_file_id INTEGER PRIMARY KEY,\n  video_bps",
+    expected: "Proxy: Bestand ohne gemerkte Bitrate"
+  },
+  {
+    nr: '1806', name: "Die Karte zeigt die veralteten nicht",
+    file: 'public/app.js',
+    search: "        ${p.stale ? row('card.proxyStale', number(p.stale)) : ''}\n",
+    replacement: "",
+    expected: "Proxy: Bitrate in der Karte"
+  },
+  {
+    nr: '1807', name: "Das Feld schickt die Bitrate als Text",
+    file: 'public/app.js',
+    search: "{ proxyRate: Number(rateField.value) }",
+    replacement: "{ proxyRate: rateField.value }",
+    expected: "Proxy: Bitrate in der Karte"
+  },
+  {
+    nr: '1808', name: "Nach einer Absage bleibt der falsche Wert im Feld",
+    file: 'public/app.js',
+    search: "    rateField.value = String(Number(SETTINGS.proxyRate) || 5);\n",
+    replacement: "",
+    expected: "Proxy: Bitrate in der Karte"
+  },
+  {
+    nr: '1809', name: "Ein Admin bekommt das Feld",
+    file: 'public/app.js',
+    search: "          : `<p class=\"desc\">${tH(on ? 'card.proxyIsOn' : 'card.proxyIsOff')}</p>\n          ${row('card.proxyRate', number(rate, 0, 1))}`}",
+    replacement: "          : `<p class=\"desc\">${tH(on ? 'card.proxyIsOn' : 'card.proxyIsOff')}</p>\n          <input id=\"proxy-rate\" type=\"number\" value=\"${rate}\">`}",
+    expected: "Proxy: Bitrate in der Karte"
+  },
+  {
+    nr: '1810', name: "Die Liste zeigt „Proxy“ auch ohne Proxy",
+    file: 'public/app.js',
+    search: "    mark.hidden = !a.proxy;",
+    replacement: "    mark.hidden = false;",
+    expected: "Proxy in der Liste"
+  },
+  {
+    nr: '1811', name: "Die Liste bekommt keine Spalte fuer den Proxy",
+    file: 'public/app.js',
+    search: "    attsBox.classList.toggle('aproxy-on', list.some(a => a.proxy));\n",
+    replacement: "",
+    expected: "Proxy in der Liste"
+  },
+  {
+    nr: '1812', name: "Der Titel nennt die Pixel des Proxys nicht",
+    file: 'public/app.js',
+    search: "    mark.title = a.proxy ? [t('entry.proxyMark'), a.proxy.width && a.proxy.height ? `${a.proxy.width} × ${a.proxy.height}` : '',",
+    replacement: "    mark.title = a.proxy ? [t('entry.proxyMark'), '',",
+    expected: "Proxy in der Liste"
+  },
+  {
+    nr: '1813', name: "Die Spalte fuer den Proxy hat keine Breite",
+    file: 'public/style.css',
+    search: ".alist .aproxy-on .aacts { grid-template-columns: 44px 36px 36px; }",
+    replacement: ".alist .aproxy-on .aacts { grid-template-columns: 36px 36px; }",
+    expected: "Proxy in der Liste"
+  },
+  {
+    nr: '1814', name: "Das Video behaelt die Groesse aus dem Stilblatt",
+    file: 'public/app.js',
+    search: "  videoPlayer.addEventListener('loadedmetadata', fitPlayer);\n",
+    replacement: "",
+    expected: "Vollbild: Groesse des Videos und Knopfleiste"
+  },
+  {
+    nr: '1815', name: "Ein Wechsel der Abmessungen aendert die Groesse nicht",
+    file: 'public/app.js',
+    search: "  videoPlayer.addEventListener('resize', fitPlayer);\n",
+    replacement: "",
+    expected: "Vollbild: Groesse des Videos und Knopfleiste"
+  },
+  {
+    nr: '1816', name: "Ein kleines Video wird vergroessert",
+    file: 'public/app.js',
+    search: "    const scale = Math.min(stage.clientWidth / w, stage.clientHeight / h, 1);",
+    replacement: "    const scale = Math.min(stage.clientWidth / w, stage.clientHeight / h);",
+    expected: "Vollbild: Groesse des Videos und Knopfleiste"
+  },
+  {
+    nr: '1817', name: "Die Buehne wird nicht beobachtet",
+    file: 'public/app.js',
+    search: "  stageWatch?.observe(stage);\n",
+    replacement: "",
+    expected: "Vollbild: Groesse des Videos und Knopfleiste"
+  },
+  {
+    nr: '1818', name: "Schliessen beendet die Beobachtung nicht",
+    file: 'public/app.js',
+    search: "    stageWatch?.disconnect();\n",
+    replacement: "",
+    expected: "Vollbild: Groesse des Videos und Knopfleiste"
+  },
+  {
+    nr: '1819', name: "Die Knoepfe oben brechen nicht um",
+    file: 'public/style.css',
+    search: ".lb-tools { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; order: 1; }",
+    replacement: ".lb-tools { display: flex; align-items: center; gap: 8px; flex-shrink: 0; order: 1; }",
+    expected: "Vollbild: Groesse des Videos und Knopfleiste"
+  },
+  {
+    nr: '1820', name: "Der Kopf von „Dateien“ bricht nicht um",
+    file: 'public/style.css',
+    search: ".ahead-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; min-width: 0; }",
+    replacement: ".ahead-acts { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }",
+    expected: "Vollbild: Groesse des Videos und Knopfleiste"
+  },
+  {
+    nr: '1821', name: "Im Vollbild bleibt das Wurzelelement rollbar",
+    file: 'public/style.css',
+    search: "html:has(> body.lb-open) { overflow: hidden; overscroll-behavior-x: none; }\n",
+    replacement: "",
+    expected: "Vollbild: Groesse des Videos und Knopfleiste"
+  },
+  {
+    nr: '1822', name: "Der Streifen rollt mit scrollIntoView() auch die Seite",
+    file: 'public/app.js',
+    search: "    const on = strip.children[i]?.getBoundingClientRect(), box = strip.getBoundingClientRect();\n    if (on) strip.scrollLeft += on.left + on.width / 2 - (box.left + box.width / 2);",
+    replacement: "    strip.children[i]?.scrollIntoView?.({ block: 'nearest', inline: 'center' });",
+    expected: "Vollbild: Groesse des Videos und Knopfleiste"
+  },
+
+  /* ---- Die roten Pruefungen am Ende des Laufs ---- */
+  {
+    nr: '1823', name: "Eine rote Pruefung kommt nicht in die Liste",
+    file: 'test/frame.js',
+    search: "    RED.push({ group: groupName, name });\n",
+    replacement: "",
+    expected: "Der Gruppenfilter"
+  },
+  {
+    nr: '1824', name: "Der Schlussblock zeigt die Liste nicht",
+    file: 'test/frame.js',
+    search: "  if (RED.length) {",
+    replacement: "  if (RED.length < 0) {",
+    expected: "Der Gruppenfilter"
+  },
+  {
+    nr: '1825', name: "Die Liste nennt die Gruppe nicht",
+    file: 'test/frame.js',
+    search: "timeName = groupName = name;",
+    replacement: "timeName = name;",
+    expected: "Der Gruppenfilter"
+  },
+  {
+    nr: '1826', name: "Die Meldung eines Moduls traegt keine roten Pruefungen",
+    file: 'test/frame.js',
+    search: "times: TIMES, red: RED,",
+    replacement: "times: TIMES,",
+    expected: "Der Gruppenfilter"
+  },
+  {
+    nr: '1827', name: "Der Treiber nimmt die gemeldeten roten Pruefungen nicht auf",
+    file: 'test/frame.js',
+    search: "  for (const r of z.red || []) RED.push(r);\n",
+    replacement: "",
+    expected: "Der Gruppenfilter"
+  },
+  {
+    nr: '1828', name: "Ein uebergangener Fehlschlag steht in der Liste",
+    file: 'test/frame.js',
+    search: "if (silent) { if (condition) stillPassed++; else stillFailed++; return; }",
+    replacement: "if (silent) { if (condition) stillPassed++; else { stillFailed++; RED.push({ group: groupName, name }); } return; }",
+    expected: "Der Gruppenfilter"
+  },
+  {
+    nr: '1829', name: "Ein Fehler des Treibers fehlt in der Liste",
+    file: 'testbench.js',
+    search: "times: [], red: [{ group: `Modul ${name}`, name: text }] });",
+    replacement: "times: [] });",
+    expected: 'Der Treiber sieht den Rueckgabewert — 0.34.4'
+  },
+  {
+    nr: '1830', name: "Jeder Eintrag zaehlt mit dem Potenzial",
+    file: 'public/app.js',
+    search: "const sharePhase = (i) => (i.tested ? 'after' : 'before');",
+    replacement: "const sharePhase = (i) => 'before';",
+    expected: "Eigene Werte: eine Gruppe in der Statuszeile"
+  },
+  {
+    nr: '1831', name: "Ein zweiter Klick schaltet nicht aus",
+    file: 'public/app.js',
+    search: "      b.onclick = () => { f.own = f.own === v ? 'all' : v; redraw(); };",
+    replacement: "      b.onclick = () => { f.own = v; redraw(); };",
+    expected: "Eigene Werte: eine Gruppe in der Statuszeile"
+  },
+  {
+    nr: '1832', name: "Der Titel der Knoepfe nennt nicht, was zaehlt",
+    file: 'public/app.js',
+    search: "    const counted = POTENTIAL_MODE ? t('list.ownValuesHint') : t('list.ownRatingHint');",
+    replacement: "    const counted = '';",
+    expected: "Eigene Werte: eine Gruppe in der Statuszeile"
+  },
+  {
+    nr: '1833', name: "„Eigene Werte“ steht in einer eigenen Zeile",
+    file: 'public/app.js',
+    search: "    const label = secondLabel(r1, POTENTIAL_MODE ? '◆ ★' : '★');",
+    replacement: "    const label = row(POTENTIAL_MODE ? '◆ ★' : '★').firstChild;",
+    expected: "Eigene Werte: eine Gruppe in der Statuszeile"
+  },
+  {
+    nr: '1834', name: "Alte Werte bleiben in den Filtern",
+    file: 'public/app.js',
+    search: "  delete f.potential; delete f.rating;\n",
+    replacement: "",
+    expected: "Eigene Werte: alte Filter, ohne Potenzialmodus, ohne Kriterien"
+  },
+  {
+    nr: '1835', name: "Ohne Phase zaehlt ein Eintrag als „Keine“",
+    file: 'public/app.js',
+    search: "  if (own !== 'all') out = out.filter(i => i.share?.[sharePhase(i)] === own);\n",
+    replacement: "  if (own !== 'all') out = out.filter(i => (i.share?.[sharePhase(i)] ?? 'none') === own);\n",
+    expected: "Eigene Werte: alte Filter, ohne Potenzialmodus, ohne Kriterien"
+  },
+  {
+    nr: '1836', name: "Im Vollbild weicht der Titel wieder zuletzt",
+    file: 'public/style.css',
+    search: "white-space: nowrap; flex: 1 1 0; min-width: 0; }",
+    replacement: "white-space: nowrap; flex-shrink: 100; }",
+    expected: "Vollbild: Groesse des Videos und Knopfleiste"
+  },
+  {
+    nr: '1837', name: "Quer bleibt der Streifen",
+    file: 'public/style.css',
+    search: "  .lb-strip { display: none; }\n",
+    replacement: "",
+    expected: "Vollbild: Kopfzeile, quer und deckend"
+  },
+  {
+    nr: '1838', name: "Zurueck schliesst das Vollbild nicht",
+    file: 'public/app.js',
+    search: "  window.addEventListener('popstate', back);\n",
+    replacement: "",
+    expected: "Vollbild: Zurueck, Fokus und die Seite dahinter"
+  },
+  {
+    nr: '1839', name: "✕ laesst den eigenen Eintrag im Verlauf stehen",
+    file: 'public/app.js',
+    search: "    if (!historyMoved && history.state?.lightbox === mark) history.back();\n",
+    replacement: "",
+    expected: "Vollbild: Zurueck, Fokus und die Seite dahinter"
+  },
+  {
+    nr: '1840', name: "Das Vollbild legt keinen Eintrag im Verlauf an",
+    file: 'public/app.js',
+    search: "  history.pushState({ lightbox: mark }, '');\n",
+    replacement: "",
+    expected: "Vollbild: Zurueck, Fokus und die Seite dahinter"
+  },
+  {
+    nr: '1841', name: "Wischen auf der Zeitleiste des Videos blaettert",
+    file: 'public/app.js',
+    search: "    return e.touches[0].clientY < videoPlayer.getBoundingClientRect().bottom - TIMELINE_STRIP;",
+    replacement: "    return true;",
+    expected: "Vollbild: Wischen auf dem Video, Pfeile nach einem Tipp"
+  },
+  {
+    nr: '1842', name: "Zwei Finger blaettern",
+    file: 'public/app.js',
+    search: "    if (e.touches.length !== 1 || pinch || !swipeFree(e)) return;",
+    replacement: "    if (pinch || !swipeFree(e)) return;",
+    expected: "Vollbild: Wischen auf dem Video, Pfeile nach einem Tipp"
+  },
+  {
+    nr: '1843', name: "Gezoomt blaettert ein Wisch auch in der Mitte des Ausschnitts",
+    file: 'public/app.js',
+    search: "      back: !zoom || stage.scrollLeft <= 1, ahead: !zoom || stage.scrollLeft >= end - 1, target: e.target };",
+    replacement: "      back: true, ahead: true, target: e.target };",
+    expected: "Vollbild: zwei Finger zoomen das Bild"
+  },
+  {
+    nr: '1844', name: "Ein Tipp neben das Bild schliesst",
+    file: 'public/app.js',
+    search: " && pointer === 'mouse') close(); });",
+    replacement: ") close(); });",
+    expected: "Vollbild: Wischen und Tipp neben das Bild"
+  },
+  {
+    nr: '1845', name: "✕ bleibt beim Umbruch nicht oben rechts",
+    file: 'public/style.css',
+    search: ".lb-top > .close { flex-shrink: 0; align-self: flex-start; order: 2; }\n",
+    replacement: "",
+    expected: "Vollbild: Kopfzeile, quer und deckend"
+  },
+  {
+    nr: '1846', name: "Die Seite scheint durch das Vollbild",
+    file: 'public/style.css',
+    search: "  --lb-bg: rgb(var(--scrim-rgb));",
+    replacement: "  --lb-bg: rgba(var(--scrim-rgb), .97);",
+    expected: "Vollbild: Kopfzeile, quer und deckend"
+  },
+  {
+    nr: '1847', name: "Die Seite dahinter bleibt fuer Tab und Vorleser offen",
+    file: 'public/app.js',
+    search: "  behind.forEach(el => el.setAttribute('inert', ''));\n",
+    replacement: "",
+    expected: "Vollbild: Zurueck, Fokus und die Seite dahinter"
+  },
+  {
+    nr: '1848', name: "Das Vollbild bekommt beim Oeffnen keinen Fokus",
+    file: 'public/app.js',
+    search: "  lb.focus({ preventScroll: true });\n",
+    replacement: "",
+    expected: "Vollbild: Zurueck, Fokus und die Seite dahinter"
+  },
+  {
+    nr: '1849', name: "Der Fokus kehrt nach dem Schliessen nicht zurueck",
+    file: 'public/app.js',
+    search: "    if (focusBefore?.isConnected) focusBefore.focus?.({ preventScroll: true });\n",
+    replacement: "",
+    expected: "Vollbild: Zurueck, Fokus und die Seite dahinter"
+  },
+  {
+    nr: '1850', name: "Bilder und Videos heissen wieder „Erweiterte Infos“",
+    file: 'public/languages/de.json',
+    search: "  \"entry.mediaInfo\": \"Infos\",",
+    replacement: "  \"entry.mediaInfo\": \"Erweiterte Infos\",",
+    expected: "Infos: ein Name fuer Bilder, Videos und Dokumente"
+  },
+  /* ---- Titel in der Mail, ◆ ★, Fehler aus der Durchsicht ---- */
+  {
+    nr: '1851', name: "Die Einladung bekommt `title` statt `instanceTitle`",
+    file: 'server.js',
+    search: "    instanceTitle: getSetting('title_public', TITLE_DEFAULT),\n    username: target.username,",
+    replacement: "    title: getSetting('title_public', TITLE_DEFAULT),\n    username: target.username,",
+    expected: "Mail: der Titel der Installation in Betreff und Text"
+  },
+  {
+    nr: '1852', name: "Die Bestaetigung bekommt `title` statt `instanceTitle`",
+    file: 'server.js',
+    search: "  const letter = mail.mailConfirm(locale, { instanceTitle, username: name,",
+    replacement: "  const letter = mail.mailConfirm(locale, { title: instanceTitle, username: name,",
+    expected: "Mail: der Titel der Installation in Betreff und Text"
+  },
+  {
+    nr: '1853', name: "Die Testmail bekommt `title` statt `instanceTitle`",
+    file: 'server.js',
+    search: "  const letter = mail.mailTest(locale, { instanceTitle: getSetting('title_public', TITLE_DEFAULT),",
+    replacement: "  const letter = mail.mailTest(locale, { title: getSetting('title_public', TITLE_DEFAULT),",
+    expected: "Mail: der Titel der Installation in Betreff und Text"
+  },
+  {
+    nr: '1854', name: "Das gespeicherte Mailpasswort gilt auch fuer einen anderen Server",
+    file: 'mail.js',
+    search: "    ? e.password : (sameAccount ? String(old.password || '') : '');",
+    replacement: "    ? e.password : String(old.password || '');",
+    expected: "Mail: das gespeicherte Passwort und der Grund eines Fehlers"
+  },
+  {
+    nr: '1855', name: "Die Karte ueberschreibt den Grund des Versands beim Freischalten",
+    file: 'server.js',
+    search: "  res.json({ ...requestCard(localeOf(req), isOwner(req)), ...created, token: token.plain, purpose: token.purpose,\n             days: token.days, minutes: auth.TOKEN_DEADLINE_MINUTES, ...linkInfo(token.plain), ...v });",
+    replacement: "  res.json({ ...created, token: token.plain, purpose: token.purpose,\n             days: token.days, minutes: auth.TOKEN_DEADLINE_MINUTES, ...linkInfo(token.plain), ...v, ...requestCard(localeOf(req), isOwner(req)) });",
+    expected: "Mail: das gespeicherte Passwort und der Grund eines Fehlers"
+  },
+  {
+    nr: '1856', name: "Parallele Anmeldungen einer Adresse laufen gleichzeitig",
+    file: 'server.js',
+    search: "app.post('/api/login', async (req, res) => {\n  const ip = auth.clientIp(req);\n  await brakeTurn(res, ip);\n",
+    replacement: "app.post('/api/login', async (req, res) => {\n  const ip = auth.clientIp(req);\n",
+    expected: "Anmeldebremse: parallele Versuche, Kopf nur aus dem eigenen Netz"
+  },
+  {
+    nr: '1857', name: "X-Forwarded-For gilt von jeder Adresse",
+    file: 'auth.js',
+    search: "  if (BEHIND_PROXY && PRIVATE_PEER.test(peer.replace(/^::ffff:/i, ''))) {",
+    replacement: "  if (BEHIND_PROXY) {",
+    expected: "Anmeldebremse: parallele Versuche, Kopf nur aus dem eigenen Netz"
+  },
+  {
+    nr: '1858', name: "Das alte Passwort am eigenen Account ist ungebremst",
+    file: 'server.js',
+    search: "  await brakeTurn(res, ip);\n  if (!await brakeFree(req, res, ip, req.user.username)) return;\n  const { oldPassword",
+    replacement: "  await brakeTurn(res, ip);\n  const { oldPassword",
+    expected: "Anmeldebremse: parallele Versuche, Kopf nur aus dem eigenen Netz"
+  },
+  {
+    nr: '1859', name: "Das Passwort fuer den zweiten Faktor ist ungebremst",
+    file: 'server.js',
+    search: "  await brakeTurn(res, ip);\n  if (!await brakeFree(req, res, ip, req.user.username)) return false;\n  const row",
+    replacement: "  await brakeTurn(res, ip);\n  const row",
+    expected: "Anmeldebremse: parallele Versuche, Kopf nur aus dem eigenen Netz"
+  },
+  {
+    nr: '1860', name: "Der Link der Registrierung setzt den Zaehler der Adresse zurueck",
+    file: 'server.js',
+    search: "      t(localeOf(req), 'server.confirmExpired')});\n  }\n  res.json({ ok: true });",
+    replacement: "      t(localeOf(req), 'server.confirmExpired')});\n  }\n  auth.noteSuccess(ip, null);\n  res.json({ ok: true });",
+    expected: "Anmeldebremse: parallele Versuche, Kopf nur aus dem eigenen Netz"
+  },
+  {
+    nr: '1861', name: "Ein Testtag gilt nur bis zum Datum in UTC",
+    file: 'server.js',
+    search: "  const latest = new Date(Date.now() + 14 * 3600000).toISOString().slice(0, 10);",
+    replacement: "  const latest = new Date(Date.now()).toISOString().slice(0, 10);",
+    expected: "Server: Testtag, Vorschaubild, letzter Eigentuemer"
+  },
+  {
+    nr: '1862', name: "Ohne Vorschaubild liest die Route qPhotoBytes.data",
+    file: 'server.js',
+    search: "    else blob = qPhotoBytes().data.get(req.params.id).bytes;",
+    replacement: "    else blob = qPhotoBytes.data.get(req.params.id).bytes;",
+    expected: "Server: Testtag, Vorschaubild, letzter Eigentuemer"
+  },
+  {
+    nr: '1863', name: "Die Sperre letzter Eigentuemer zaehlt auch gesperrte",
+    file: 'auth.js',
+    search: "  if (u.role === 'owner' && u.status === 'active' && role !== 'owner' && ownerCount() <= 1)",
+    replacement: "  if (u.role === 'owner' && role !== 'owner' && ownerCount() <= 1)",
+    expected: "Server: Testtag, Vorschaubild, letzter Eigentuemer"
+  },
+  {
+    nr: '1864', name: "takeBackupLock() wirft ausserhalb des try",
+    file: 'server.js',
+    search: "  try { lock = takeBackupLock(folder); } catch (e) { return next(e); }\n",
+    replacement: "  lock = takeBackupLock(folder);\n",
+    expected: "Server: Lockfile und Backup-Ordner"
+  },
+  {
+    nr: '1865', name: "Der Start laesst das Lockfile eines abgebrochenen Backups stehen",
+    file: 'server.js',
+    search: "    backup.dropLock(path.join(target.filePath, COPY_DIR, '.lock'));\n",
+    replacement: "",
+    expected: "Server: Lockfile und Backup-Ordner"
+  },
+  {
+    nr: '1866', name: "SIGTERM laesst das Lockfile stehen",
+    file: 'server.js',
+    search: "    if (HELD_LOCK) backup.dropLock(HELD_LOCK);\n",
+    replacement: "",
+    expected: "Server: Lockfile und Backup-Ordner"
+  },
+  {
+    nr: '1867', name: "„Jetzt loeschen“ rechnet mit der gespeicherten Regel",
+    file: 'server.js',
+    search: "    const b = checkRuleValue(req.body?.keep ?? getSetting('backupKeep', CLEANUP_KEEP.fallback),",
+    replacement: "    const b = checkRuleValue(getSetting('backupKeep', CLEANUP_KEEP.fallback),",
+    expected: "Server: Lockfile und Backup-Ordner"
+  },
+  {
+    nr: '1868', name: "untilDrained() wartet auch nach dem Schliessen",
+    file: 'server.js',
+    search: "  if (res.destroyed) return Promise.reject(new Error('the client closed the connection'));\n",
+    replacement: "",
+    expected: "Quelltext: kleine Fehler aus der Durchsicht"
+  },
+  {
+    nr: '1869', name: "Die Kopie faellt auch, wenn das Umbenennen scheitert",
+    file: 'server.js',
+    search: "    if (fs.existsSync(diskPath(f.name))) fs.rmSync(diskPath(f.name, true), { force: true });",
+    replacement: "    fs.rmSync(diskPath(f.name, true), { force: true });",
+    expected: "Quelltext: kleine Fehler aus der Durchsicht"
+  },
+  {
+    nr: '1870', name: "„Standardanordnung“ setzt wieder `zu`",
+    file: 'public/app.js',
+    search: "    BLOCKS = { side: [...BLOCK_DEFAULT.side], bottom: [...BLOCK_DEFAULT.bottom], closed: [] };",
+    replacement: "    BLOCKS = { side: [...BLOCK_DEFAULT.side], bottom: [...BLOCK_DEFAULT.bottom], zu: [] };",
+    expected: "Einstellungen: Schwelle in „Bewertung: Kriterien“, Standardanordnung"
+  },
+  {
+    nr: '1871', name: "Die Rolle Eigentuemer-Admin heisst wieder `eigentuemer`",
+    file: 'public/app.js',
+    search: "             <option value=\"owner\"${z.role === 'owner' ? ' selected' : ''}>",
+    replacement: "             <option value=\"eigentuemer\"${z.role === 'owner' ? ' selected' : ''}>",
+    expected: "Mehrbenutzer-Anzeigen in der Oberflaeche"
+  },
+  {
+    nr: '1872', name: "Die Gruppe heisst wieder „Eigene Werte“",
+    file: 'public/app.js',
+    search: "    const label = secondLabel(r1, POTENTIAL_MODE ? '◆ ★' : '★');",
+    replacement: "    const label = secondLabel(r1, 'Eigene Werte');",
+    expected: "Uebersicht: ◆ ★ statt „Eigene Werte“, Weiter, Sortierung ohne Potenzialmodus"
+  },
+  {
+    nr: '1873', name: "Der Satz unter der Schwelle fehlt",
+    file: 'public/app.js',
+    search: "${setting(tH('card.setPartial'), tH('card.partialShareHint'), tH('card.partialShareMore'))}",
+    replacement: "${setting(tH('card.setPartial'), tH('card.partialShareHint'))}",
+    expected: "Einstellungen: Schwelle in „Bewertung: Kriterien“, Standardanordnung"
+  },
+  {
+    nr: '1874', name: "Die Vorschau der Aufraeumregel baut die Felder neu",
+    file: 'public/app.js',
+    search: "      drawCleanup(fetched, true);",
+    replacement: "      drawCleanup(fetched);",
+    expected: "Die Karte „Alte Backups\" in der Oberflaeche"
+  },
+  {
+    nr: '1875', name: "„Jetzt loeschen“ schickt die angezeigten Werte nicht mit",
+    file: 'public/app.js',
+    search: "      try { r = await api('POST', '/api/backup/cleanup', kind === 'rule' ? { kind, ...values() } : { kind }); }",
+    replacement: "      try { r = await api('POST', '/api/backup/cleanup', { kind }); }",
+    expected: "Die Karte „Alte Backups\" in der Oberflaeche"
+  },
+  {
+    nr: '1876', name: "Die Detailansicht zeichnet nach einer spaeten Antwort",
+    file: 'public/app.js',
+    search: "  if (!here()) return;\n  let idx = 0;",
+    replacement: "  let idx = 0;",
+    expected: "Detailansicht: spaete Antworten, Kommentar, Anlegen, Dialog"
+  },
+  {
+    nr: '1877', name: "Der Betrachter zeichnet in eine fremde Ansicht",
+    file: 'public/app.js',
+    search: "    if (!v || !here()) return;\n",
+    replacement: "    if (!v) return;\n",
+    expected: "Quelltext: kleine Fehler aus der Durchsicht"
+  },
+  {
+    nr: '1878', name: "„›“ folgt dem Bestand in Serverreihenfolge",
+    file: 'public/app.js',
+    search: "  const shown = state.items ? visibleItems() : [];",
+    replacement: "  const shown = state.items || [];",
+    expected: "Uebersicht: ◆ ★ statt „Eigene Werte“, Weiter, Sortierung ohne Potenzialmodus"
+  },
+  {
+    nr: '1879', name: "Ohne Potenzialmodus sortiert die Liste weiter nach Potenzial",
+    file: 'public/app.js',
+    search: "const sortOf = (sort) => (!POTENTIAL_MODE && /^potential_/.test(sort) ? 'updated_desc' : sort);",
+    replacement: "const sortOf = (sort) => sort;",
+    expected: "Uebersicht: ◆ ★ statt „Eigene Werte“, Weiter, Sortierung ohne Potenzialmodus"
+  },
+  {
+    nr: '1880', name: "Der Editor geht nach dem Bild nicht wieder auf",
+    file: 'public/app.js',
+    search: "          again.click();\n",
+    replacement: "",
+    expected: "Detailansicht: spaete Antworten, Kommentar, Anlegen, Dialog"
+  },
+  {
+    nr: '1881', name: "„Kommentieren“ bleibt waehrend der Anfrage frei",
+    file: 'public/app.js',
+    search: "    commentButton.disabled = true;\n",
+    replacement: "",
+    expected: "Detailansicht: spaete Antworten, Kommentar, Anlegen, Dialog"
+  },
+  {
+    nr: '1882', name: "„Anlegen“ bleibt waehrend der Anfrage frei",
+    file: 'public/app.js',
+    search: "    createButton.disabled = true;\n",
+    replacement: "",
+    expected: "Detailansicht: spaete Antworten, Kommentar, Anlegen, Dialog"
+  },
+  {
+    nr: '1883', name: "Der Hintergrund schliesst auch nach dem Markieren",
+    file: 'public/app.js',
+    search: "const fromBackdrop = (e, bd) => e.target === bd && (DOWN_AT === null || DOWN_AT === bd) && !typedIn(bd);",
+    replacement: "const fromBackdrop = (e, bd) => e.target === bd && !typedIn(bd);",
+    expected: "Detailansicht: spaete Antworten, Kommentar, Anlegen, Dialog"
+  },
+  {
+    nr: '1884', name: "Jeder Ladefehler heisst „unbekannt“",
+    file: 'public/app.js',
+    search: "const loadFailed = (e) => (e.status === 404 ? tH('server.entryUnknown') : esc(e.message));",
+    replacement: "const loadFailed = (e) => tH('server.entryUnknown');",
+    expected: "Detailansicht: spaete Antworten, Kommentar, Anlegen, Dialog"
+  },
+  {
+    nr: '1885', name: "Die Anmeldung laesst das Vollbild inert",
+    file: 'public/app.js',
+    search: "  LIGHTBOX_CLOSE?.(true);\n",
+    replacement: "",
+    expected: "Vollbild: Anmeldung, ein einzelnes Element; Infos aufklappbar"
+  },
+  {
+    nr: '1886', name: "Die Pfeiltaste haelt bei einem Element das Video an",
+    file: 'public/app.js',
+    search: "  const step = (d) => { if (photos.length < 2) return; i += d; show(); };",
+    replacement: "  const step = (d) => { i += d; show(); };",
+    expected: "Vollbild: Anmeldung, ein einzelnes Element; Infos aufklappbar"
+  },
+  {
+    nr: '1887', name: "„Erweiterte Infos“ steht beim Oeffnen offen",
+    file: 'public/app.js',
+    search: "const moreGroup = (html) => (html ? `<details class=\"minfo-group\">",
+    replacement: "const moreGroup = (html) => (html ? `<details class=\"minfo-group\" open>",
+    expected: "Vollbild: Anmeldung, ein einzelnes Element; Infos aufklappbar"
+  },
+  {
+    nr: '1888', name: "Wieder „Farbunterabtastung“",
+    file: 'public/languages/de.json',
+    search: "  \"entry.mediaChroma\": \"Chroma Subsampling\",",
+    replacement: "  \"entry.mediaChroma\": \"Farbunterabtastung\",",
+    expected: "Vollbild: Anmeldung, ein einzelnes Element; Infos aufklappbar"
+  },
+  {
+    nr: '1889', name: "Die Exportgroesse zaehlt Kommentarvideos nicht",
+    file: 'public/app.js',
+    search: " + (ex.commentImages || 0) + (ex.commentVideos || 0) : 0);",
+    replacement: " + (ex.commentImages || 0) : 0);",
+    expected: "Quelltext: kleine Fehler aus der Durchsicht"
+  },
+  {
+    nr: '1890', name: "Die Vergleichsleiste bleibt ausserhalb der Uebersicht stehen",
+    file: 'public/app.js',
+    search: "  if (view !== 'list') document.querySelector('.cmp-bar')?.remove();\n",
+    replacement: "",
+    expected: "Quelltext: kleine Fehler aus der Durchsicht"
+  },
+  {
+    nr: '1891', name: "Abgehakte Aufgaben zaehlen als offen",
+    file: 'public/app.js',
+    search: "    const stillOpen = visible.filter(z => !z.done).length;",
+    replacement: "    const stillOpen = visible.length;",
+    expected: "Quelltext: kleine Fehler aus der Durchsicht"
+  },
+  {
+    nr: '1892', name: "„Links“ misst beim Aufklappen nicht neu",
+    file: 'public/app.js',
+    search: "  redrawLinks = limitLinks;\n",
+    replacement: "",
+    expected: "Quelltext: kleine Fehler aus der Durchsicht"
+  },
+  {
+    nr: '1894', name: "Das Ende eines kurzen Laufs bleibt unbemerkt",
+    file: 'public/app.js',
+    search: "    followBatchRun(fetched.stats);",
+    replacement: "    followBatchRun();",
+    expected: "Quelltext: kleine Fehler aus der Durchsicht"
+  },
+  {
+    nr: '1895', name: "Das Zitiermenue liegt unter der Kopfzeile",
+    file: 'public/app.js',
+    search: "above < mastheadHeight() + 4",
+    replacement: "above < 4",
+    expected: "Quelltext: kleine Fehler aus der Durchsicht"
+  },
+  {
+    nr: '1896', name: "Die Benutzerzeile bricht nicht um",
+    file: 'public/style.css',
+    search: "  .mrow.user { flex-wrap: wrap; row-gap: 4px; }\n",
+    replacement: "",
+    expected: "Quelltext: kleine Fehler aus der Durchsicht"
+  },
+  {
+    nr: '1897', name: "„Von vorn“ liegt unter den Werkzeugen",
+    file: 'public/style.css',
+    search: "  .vspot { top: 62px; }\n",
+    replacement: "",
+    expected: "Quelltext: kleine Fehler aus der Durchsicht"
+  },
+  {
+    nr: '1898', name: "Die Upload-Anzeige liegt am Telefon oben",
+    file: 'public/style.css',
+    search: "  .upload-bar { top: auto; bottom: calc(16px + env(safe-area-inset-bottom)); }\n",
+    replacement: "",
+    expected: "Quelltext: kleine Fehler aus der Durchsicht"
+  },
+  {
+    nr: '1899', name: "Die Reiter bleiben nach dem Drehen versteckt",
+    file: 'public/style.css',
+    search: "  .sys-tabs.closed { display: none; }\n",
+    replacement: "}\n.sys-tabs.closed { display: none; }\n@media (max-width: 700px), (max-height: 500px) and (max-width: 960px) {\n",
+    expected: "Quelltext: kleine Fehler aus der Durchsicht"
+  },
+  {
+    nr: '1900', name: "keytool.sh: ein gescheitertes cp geht durch",
+    file: 'keytool.sh',
+    search: "    if ! find data -mindepth 1 -maxdepth 1 ! -name files -exec sh -c 'cp -a \"$@\" \"$0\"/' \"$ZIEL\" {} +; then",
+    replacement: "    if ! find data -mindepth 1 -maxdepth 1 ! -name files -exec cp -a {} \"$ZIEL\"/ \\;; then",
+    expected: "Werkzeuge, Image und Texte aus der Durchsicht"
+  },
+  {
+    nr: '1901', name: "keytool.sh: der neue Schluessel steht in den Argumenten",
+    file: 'keytool.sh',
+    search: "    ${NEW_KEY:+-e NEW_KEY} \\",
+    replacement: "    ${NEW_KEY:+-e \"NEW_KEY=$NEW_KEY\"} \\",
+    expected: "Werkzeuge, Image und Texte aus der Durchsicht"
+  },
+  {
+    nr: '1902', name: "keytool.sh: die Logzeile ist wieder deutsch",
+    file: 'keytool.sh',
+    search: "„Key loaded from ENCRYPTION_KEY.“",
+    replacement: "„Schluessel aus ENCRYPTION_KEY geladen.“",
+    expected: "Werkzeuge, Image und Texte aus der Durchsicht"
+  },
+  {
+    nr: '1903', name: "backuptool nennt nach einem Abbruch die Nr.",
+    file: 'backuptool.js',
+    search: "  const again = `Zu Ende führen: ./backuptool.sh restore ${nameTime(chosen.d.name)}`;",
+    replacement: "  const again = `Zu Ende führen: ./backuptool.sh restore ${chosen.nr}`;",
+    expected: "Werkzeuge, Image und Texte aus der Durchsicht"
+  },
+  {
+    nr: '1904', name: "Das Backup der .env kommt ins Image",
+    file: '.dockerignore',
+    search: ".env.before-key-change-*\n",
+    replacement: "",
+    expected: "Werkzeuge, Image und Texte aus der Durchsicht"
+  },
+  {
+    nr: '1905', name: "Der Hinweis zur Suchmaschine nennt wieder „Bestand“",
+    file: 'public/languages/de.json',
+    search: "Keine Suchmaschine eingestellt — siehe Einstellungen › Installation.",
+    replacement: "Keine Suchmaschine eingestellt — siehe Einstellungen › Bestand.",
+    expected: "Werkzeuge, Image und Texte aus der Durchsicht"
+  },
+  {
+    nr: '1906', name: "„(du)“ steht wieder fest im Code",
+    file: 'public/app.js',
+    search: "          self ? ` <span class=\"user-mine\">${tH('card.youMarker')}</span>` : ''}</span>",
+    replacement: "          self ? ' <span class=\"user-mine\">(du)</span>' : ''}</span>",
+    expected: "Werkzeuge, Image und Texte aus der Durchsicht"
+  },
+  {
+    nr: '1907', name: "Die Meldung zur Regel nennt wieder „Löschen ab Alter“",
+    file: 'public/languages/de.json',
+    search: "„Löschen, wenn älter als“ muss eine ganze Zahl",
+    replacement: "„Löschen ab Alter“ muss eine ganze Zahl",
+    expected: "Werkzeuge, Image und Texte aus der Durchsicht"
+  },
+  {
+    nr: '1908', name: "IPv6 zaehlt wieder je Adresse",
+    file: 'auth.js',
+    search: "const keyIp = (ip) => `ip:${addressBlock(ip)}`;",
+    replacement: "const keyIp = (ip) => `ip:${ip}`;",
+    expected: "Anmeldebremse: IPv6 je /64"
+  },
+  {
+    nr: '1909', name: "Die Warteschlange der Passwortpruefung zaehlt je Adresse",
+    file: 'server.js',
+    search: "  const key = auth.addressBlock(ip);\n",
+    replacement: "  const key = ip;\n",
+    expected: "Anmeldebremse: IPv6 je /64"
+  },
+  {
+    nr: '1910', name: "Die Schreibweise der IPv6-Adresse aendert den Zaehler",
+    file: 'auth.js',
+    search: "  return `${groups.slice(0, 4).map(g => parseInt(g, 16).toString(16)).join(':')}::/64`;",
+    replacement: "  return `${groups.slice(0, 4).join(':')}::/64`;",
+    expected: "Anmeldebremse: IPv6 je /64"
+  },
+  {
+    nr: '1911', name: "Der Klick zoomt wieder auf die Mitte",
+    file: 'public/app.js',
+    search: "      if (zoom || wanted) zoomOff(); else zoomIn('actual', pointAt(e.clientX, e.clientY));",
+    replacement: "      if (zoom || wanted) zoomOff(); else zoomIn('actual', null);",
+    expected: "Vollbild: 100 % an der angetippten Stelle"
+  },
+  {
+    nr: '1912', name: "Der Doppeltipp zoomt wieder auf die Mitte",
+    file: 'public/app.js',
+    search: "    if (zoom || wanted) zoomOff(); else zoomIn('tap', pointAt(e.clientX, e.clientY));",
+    replacement: "    if (zoom || wanted) zoomOff(); else zoomIn('tap', null);",
+    expected: "Vollbild: 100 % an der angetippten Stelle"
+  },
+  {
+    nr: '1913', name: "Nach dem Laden rueckt der Punkt waagrecht weg",
+    file: 'public/app.js',
+    search: "    stage.scrollLeft += box.left + at.fx * box.width - at.x;\n",
+    replacement: "",
+    expected: "Vollbild: 100 % an der angetippten Stelle"
+  },
+  {
+    nr: '1914', name: "Der Knopf heisst wieder ⊕",
+    file: 'public/app.js',
+    search: "aria-pressed=\"false\">${tH('list.zoomActual')}</button>",
+    replacement: "aria-pressed=\"false\">⊕</button>",
+    expected: "Vollbild: 100 % an der angetippten Stelle"
+  },
+  {
+    nr: '1915', name: "Der Knopf zeigt nicht, dass gezoomt ist",
+    file: 'public/app.js',
+    search: "    lb.querySelector('.zoom').setAttribute('aria-pressed', 'true');\n",
+    replacement: "",
+    expected: "Vollbild: 100 % an der angetippten Stelle"
+  },
+  {
+    nr: '1916', name: "Der Hinweis am Bild nennt wieder die Originalgroesse",
+    file: 'public/languages/de.json',
+    search: "\"list.clickZoomHint\": \"Ein Klick zeigt diese Stelle in 100 %\"",
+    replacement: "\"list.clickZoomHint\": \"Klick zoomt auf Originalgröße\"",
+    expected: "Vollbild: 100 % an der angetippten Stelle"
+  },
+  {
+    nr: '1917', name: "Blaettern laesst den Knopf gedrueckt",
+    file: 'public/app.js',
+    search: "    lb.querySelector('.zoom').setAttribute('aria-pressed', 'false');\n",
+    replacement: "",
+    expected: "Vollbild: 100 % an der angetippten Stelle"
+  },
+  {
+    nr: '1918', name: "Der Knopf zentriert nicht mehr",
+    file: 'public/app.js',
+    search: "    if (!at) { centerStage(stage); return; }",
+    replacement: "    if (!at) return;",
+    expected: "Vollbild: 100 % an der angetippten Stelle"
+  },
+  {
+    nr: '1919', name: "Bei Dateien fehlt der Dateiname",
+    file: 'public/app.js',
+    search: "    lb.querySelector('.lb-name').textContent = p.filename || '';\n",
+    replacement: "",
+    expected: "Vollbild: Kopfzeile am Telefon und der Dateiname"
+  },
+  {
+    nr: '1920', name: "Hochkant teilen sich Titel und Knoepfe wieder eine Zeile",
+    file: 'public/style.css',
+    search: "  .lb-tools { order: 3; flex: 1 1 100%; flex-wrap: nowrap;",
+    replacement: "  .lb-tools { flex-wrap: nowrap;",
+    expected: "Vollbild: Kopfzeile am Telefon und der Dateiname"
+  },
+  {
+    nr: '1921', name: "Der Titel des Eintrags steht neben dem Dateinamen gleich gross",
+    file: 'public/style.css',
+    search: ".lb-name:not(:empty) + .lb-of { margin-left: 8px; font-size: .8rem; font-weight: 400; color: var(--muted); }\n",
+    replacement: "",
+    expected: "Vollbild: Kopfzeile am Telefon und der Dateiname"
+  },
+  {
+    nr: '1922', name: "Die Pfeile liegen waehrend der Wiedergabe ueber dem Video",
+    file: 'public/style.css',
+    search: "  .lightbox.lb-playing .lb-nav, .lightbox.lb-idle .lb-nav { visibility: hidden; }\n",
+    replacement: "  .lightbox.lb-idle .lb-nav { visibility: hidden; }\n",
+    expected: "Vollbild: Pfeile waehrend der Wiedergabe, Raender, Rollbalken, Streifen"
+  },
+  {
+    nr: '1923', name: "Pause und Ende nehmen `lb-playing` nicht weg",
+    file: 'public/app.js',
+    search: "  ['play', 'pause', 'ended', 'emptied'].forEach(type => videoPlayer.addEventListener(type, markPlaying));",
+    replacement: "  ['play'].forEach(type => videoPlayer.addEventListener(type, markPlaying));",
+    expected: "Vollbild: Pfeile waehrend der Wiedergabe, Raender, Rollbalken, Streifen"
+  },
+  {
+    nr: '1924', name: "Die Ecke der Rollbalken ist wieder weiss",
+    file: 'public/style.css',
+    search: "::-webkit-scrollbar-corner { background: transparent; }\n",
+    replacement: "",
+    expected: "Vollbild: Pfeile waehrend der Wiedergabe, Raender, Rollbalken, Streifen"
+  },
+  {
+    nr: '1925', name: "Am Telefon hat die gezoomte Buehne Rollbalken",
+    file: 'public/style.css',
+    search: "  .lb-stage { scrollbar-width: none; }\n",
+    replacement: "",
+    expected: "Vollbild: Pfeile waehrend der Wiedergabe, Raender, Rollbalken, Streifen"
+  },
+  {
+    nr: '1926', name: "Der linke Pfeil liegt unter der Notch",
+    file: 'public/style.css',
+    search: ".lb-nav.prev { left: calc(16px + env(safe-area-inset-left)); }",
+    replacement: ".lb-nav.prev { left: 16px; }",
+    expected: "Vollbild: Pfeile waehrend der Wiedergabe, Raender, Rollbalken, Streifen"
+  },
+  {
+    nr: '1927', name: "Ohne Streifen reicht die Buehne in die Gestenleiste",
+    file: 'public/style.css',
+    search: ".lightbox { padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }\n",
+    replacement: "",
+    expected: "Vollbild: Pfeile waehrend der Wiedergabe, Raender, Rollbalken, Streifen"
+  },
+  {
+    nr: '1928', name: "Kacheln ohne Standbild sind wieder abgedunkelt",
+    file: 'public/style.css',
+    search: "justify-content: center; background: var(--surface-2); opacity: 1; }",
+    replacement: "justify-content: center; background: var(--surface-2); }",
+    expected: "Vollbild: Pfeile waehrend der Wiedergabe, Raender, Rollbalken, Streifen"
+  },
+  {
+    nr: '1929', name: "Die Endung im Streifen steht wieder in --muted",
+    file: 'public/style.css',
+    search: "letter-spacing: .05em; color: var(--text-2); }",
+    replacement: "letter-spacing: .05em; color: var(--muted); }",
+    expected: "Vollbild: Pfeile waehrend der Wiedergabe, Raender, Rollbalken, Streifen"
+  },
+  {
+    nr: '1930', name: "„Ganz laden“ waechst mit jeder Ziffer",
+    file: 'public/app.js',
+    search: "    if (width > 0) wholeButton.style.width = `${width}px`;\n",
+    replacement: "",
+    expected: "Vollbild: Pfeile waehrend der Wiedergabe, Raender, Rollbalken, Streifen"
+  },
+  {
+    nr: '1931', name: "Der Knopf zeigt beim Laden keinen Fortschritt",
+    file: 'public/app.js',
+    search: "      if (loading) wholeButton.textContent = t('entry.loadWholeShare', { n: loading.percent });",
+    replacement: "      if (loading) wholeButton.textContent = t('dialog.cancel');",
+    expected: "Video ganz laden"
+  },
+  {
+    nr: '1932', name: "Ein zweiter Finger blaettert in der Vorschau weiter",
+    file: 'public/app.js',
+    search: "    swipes = !cropMode && e.touches.length === 1 && item.photos.length > 1",
+    replacement: "    if (e.touches.length !== 1) return;\n    swipes = !cropMode && item.photos.length > 1",
+    expected: "Vorschau im Eintrag: Wischen mit einem Finger"
+  },
+  {
+    nr: '1933', name: "Eine gezoomte Seite blaettert in der Vorschau",
+    file: 'public/app.js',
+    search: "&&\n      !(window.visualViewport?.scale > 1);\n    if (swipes)",
+    replacement: "&&\n      true;\n    if (swipes)",
+    expected: "Vorschau im Eintrag: Wischen mit einem Finger"
+  },
+  {
+    nr: '1934', name: "Der Fokusrahmen ist wieder --accent",
+    file: 'public/style.css',
+    search: ":focus-visible { outline: 2px solid var(--accent-edge); outline-offset: 2px; border-radius: 4px; }",
+    replacement: ":focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }",
+    expected: "Kontraste: Fokus, Eingabefelder, Zeichen auf Fotos, Tastatur"
+  },
+  {
+    nr: '1935', name: "Der Feldfokus nimmt wieder --accent",
+    file: 'public/style.css',
+    search: ".input:focus { outline: none; border-color: var(--accent-edge);",
+    replacement: ".input:focus { outline: none; border-color: var(--accent);",
+    expected: "Kontraste: Fokus, Eingabefelder, Zeichen auf Fotos, Tastatur"
+  },
+  {
+    nr: '1936', name: "Der Rand des Textfelds ist wieder --line",
+    file: 'public/style.css',
+    search: "  background: var(--bg); border: 1px solid var(--input-edge); border-radius: var(--r-sm);",
+    replacement: "  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);",
+    expected: "Kontraste: Fokus, Eingabefelder, Zeichen auf Fotos, Tastatur"
+  },
+  {
+    nr: '1937', name: "Der helle Rand der Felder liegt unter 3 : 1",
+    file: 'public/style.css',
+    search: "  --input-edge: #8a939d;\n",
+    replacement: "  --input-edge: #aab4bf;\n",
+    expected: "Kontraste: Fokus, Eingabefelder, Zeichen auf Fotos, Tastatur"
+  },
+  {
+    nr: '1938', name: "Die Pfeile im Bild sind im hellen Schema wieder dunkel",
+    file: 'public/style.css',
+    search: "color: var(--on-photo-strong); font-size: 1.27rem;",
+    replacement: "color: var(--text); font-size: 1.27rem;",
+    expected: "Kontraste: Fokus, Eingabefelder, Zeichen auf Fotos, Tastatur"
+  },
+  {
+    nr: '1939', name: "▶ auf Karten steht wieder in --text-2",
+    file: 'public/style.css',
+    search: "font-size: .72rem; line-height: 1; color: var(--on-photo);",
+    replacement: "font-size: .72rem; line-height: 1; color: var(--text-2);",
+    expected: "Kontraste: Fokus, Eingabefelder, Zeichen auf Fotos, Tastatur"
+  },
+  {
+    nr: '1940', name: "Der Favoritenstern ist im hellen Schema wieder dunkelgold",
+    file: 'public/style.css',
+    search: "font-size: 1.05rem; line-height: 1; color: var(--badge-gold);",
+    replacement: "font-size: 1.05rem; line-height: 1; color: var(--gold);",
+    expected: "Favoriten: Sortierung und Filter"
+  },
+  {
+    nr: '1941', name: "Die Pfeile im Bild erscheinen nicht mit dem Tastaturfokus",
+    file: 'public/style.css',
+    search: ".viewer:hover .vnav, .vnav:focus-visible { opacity: 1; }",
+    replacement: ".viewer:hover .vnav { opacity: 1; }",
+    expected: "Kontraste: Fokus, Eingabefelder, Zeichen auf Fotos, Tastatur"
+  },
+  {
+    nr: '1942', name: "Die Werkzeuge im Bild erscheinen nicht mit dem Tastaturfokus",
+    file: 'public/style.css',
+    search: ".viewer:hover .vtools, .vtools:has(:focus-visible) { opacity: 1; }",
+    replacement: ".viewer:hover .vtools { opacity: 1; }",
+    expected: "Kontraste: Fokus, Eingabefelder, Zeichen auf Fotos, Tastatur"
+  },
+  {
+    nr: '1943', name: "Die Zeilenaktion erscheint nicht mit dem Tastaturfokus",
+    file: 'public/style.css',
+    search: ".mrow:hover .mact:where(:not(:disabled)), .mrow .mact:focus-visible { opacity: 1; }",
+    replacement: ".mrow:hover .mact:where(:not(:disabled)) { opacity: 1; }",
+    expected: "Kontraste: Fokus, Eingabefelder, Zeichen auf Fotos, Tastatur"
+  },
+  {
+    nr: '1944', name: "Im Dateimenue hat der Fokus keinen Rahmen",
+    file: 'public/style.css',
+    search: ".fmenu-item:focus-visible { background: var(--surface-3); outline: 2px solid var(--accent-edge); outline-offset: -2px; }",
+    replacement: ".fmenu-item:focus-visible { background: var(--surface-3); outline: none; }",
+    expected: "Kontraste: Fokus, Eingabefelder, Zeichen auf Fotos, Tastatur"
+  },
+  {
+    nr: '1945', name: "Ohne Zeiger springt der Pfeil im Bild auf .82",
+    file: 'public/style.css',
+    search: "    background: rgba(var(--tool-rgb), .86); border-color",
+    replacement: "    background: rgba(var(--tool-rgb), .82); border-color",
+    expected: "Kontraste: Fokus, Eingabefelder, Zeichen auf Fotos, Tastatur"
+  },
+  {
+    nr: '1946', name: "Ohne Zeiger springt der Pfeil im Vollbild auf .86",
+    file: 'public/style.css',
+    search: "    background: rgba(var(--lb-surface-rgb), .9); border-color",
+    replacement: "    background: rgba(var(--lb-surface-rgb), .86); border-color",
+    expected: "Kontraste: Fokus, Eingabefelder, Zeichen auf Fotos, Tastatur"
+  },
+  {
+    nr: '1947', name: "Das dritte Feld 👍 fehlt",
+    file: 'public/app.js',
+    search: "`],\n     ['full', '', `${t('list.shareFullHint', { share: PARTIAL_SHARE })}\\n${counted}`]].forEach",
+    replacement: "`]].forEach",
+    expected: "Uebersicht: Keine · Teilweise · 👍 als Leiste"
+  },
+  {
+    nr: '1948', name: "Ein gespeicherter Filter 👍 gilt beim Laden als „Alle“",
+    file: 'public/app.js',
+    search: "const SHARE_VALUES = ['all', 'none', 'partial', 'full'];",
+    replacement: "const SHARE_VALUES = ['all', 'none', 'partial'];",
+    expected: "Uebersicht: Keine · Teilweise · 👍 als Leiste"
+  },
+  {
+    nr: '1949', name: "Der Titel von 👍 nennt die Schwelle nicht",
+    file: 'public/app.js',
+    search: "['full', '', `${t('list.shareFullHint', { share: PARTIAL_SHARE })}",
+    replacement: "['full', '', `${t('list.shareFullHint')}",
+    expected: "Uebersicht: Keine · Teilweise · 👍 als Leiste"
+  },
+  {
+    nr: '1950', name: "Die Leiste hat wieder Abstaende zwischen den Feldern",
+    file: 'public/app.js',
+    search: "g.className = 'pills seg'; g.id = 'f-own';",
+    replacement: "g.className = 'pills'; g.id = 'f-own';",
+    expected: "Uebersicht: Keine · Teilweise · 👍 als Leiste"
+  },
+  {
+    nr: '1951', name: "Die Raender benachbarter Felder liegen doppelt",
+    file: 'public/style.css',
+    search: ".pills.seg .pill { border-radius: 0; margin-left: -1px; white-space: nowrap; flex-shrink: 0; }",
+    replacement: ".pills.seg .pill { border-radius: 0; white-space: nowrap; flex-shrink: 0; }",
+    expected: "Uebersicht: Keine · Teilweise · 👍 als Leiste"
+  },
+  {
+    nr: '1952', name: "Der Titel von 👍 sagt „mehr als“ statt „mindestens“",
+    file: 'public/languages/de.json',
+    search: "\"list.shareFullHint\": \"Mindestens {share} % der Kriterien mit eigenen Sternen\"",
+    replacement: "\"list.shareFullHint\": \"Mehr als {share} % der Kriterien mit eigenen Sternen\"",
+    expected: "Uebersicht: Keine · Teilweise · 👍 als Leiste"
+  },
+  {
+    nr: '1953', name: "Der Import prueft den Platz fuer den Inhalt nicht",
+    file: 'server.js',
+    search: "    const short = spaceShort(encLen(unpacked) + unpacked);\n",
+    replacement: "    const short = null;\n",
+    expected: "Import: Platz fuer den Inhalt, die Datei wird geschlossen"
+  },
+  {
+    nr: '1954', name: "Eine zu alte Importdatei bleibt offen",
+    file: 'server.js',
+    search: "    file?.close();\n    try { fs.rmSync(req.file.path",
+    replacement: "    try { fs.rmSync(req.file.path",
+    expected: "Import: Platz fuer den Inhalt, die Datei wird geschlossen"
+  },
+  {
+    nr: '1955', name: "Die Transaktionen beginnen wieder mit BEGIN",
+    file: 'db.js',
+    search: "  db.transaction = (fn) => transaction(fn).immediate;",
+    replacement: "  db.transaction = (fn) => transaction(fn);",
+    expected: "Umlagerung: eine zweite Verbindung haelt die Schreibsperre"
+  },
+  {
+    nr: '1956', name: "Eine gescheiterte Datei wartet auf den stuendlichen Lauf",
+    file: 'server.js',
+    search: "      failed ? RELOCATE_AGAIN_MS : 0).unref();",
+    replacement: "      failed ? HOUR_MS : 0).unref();",
+    expected: "Umlagerung: eine zweite Verbindung haelt die Schreibsperre"
+  },
+  {
+    nr: '1957', name: "Ein Fehler beendet die ganze Umlagerung",
+    file: 'server.js',
+    search: "      try { await relocateOne(id, true); }\n      catch (e) { failed++; logFail(`Relocation of file ${id}: ${e.code || e.message}`); }",
+    replacement: "      await relocateOne(id, true);",
+    expected: "Umlagerung: eine zweite Verbindung haelt die Schreibsperre"
+  },
+  {
+    nr: '1958', name: "Gepackte Objektstroeme werden nicht gelesen",
+    file: 'attachments.js',
+    search: "  const packed = encrypted ? new Map() : pdfObjectStreams(text);",
+    replacement: "  const packed = new Map();",
+    expected: "Infos: PDF mit gepacktem Objektstrom, Office als ZIP64"
+  },
+  {
+    nr: '1959', name: "Verschluesselte PDFs liefern Seiten aus dem Strom",
+    file: 'attachments.js',
+    search: "  const packed = encrypted ? new Map() : pdfObjectStreams(text);",
+    replacement: "  const packed = pdfObjectStreams(text);",
+    expected: "Infos: PDF mit gepacktem Objektstrom, Office als ZIP64"
+  },
+  {
+    nr: '1960', name: "Die Seitenzahl aus dem Objektstrom fehlt",
+    file: 'attachments.js',
+    search: "  const counts = [...text.split('endobj'), ...packed.values()].filter",
+    replacement: "  const counts = text.split('endobj').filter",
+    expected: "Infos: PDF mit gepacktem Objektstrom, Office als ZIP64"
+  },
+  {
+    nr: '1961', name: "Eine indirekte Laenge zerschneidet den Strom",
+    file: 'attachments.js',
+    search: "/\\/Length\\s+(\\d+)\\b(?!\\s+\\d+\\s+R)/",
+    replacement: "/\\/Length\\s+(\\d+)(?!\\s+\\d+\\s+R)/",
+    expected: "Infos: PDF mit gepacktem Objektstrom, Office als ZIP64"
+  },
+  {
+    nr: '1962', name: "ZIP64: der Locator wird nicht erkannt",
+    file: 'attachments.js',
+    search: "tail.readUInt32LE(end - 20) === 0x07064b50",
+    replacement: "tail.readUInt32LE(end - 20) === 0x06064b50",
+    expected: "Infos: PDF mit gepacktem Objektstrom, Office als ZIP64"
+  },
+  {
+    nr: '1963', name: "ZIP64: das Extrafeld wird uebersprungen",
+    file: 'attachments.js',
+    search: "    if (extra.readUInt16LE(e) !== 0x0001) continue;",
+    replacement: "    if (extra.readUInt16LE(e) !== 0x0009) continue;",
+    expected: "Infos: PDF mit gepacktem Objektstrom, Office als ZIP64"
+  },
+  {
+    nr: '1964', name: "Ohne Recht steht der Titel als Feld",
+    file: 'public/app.js',
+    search: "            ${mayEdit() ? `<textarea class=\"title-in\"",
+    replacement: "            ${true ? `<textarea class=\"title-in\"",
+    expected: "Detailansicht ohne Recht: nur ansehen"
+  },
+  {
+    nr: '1965', name: "Ohne Recht stehen die Schalter da",
+    file: 'public/app.js',
+    search: "            ${mayEdit() ? `<button class=\"switch\" id=\"sw-test\">",
+    replacement: "            ${true ? `<button class=\"switch\" id=\"sw-test\">",
+    expected: "Detailansicht ohne Recht: nur ansehen"
+  },
+  {
+    nr: '1966', name: "Ohne Recht steht die Kategorie als Auswahl",
+    file: 'public/app.js',
+    search: "            ${mayEdit() ? '<select class=\"select\" id=\"cat\"",
+    replacement: "            ${true ? '<select class=\"select\" id=\"cat\"",
+    expected: "Detailansicht ohne Recht: nur ansehen"
+  },
+  {
+    nr: '1967', name: "Ohne Recht steht die Ablage fuer Fotos da",
+    file: 'public/app.js',
+    search: "        ${mayEdit() ? `<label class=\"drop\" id=\"drop\">",
+    replacement: "        ${true ? `<label class=\"drop\" id=\"drop\">",
+    expected: "Detailansicht ohne Recht: nur ansehen"
+  },
+  {
+    nr: '1968', name: "Ohne Recht gibt es den Ausschnitt im Bild",
+    file: 'public/app.js',
+    search: "        ${mayEdit() && !showsAudio ? `<button class=\"vfocus",
+    replacement: "        ${!showsAudio ? `<button class=\"vfocus",
+    expected: "Detailansicht ohne Recht: nur ansehen"
+  },
+  {
+    nr: '1969', name: "Ohne Recht hat das Vollbild einen Papierkorb",
+    file: 'public/app.js',
+    search: "  const photoRemove = () => (mayEdit() ? deletePhoto : null);",
+    replacement: "  const photoRemove = () => deletePhoto;",
+    expected: "Detailansicht ohne Recht: nur ansehen"
+  },
+  {
+    nr: '1970', name: "Ohne Recht steht das × an den Miniaturen",
+    file: 'public/app.js',
+    search: "        (mayEdit() ? `<span class=\"del\"",
+    replacement: "        (true ? `<span class=\"del\"",
+    expected: "Detailansicht ohne Recht: nur ansehen"
+  },
+  {
+    nr: '1971', name: "Ohne Recht ziehen die Links",
+    file: 'public/app.js',
+    search: "${mayEdit() ? `<span class=\"grip\"",
+    replacement: "${true ? `<span class=\"grip\"",
+    expected: "Detailansicht ohne Recht: nur ansehen"
+  },
+  {
+    nr: '1972', name: "Ohne Recht steht die Tag-Wolke da",
+    file: 'public/app.js',
+    search: "          ${mayEdit() ? `<div class=\"cloud-head\">",
+    replacement: "          ${true ? `<div class=\"cloud-head\">",
+    expected: "Detailansicht ohne Recht: nur ansehen"
+  },
+  {
+    nr: '1973', name: "Ohne Recht steht der Stift an der Beschreibung",
+    file: 'public/app.js',
+    search: "        ${mayEdit() ? `<button class=\"mact ed\" id=\"descedit\"",
+    replacement: "        ${true ? `<button class=\"mact ed\" id=\"descedit\"",
+    expected: "Detailansicht ohne Recht: nur ansehen"
+  },
+  {
+    nr: '1974', name: "Ein Klick auf die Beschreibung oeffnet ohne Recht das Feld",
+    file: 'public/app.js',
+    search: "    if (!mayEdit() || e.target.closest('.markup-viewer, a')) return;",
+    replacement: "    if (e.target.closest('.markup-viewer, a')) return;",
+    expected: "Detailansicht ohne Recht: nur ansehen"
+  },
+  {
+    nr: '1975', name: "Fremde Testtage: die Note ist anklickbar",
+    file: 'public/app.js',
+    search: "      const s = stars(d.rating, d.mine !== true ? null : v => enqueue(async () => {",
+    replacement: "      const s = stars(d.rating, v => enqueue(async () => {",
+    expected: "Detailansicht ohne Recht: nur ansehen"
+  },
+  {
+    nr: '1976', name: "Fremde Testtage: das × steht da",
+    file: 'public/app.js',
+    search: "      x.hidden = !(d.mine === true || ADMIN);\n",
+    replacement: "",
+    expected: "Detailansicht ohne Recht: nur ansehen"
+  },
+  {
+    nr: '1977', name: "Fremde Testtage: Tags lassen sich setzen",
+    file: 'public/app.js',
+    search: "      plus.hidden = d.mine !== true;\n",
+    replacement: "",
+    expected: "Detailansicht ohne Recht: nur ansehen"
+  },
+  {
+    nr: '1978', name: "Ungetestet: der Hinweis zum Einschalten erscheint fuer jeden",
+    file: 'public/app.js',
+    search: "${mayEdit() ? tH('entry.testedFirstHint') : tH('entry.none')}",
+    replacement: "${tH('entry.testedFirstHint')}",
+    expected: "Detailansicht ohne Recht: nur ansehen"
+  },
+  {
+    nr: '1979', name: "stars() ohne Auswahl reagiert auf die Maus",
+    file: 'public/app.js',
+    search: "  if (!onPick) { w.classList.add('read'); return w; }\n",
+    replacement: "",
+    expected: "Detailansicht ohne Recht: nur ansehen"
+  },
+  {
+    nr: '1980', name: "Nach einer Absage bleibt der abgelehnte Titel stehen",
+    file: 'public/app.js',
+    search: "      catch (e) { toast(e.message, true); titleEl.value = item.title; titleFit(); }",
+    replacement: "      catch (e) { toast(e.message, true); }",
+    expected: "Detailansicht: nach einer Absage gilt der gespeicherte Stand"
+  },
+  {
+    nr: '1981', name: "Nach einer Absage bleibt die gewaehlte Kategorie stehen",
+    file: 'public/app.js',
+    search: "      catch (e) { toast(e.message, true); drawCat(); }",
+    replacement: "      catch (e) { toast(e.message, true); }",
+    expected: "Detailansicht: nach einer Absage gilt der gespeicherte Stand"
+  },
+  {
+    nr: '1982', name: "Der Worker nummeriert die Kriterien beim Laden wieder",
+    file: 'db.js',
+    search: "  renumberCriteria();\n}\n",
+    replacement: "}\nrenumberCriteria();\n",
+    expected: "Worker: ohne die Startschritte von db.js"
+  },
+  {
+    nr: '1983', name: "Der Worker raeumt die Adressen geloeschter Zugaenge beim Laden wieder auf",
+    file: 'db.js',
+    search: "if (isMainThread) {\n  // Geloeschte Zugaenge",
+    replacement: "{\n  // Geloeschte Zugaenge",
+    expected: "Worker: ohne die Startschritte von db.js"
+  },
+  {
+    nr: '1984', name: "Der Start gibt Links ohne Verfasser wieder dem Eigentuemer",
+    file: 'db.js',
+    search: "    'privileged account is the owner now (role=owner).');\n}",
+    replacement: "    'privileged account is the owner now (role=owner).');\n  db.prepare(\"UPDATE links SET user_id = (SELECT MIN(id) FROM users WHERE role = 'owner') WHERE user_id IS NULL\").run();\n}",
+    expected: "Verfasser: ohne Verfasser bleibt ohne Verfasser"
+  },
+  {
+    nr: '1985', name: "Ein leerer Titel geht ueber die Schnittstelle wieder durch",
+    file: 'server.js',
+    search: "  if (b.title !== undefined && !(typeof b.title === 'string' && b.title.trim()))\n    return res.status(400).json({ error: t(localeOf(req), 'server.titleMissing')});\n",
+    replacement: "",
+    expected: "Eintrag: leerer Titel und „Getestet“ ueber die Schnittstelle"
+  },
+  {
+    nr: '1986', name: "„Getestet“ faellt mit 0 und null wieder trotz Testtag",
+    file: 'server.js',
+    search: "  if (b.tested !== undefined && !b.tested) {",
+    replacement: "  if (b.tested === false) {",
+    expected: "Eintrag: leerer Titel und „Getestet“ ueber die Schnittstelle"
+  },
+  {
+    nr: '1987', name: "Die Suche nach Kategorie kennt wieder nur den Grundnamen",
+    file: 'server.js',
+    search: "    value: `CASE WHEN instr(kkl(c.name), :q) > 0 THEN c.name\n             ELSE (SELECT n.name FROM category_names n",
+    replacement: "    value: `CASE WHEN instr(kkl(c.name), :q) > 0 THEN c.name\n             WHEN 0 THEN (SELECT n.name FROM category_names n",
+    expected: "Suche: Kategorie in jeder Sprache"
+  },
+  {
+    nr: '1988', name: "Die Markierung zaehlt ein gefaltetes Zeichen wieder nur einmal",
+    file: 'public/app.js',
+    search: "    for (let k = 0; k < piece.length; k++) { starts.push(raw); ends.push(raw + c.length); }",
+    replacement: "    starts.push(raw); ends.push(raw + c.length);",
+    expected: "Suche: Markierung wie die Suche im Server"
+  },
+  {
+    nr: '1989', name: "Die Markierung kennt das punktlose ı nicht mehr",
+    file: 'public/app.js',
+    search: "const searchFold = (s) => String(s).toLowerCase().replace(/\\u0307/g, '').replace(/\\u0131/g, 'i')\n  .replace(/\\u00df/g, 'ss');",
+    replacement: "const searchFold = (s) => String(s).toLowerCase().replace(/\\u0307/g, '')\n  .replace(/\\u00df/g, 'ss');",
+    expected: "Suche: Markierung wie die Suche im Server"
+  },
+  {
+    nr: '1990', name: "Der Papierkorb merkt sich wieder nur den eigenen Favoriten",
+    file: 'server.js',
+    search: "withPhotos: true, withFiles: true, withVideos: true, everyPin: true, withIds: true, funnel: funnelStore(sources)",
+    replacement: "withPhotos: true, withFiles: true, withVideos: true, withIds: true, funnel: funnelStore(sources)",
+    expected: "Papierkorb: Favoriten gehen an ihre Besitzer zurueck"
+  },
+  {
+    nr: '1991', name: "Ein Import vergibt fremde Favoriten",
+    file: 'server.js',
+    search: "      if (trashId != null && Array.isArray(it.favorites)) {",
+    replacement: "      if (Array.isArray(it.favorites)) {",
+    expected: "Papierkorb: Favoriten gehen an ihre Besitzer zurueck"
+  },
+  {
+    nr: '1992', name: "Ein geloeschter Account bekommt seinen Favoriten zurueck",
+    file: 'server.js',
+    search: "const iPinOwner = db.prepare(\"SELECT id FROM users WHERE username = ? AND status != 'deleted'\");",
+    replacement: "const iPinOwner = db.prepare(\"SELECT id FROM users WHERE username = ?\");",
+    expected: "Papierkorb: Favoriten gehen an ihre Besitzer zurueck"
+  },
+  {
+    nr: '1993', name: "Auch ein kleines Bild bekommt eine Fassung mit 1.600 px",
+    file: 'server.js',
+    search: "  if (Math.max(size.width, size.height) <= VARIANTS.medium.long) return null;\n",
+    replacement: "",
+    expected: "Vollbild: Bilddateien mit 1.600 px"
+  },
+  {
+    nr: '1994', name: "Ein animiertes Bild steht im Vollbild still",
+    file: 'server.js',
+    search: "  if (!size.width || !size.height || (size.pages || 1) > 1) return null;",
+    replacement: "  if (!size.width || !size.height) return null;",
+    expected: "Vollbild: Bilddateien mit 1.600 px"
+  },
+  {
+    nr: '1995', name: "Das Vollbild laedt bei Bilddateien wieder das Original",
+    file: 'public/app.js',
+    search: "    return filesize ? `/api/attachments/${p.id}/raw?size=medium` : `/api/attachments/${p.id}/raw`;",
+    replacement: "    return filesize ? `/api/attachments/${p.id}/raw?inline=1` : `/api/attachments/${p.id}/raw`;",
+    expected: "Vollbild: Bilddateien mit 1.600 px"
+  },
+  {
+    nr: '1996', name: "Ohne Fassung kommt das Original als Download",
+    file: 'server.js',
+    search: "const shownInline = (req) => req.query.inline === '1' || req.query.size === 'medium';",
+    replacement: "const shownInline = (req) => req.query.inline === '1';",
+    expected: "Vollbild: Bilddateien mit 1.600 px"
+  },
+  {
+    nr: '1997', name: "Hinweistext faellt im dunklen Schema auf --surface-2 unter 4,5 : 1",
+    file: 'public/style.css',
+    search: "  --faint: #808992;",
+    replacement: "  --faint: #7b848d;",
+    expected: "Einstellungen: je Einstellung ein Satz, der Rest unter „Mehr“"
+  },
+  {
+    nr: '1998', name: "Kurze Reste stehen nie direkt",
+    file: 'public/app.js',
+    search: "    const short = lines > 0 && lines < MORE_LINES;",
+    replacement: "    const short = false;",
+    expected: "„Mehr“: ab drei Zeilen hinter dem Knopf, darunter direkt, neu gemessen bei anderer Breite"
+  },
+  {
+    nr: '1999', name: "Ein Rest mit drei Zeilen steht direkt",
+    file: 'public/app.js',
+    search: "const MORE_LINES = 3;",
+    replacement: "const MORE_LINES = 4;",
+    expected: "„Mehr“: ab drei Zeilen hinter dem Knopf, darunter direkt, neu gemessen bei anderer Breite"
+  },
+  {
+    nr: '2000', name: "Speichern ohne neues Passwort beendet wieder alle anderen Sitzungen",
+    file: 'server.js',
+    search: "  if (result.passwordChanged) auth.endOtherSessions(req.user.id, auth.sessionToken(req));",
+    replacement: "  auth.endOtherSessions(req.user.id, auth.sessionToken(req));",
+    expected: "Mein Account: Speichern ohne neues Passwort laesst die anderen Sitzungen stehen"
+  },
+  {
+    nr: '2001', name: "Der Papierkorb speichert keine Nummern",
+    file: 'server.js',
+    search: "withPhotos: true, withFiles: true, withVideos: true, everyPin: true, withIds: true, funnel: funnelStore(sources)",
+    replacement: "withPhotos: true, withFiles: true, withVideos: true, everyPin: true, funnel: funnelStore(sources)",
+    expected: "Papierkorb: Zuordnung ueber die Nummer, Geloeschtes faellt weg"
+  },
+  {
+    nr: '2002', name: "Kriterien ordnet das Wiederherstellen wieder ueber den Namen zu",
+    file: 'server.js',
+    search: "        const criterion = byIds ? kept(iCritThere, r.criterion_id, r.name, gone.criteria) : critByName(r.name);",
+    replacement: "        const criterion = critByName(r.name);",
+    expected: "Papierkorb: Zuordnung ueber die Nummer, Geloeschtes faellt weg"
+  },
+  {
+    nr: '2003', name: "Der Papierkorb legt alle Kriterien der Datei wieder an",
+    file: 'server.js',
+    search: "    for (const name of byIds ? [] : Array.isArray(payload.criteria) ? payload.criteria : []) {",
+    replacement: "    for (const name of Array.isArray(payload.criteria) ? payload.criteria : []) {",
+    expected: "Papierkorb: Zuordnung ueber die Nummer, Geloeschtes faellt weg"
+  },
+  {
+    nr: '2004', name: "Die Leiste zum Formatieren verschwindet schon beim mousedown",
+    file: 'public/app.js',
+    search: "const afterClick = (fn) => (CLICK_PENDING ? CLICK_PENDING.push(fn) : fn());",
+    replacement: "const afterClick = (fn) => fn();",
+    expected: "Leiste zum Formatieren: erst nach dem Klick weg"
+  },
+  {
+    nr: '2005', name: "Der Entwurf kommt beim Zurueckkommen nicht wieder",
+    file: 'public/app.js',
+    search: "  ctextField.value = draftRead(`comment-${id}`);",
+    replacement: "  ctextField.value = '';",
+    expected: "Entwurf: ungesendeter Kommentar bleibt im Tab"
+  },
+  {
+    nr: '2006', name: "Nach dem Senden bleibt der Entwurf gespeichert",
+    file: 'public/app.js',
+    search: "      draftWrite(`comment-${id}`, '');\n",
+    replacement: "",
+    expected: "Entwurf: ungesendeter Kommentar bleibt im Tab"
+  },
+  {
+    nr: '2007', name: "Ein angefangenes Bearbeiten oeffnet den Editor nicht wieder",
+    file: 'public/app.js',
+    search: "      if (mine && draftRead(`edit-${c.id}`)) openEdit(false);",
+    replacement: "      if (false) openEdit(false);",
+    expected: "Entwurf: ungesendeter Kommentar bleibt im Tab"
+  },
+  {
+    nr: '2008', name: "Klick neben einen Dialog mit Text schliesst ihn wieder",
+    file: 'public/app.js',
+    search: "const fromBackdrop = (e, bd) => e.target === bd && (DOWN_AT === null || DOWN_AT === bd) && !typedIn(bd);",
+    replacement: "const fromBackdrop = (e, bd) => e.target === bd && (DOWN_AT === null || DOWN_AT === bd);",
+    expected: "Dialoge: Klick daneben und Zurueck"
+  },
+  {
+    nr: '2009', name: "Ein Dialog legt keinen Eintrag im Verlauf an",
+    file: 'public/app.js',
+    search: "      DIALOG_MARK.set(bd, { mark, url: location.href });\n      pushDialog(mark);",
+    replacement: "      DIALOG_MARK.set(bd, { mark, url: location.href });",
+    expected: "Dialoge: Klick daneben und Zurueck"
+  },
+  {
+    nr: '2010', name: "Ein per Knopf geschlossener Dialog laesst seinen Eintrag im Verlauf",
+    file: 'public/app.js',
+    search: "        DIALOG_POP_SKIP++;\n        history.back();",
+    replacement: "        DIALOG_POP_SKIP++;",
+    expected: "Dialoge: Klick daneben und Zurueck"
+  },
+  {
+    nr: '2011', name: "Nach dem Loeschen fuehrt Zurueck wieder auf den geloeschten Eintrag",
+    file: 'public/app.js',
+    search: "      await dialogSettled();\n      history.replaceState(null, '', '#/');\n      route();",
+    replacement: "      location.hash = '#/';",
+    expected: "Navigation: Loeschen, Vergleich, Adresse vor der Anmeldung"
+  },
+  {
+    nr: '2012', name: "Der Vergleich ohne Auswahl legt wieder einen Eintrag im Verlauf an",
+    file: 'public/app.js',
+    search: "    history.replaceState(null, '', '#/');\n    route();\n    toast(t('list.compareNone'));",
+    replacement: "    location.hash = '#/';",
+    expected: "Navigation: Loeschen, Vergleich, Adresse vor der Anmeldung"
+  },
+  {
+    nr: '2013', name: "Die Auswahl fuer den Vergleich steht nicht in sessionStorage",
+    file: 'public/app.js',
+    search: "  keep() { tabStore.set(this.key, JSON.stringify([...this])); }",
+    replacement: "  keep() { }",
+    expected: "Navigation: Loeschen, Vergleich, Adresse vor der Anmeldung"
+  },
+  {
+    nr: '2014', name: "Nach der Anmeldung geht es wieder in die Uebersicht",
+    file: 'public/app.js',
+    search: "      if (j.twoFactor) return showSecondFactor(j.ticket);\n      location.hash = afterLogin();",
+    replacement: "      if (j.twoFactor) return showSecondFactor(j.ticket);\n      location.hash = '#/';",
+    expected: "Navigation: Loeschen, Vergleich, Adresse vor der Anmeldung"
+  },
+  {
+    nr: '2015', name: "Ein falsches Passwort leert wieder den Benutzernamen",
+    file: 'public/app.js',
+    search: "        showLogin(j.error || t('login.failed'), u.value, res.status === 429 ? Number(j.retryIn) || 0 : 0);",
+    replacement: "        showLogin(j.error || t('login.failed'));",
+    expected: "Anmeldung: Benutzername bleibt, Netzfehler, Ende der Sitzung"
+  },
+  {
+    nr: '2016', name: "Ein Netzfehler zeigt wieder den Text des Browsers",
+    file: 'public/app.js',
+    search: "  const res = await fetch(url, opts).catch(() => { throw offline(); });",
+    replacement: "  const res = await fetch(url, opts);",
+    expected: "Anmeldung: Benutzername bleibt, Netzfehler, Ende der Sitzung"
+  },
+  {
+    nr: '2017', name: "Die Uebersicht zeigt bei einem Fehler wieder nur den Text",
+    file: 'public/app.js',
+    search: "  catch (e) { if (run === VIEW_RUN && e.message !== SESSION_GONE) viewFailed(esc(e.message)); return; }",
+    replacement: "  catch (e) { if (run === VIEW_RUN && e.message !== SESSION_GONE) app.innerHTML = `<div class=\"shell\"><p class=\"hint\">${esc(e.message)}</p></div>`; return; }",
+    expected: "Anmeldung: Benutzername bleibt, Netzfehler, Ende der Sitzung"
+  },
+  {
+    nr: '2018', name: "Der interne Text des Sitzungsendes erscheint wieder als Meldung",
+    file: 'public/app.js',
+    search: "  if (msg === SESSION_GONE) return;\n",
+    replacement: "",
+    expected: "Anmeldung: Benutzername bleibt, Netzfehler, Ende der Sitzung"
+  },
+  {
+    nr: '2019', name: "Die Anmeldeseite nennt den Grund des Sitzungsendes nicht",
+    file: 'public/app.js',
+    search: "  if (res.status === 401) { showLogin(await sessionEndText(res)); throw new Error(SESSION_GONE); }",
+    replacement: "  if (res.status === 401) { showLogin(); throw new Error(SESSION_GONE); }",
+    expected: "Anmeldung: Benutzername bleibt, Netzfehler, Ende der Sitzung"
+  },
+  {
+    nr: '2020', name: "Eine geaenderte Karte zeigt nicht „nicht gespeichert“",
+    file: 'public/app.js',
+    search: "  card.classList.toggle('unsaved', changed);",
+    replacement: "  card.classList.toggle('unsaved', false);",
+    expected: "Einstellungen: „nicht gespeichert\" und Rueckfrage beim Verlassen"
+  },
+  {
+    nr: '2021', name: "Ungespeicherte Karten fragen beim Verlassen nicht nach",
+    file: 'public/app.js',
+    search: "  if (SYS_HERE && location.hash !== SYS_HERE && unsavedCards().length) {",
+    replacement: "  if (false) {",
+    expected: "Einstellungen: „nicht gespeichert\" und Rueckfrage beim Verlassen"
+  },
+  {
+    nr: '2022', name: "Die Kachel einer fehlenden Bilddatei laedt ihr Bild",
+    file: 'public/app.js',
+    search: "      picture: a.missing ? '' : a.preview === 'image' || ((video || audio) && a.still) || a.thumb ? fileTileSource(a) : coming,",
+    replacement: "      picture: a.preview === 'image' || ((video || audio) && a.still) || a.thumb ? fileTileSource(a) : coming,",
+    expected: "Dateien: fehlende Datei, Upload abbrechen, PDF ohne sandbox"
+  },
+  {
+    nr: '2023', name: "Das Menue einer fehlenden Datei bietet „Herunterladen“",
+    file: 'public/app.js',
+    search: "    if (!a.missing) pass.push({ label: t('entry.download')",
+    replacement: "    pass.push({ label: t('entry.download')",
+    expected: "Dateien: fehlende Datei, Upload abbrechen, PDF ohne sandbox"
+  },
+  {
+    nr: '2024', name: "Die Vorschau einer fehlenden Datei sagt es nicht",
+    file: 'public/app.js',
+    search: "  if (a.missing) {\n    boxId.innerHTML = `<p class=\"hint\">${tH('server.fileMissing')}</p>`;\n  } else if (a.preview === 'audio') {",
+    replacement: "  if (a.preview === 'audio') {",
+    expected: "Dateien: fehlende Datei, Upload abbrechen, PDF ohne sandbox"
+  },
+  {
+    nr: '2025', name: "Der Menuepunkt einer laufenden Upload-Kachel heisst wieder „Abbrechen“",
+    file: 'public/app.js',
+    search: "      : [{ label: t('entry.uploadStop'), run: () => uploadCancel(u) }];",
+    replacement: "      : [{ label: t('dialog.cancel'), run: () => uploadCancel(u) }];",
+    expected: "Dateien: fehlende Datei, Upload abbrechen, PDF ohne sandbox"
+  },
+  {
+    nr: '2026', name: "Das PDF steht wieder in einem iframe mit sandbox",
+    file: 'public/app.js',
+    search: "    boxId.innerHTML = `<iframe src=\"/api/attachments/${Number(a.id)}/raw?inline=1\"\n        referrerpolicy=",
+    replacement: "    boxId.innerHTML = `<iframe src=\"/api/attachments/${Number(a.id)}/raw?inline=1\"\n        sandbox=\"allow-scripts\" referrerpolicy=",
+    expected: "Dateien in der Oberflaeche"
+  },
+  {
+    nr: '2027', name: "Die Leertaste spielt bei Fokus auf dem Vollbild nicht",
+    file: 'public/app.js',
+    search: "    else if (e.key === ' ' && document.activeElement === lb && playerShown() && player.getAttribute('src')) {",
+    replacement: "    else if (false && e.key === ' ' && document.activeElement === lb) {",
+    expected: "Vollbild: Leertaste beim Oeffnen eines Videos, Rueckkehr zum Proxy"
+  },
+  {
+    nr: '2028', name: "Scheitert das gewaehlte Original, bleibt die Meldung stehen",
+    file: 'public/app.js',
+    search: "    if (withProxy && !proxyFailed) {",
+    replacement: "    if (false) {",
+    expected: "Vollbild: Leertaste beim Oeffnen eines Videos, Rueckkehr zum Proxy"
+  },
+  {
+    nr: '2029', name: "Videos zaehlen im Satz zum Export auch ohne Fotos",
+    file: 'public/app.js',
+    search: "[photos && videos, 'card.contentVideos']",
+    replacement: "[videos, 'card.contentVideos']",
+    expected: "Export und Import: Saetze aus der Wahl, Verlust vor „Ersetzen\", Sprachen"
+  },
+  {
+    nr: '2030', name: "„Sprachen“ zaehlt Vokabelwoerter mit Vorgabe der Sprachdatei",
+    file: 'public/app.js',
+    search: " &&\n        !(((VOCABULARY_DEFAULTS || {})[code] || {})[key])).length };",
+    replacement: ").length };",
+    expected: "Die Karte sagt, wo Arbeit liegt — 0.25.0"
+  },
+  {
+    nr: '2031', name: "„ist jetzt Vorgabesprache“ steht bei jedem Besuch",
+    file: 'public/app.js',
+    search: "    return LANGUAGE_SWITCHED === code ? t('card.languageDefaultNow'",
+    replacement: "    return true ? t('card.languageDefaultNow'",
+    expected: "Die Karte sagt, wo Arbeit liegt — 0.25.0"
+  },
+  {
+    nr: '2032', name: "Das Ergebnis des Imports steht ohne eigene Klasse",
+    file: 'public/app.js',
+    search: "openModal(`<div class=\"modal import-result\">",
+    replacement: "openModal(`<div class=\"modal\">",
+    expected: "Was Export, Import und Backup enthalten"
+  },
+  {
+    nr: '2033', name: "„Sperren“ ist wieder rot",
+    file: 'public/app.js',
+    search: "t('card.lock'), 'accent')) return;",
+    replacement: "t('card.lock'), 'danger')) return;",
+    expected: "Knopfarten: Rueckfragen, „Schliessen“ und „Speichern“"
+  },
+  {
+    nr: '2034', name: "confirmBox() faellt ohne Farbe auf Rot zurueck",
+    file: 'public/app.js',
+    search: "function confirmBox(title, text, confirmLabel, kind, cancelLabel",
+    replacement: "function confirmBox(title, text, confirmLabel, kind = 'danger', cancelLabel",
+    expected: "Knopfarten: Rueckfragen, „Schliessen“ und „Speichern“"
+  },
+  {
+    nr: '2035', name: "Bei Datenverlust steht der Fokus auf dem Ja-Knopf",
+    file: 'public/app.js',
+    search: "bd.querySelector(kind === 'danger' ? '[data-no]' : '[data-yes]').focus();",
+    replacement: "bd.querySelector('[data-yes]').focus();",
+    expected: "Knopfarten: Rueckfragen, „Schliessen“ und „Speichern“"
+  },
+  {
+    nr: '2036', name: "„Schliessen“ in „Infos“ ist wieder orange",
+    file: 'public/app.js',
+    search: "\n      <div class=\"modal-acts\"><button class=\"btn btn-ghost\" data-yes>${tH('list.close')}</button></div></div>`,",
+    replacement: "\n      <div class=\"modal-acts\"><button class=\"btn btn-accent\" data-yes>${tH('list.close')}</button></div></div>`,",
+    expected: "Knopfarten: Rueckfragen, „Schliessen“ und „Speichern“"
+  },
+  {
+    nr: '2038', name: "„Speichern“ in „Suchmaschinen“ ist grau",
+    file: 'public/app.js',
+    search: "<button class=\"btn btn-accent btn-sm\" id=\"se-save\"",
+    replacement: "<button class=\"btn btn-sm\" id=\"se-save\"",
+    expected: "Knopfarten: Rueckfragen, „Schliessen“ und „Speichern“"
+  },
+  {
+    nr: '2039', name: "„+ Bild/Video“ im Editor ohne Flaeche",
+    file: 'public/app.js',
+    search: "<div class=\"acts\"><button class=\"btn btn-sm addimg\">",
+    replacement: "<div class=\"acts\"><button class=\"btn btn-ghost btn-sm addimg\">",
+    expected: "Knopfarten: Rueckfragen, „Schliessen“ und „Speichern“"
+  },
+  {
+    nr: '2040', name: "„Jetzt loeschen“ ist wieder orange",
+    file: 'public/app.js',
+    search: "<button class=\"btn btn-danger btn-sm\" id=\"cleanup-run\"",
+    replacement: "<button class=\"btn btn-accent btn-sm\" id=\"cleanup-run\"",
+    expected: "Knopfarten: Rueckfragen, „Schliessen“ und „Speichern“"
+  },
+  {
+    nr: '2041', name: "Benutzer loeschen mit ✕",
+    file: 'public/app.js',
+    search: "title=\"${esc(t('dialog.deleteUser'))}\">${ICON_DELETE}</button>",
+    replacement: "title=\"${esc(t('dialog.deleteUser'))}\">${ICON_X}</button>",
+    expected: "Knopfarten: ✕ zum Schliessen, Papierkorb zum Loeschen"
+  },
+  {
+    nr: '2042', name: "„Endgueltig loeschen“ wieder als ✕",
+    file: 'public/app.js',
+    search: "<button class=\"mact rm trash-remove\">${tH('card.deleteForGood')}</button>",
+    replacement: "<button class=\"mact rm trash-remove\">${ICON_X}</button>",
+    expected: "Knopfarten: ✕ zum Schliessen, Papierkorb zum Loeschen"
+  },
+  {
+    nr: '2043', name: "Der Papierkorb am Testtag erscheint erst beim Ueberfahren",
+    file: 'public/style.css',
+    search: ".rvote .mact { padding: 0 3px; }",
+    replacement: ".rvote .mact { padding: 0 3px; }\n.trow .mact { opacity: 0; }",
+    expected: "Knopfarten: ✕ zum Schliessen, Papierkorb zum Loeschen"
+  },
+  {
+    nr: '2044', name: "Zeilenaktionen der Einstellungen wieder unsichtbar",
+    file: 'public/style.css',
+    search: ".mrow .mact:where(:not(:disabled)) { opacity: .5; }",
+    replacement: ".mrow .mact:where(:not(:disabled)) { opacity: 0; }",
+    expected: "Knopfarten: ✕ zum Schliessen, Papierkorb zum Loeschen"
+  },
+  {
+    nr: '2045', name: "„Benutzer“ zeigt nur die Zahl",
+    file: 'public/app.js',
+    search: "        ${countCell(`${z.entries} ${vThing(z.entries)}`, `${z.entries} ${vThing(z.entries)}`)}`;\n      if (may) {",
+    replacement: "        ${countCell(String(z.entries), `${z.entries} ${vThing(z.entries)}`)}`;\n      if (may) {",
+    expected: "Knopfarten: ✕ zum Schliessen, Papierkorb zum Loeschen"
+  },
+  {
+    nr: '2046', name: "Der Hinweis zur Groesse des Exports ist wieder rot",
+    file: 'public/app.js',
+    search: "<div class=\"plain-box\" style=\"margin:12px 0 0\">",
+    replacement: "<div class=\"warn-box\" style=\"margin:12px 0 0\">",
+    expected: "Knopfarten: Kaesten, Hover, Haekchen, deaktiviert"
+  },
+  {
+    nr: '2047', name: "Karten mit Luecken wieder rot",
+    file: 'public/style.css',
+    search: ".sys-card.gaps { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-dim); }",
+    replacement: ".sys-card.gaps { border-color: rgba(var(--red-rgb), .55); box-shadow: 0 0 0 3px var(--red-dim); }",
+    expected: "Knopfarten: Kaesten, Hover, Haekchen, deaktiviert"
+  },
+  {
+    nr: '2048', name: "„nicht eingerichtet“ wieder rot",
+    file: 'public/style.css',
+    search: ".mail-off { color: var(--muted); }",
+    replacement: ".mail-off { color: var(--red); }",
+    expected: "Knopfarten: Kaesten, Hover, Haekchen, deaktiviert"
+  },
+  {
+    nr: '2049', name: "Hover an `.btn` gilt auch fuer Touch",
+    file: 'public/style.css',
+    search: "@media (hover: hover) { .btn:hover:where(:not(:disabled)) { background: var(--surface-3); border-color: var(--line-hover); color: var(--text); } }",
+    replacement: ".btn:hover { background: var(--surface-3); border-color: var(--line-hover); color: var(--text); }",
+    expected: "Knopfarten: Kaesten, Hover, Haekchen, deaktiviert"
+  },
+  {
+    nr: '2050', name: "Haekchen nur unter „Export“ orange",
+    file: 'public/style.css',
+    search: "input[type=checkbox] { accent-color: var(--accent); }",
+    replacement: ".ex-files input { accent-color: var(--accent); }",
+    expected: "Knopfarten: Kaesten, Hover, Haekchen, deaktiviert"
+  },
+  {
+    nr: '2051', name: "Deaktiviert nur fuer `.btn`",
+    file: 'public/style.css',
+    search: ":is(.btn, .mact, .link-btn, .pill, .icon-btn, .sdefault):disabled { opacity: .42; cursor: not-allowed; }",
+    replacement: ".btn:disabled { opacity: .42; cursor: not-allowed; }",
+    expected: "Knopfarten: Kaesten, Hover, Haekchen, deaktiviert"
+  },
+  {
+    nr: '2052', name: "„Loeschen“ in der Auswahlleiste nur beim Ueberfahren rot",
+    file: 'public/style.css',
+    search: ".apick .apick-del:not(:disabled) { color: var(--red); }",
+    replacement: ".apick .apick-del:not(:disabled):hover { color: var(--red); }",
+    expected: "Knopfarten: Kaesten, Hover, Haekchen, deaktiviert"
+  },
+  {
+    nr: '2053', name: "„Zusammenfuehren“ ist grau",
+    file: 'public/app.js',
+    search: "<button class=\"btn btn-accent\" data-merge>",
+    replacement: "<button class=\"btn\" data-merge>",
+    expected: "Dialoge: Escape, Import, Felder und „Kacheln · Liste“"
+  },
+  {
+    nr: '2054', name: "Escape schliesst keinen Dialog",
+    file: 'public/app.js',
+    search: "    if (e.key === 'Escape') done(cancel);",
+    replacement: "    if (false) done(cancel);",
+    expected: "Dialoge: Escape, Import, Felder und „Kacheln · Liste“"
+  },
+  {
+    nr: '2055', name: "Escape schliesst auch den Dialog darunter",
+    file: 'public/app.js',
+    search: "    if (bd !== [...document.querySelectorAll('body > .backdrop')].pop()) return;\n",
+    replacement: "",
+    expected: "Dialoge: Escape, Import, Felder und „Kacheln · Liste“"
+  },
+  {
+    nr: '2056', name: "„Kacheln · Liste“ markiert das gewaehlte Feld nicht",
+    file: 'public/app.js',
+    search: "      b.classList.toggle('on', b.dataset.view === FILES_VIEW);\n",
+    replacement: "",
+    expected: "Dialoge: Escape, Import, Felder und „Kacheln · Liste“"
+  },
+  {
+    nr: '2057', name: "Das Datumsfeld am Testtag ohne `.input`",
+    file: 'public/app.js',
+    search: "<input type=\"date\" class=\"input input-sm\" id=\"tdate\"",
+    replacement: "<input type=\"date\" id=\"tdate\"",
+    expected: "Dialoge: Escape, Import, Felder und „Kacheln · Liste“"
+  },
+  {
+    nr: '2058', name: "„Kacheln · Liste“ ohne Touch-Masse auf dem Tablet",
+    file: 'public/style.css',
+    search: "  .aview-btn { min-height: 44px; padding: 0 14px; }\n",
+    replacement: "",
+    expected: "Dialoge: Escape, Import, Felder und „Kacheln · Liste“"
+  },
+  {
+    nr: '2059', name: "Der Daumen ist wieder ein Emoji",
+    file: 'public/app.js',
+    search: "['full', '', `${t('list.shareFullHint'",
+    replacement: "['full', '👍', `${t('list.shareFullHint'",
+    expected: "Symbole und Ordner-Marke: Daumen und Ordner in der Farbe der Schrift"
+  },
+  {
+    nr: '2060', name: "Der Ordner am Testtag ist wieder ein Emoji",
+    file: 'public/app.js',
+    search: "        open.innerHTML = ICON_FOLDER;",
+    replacement: "        open.textContent = '📁';",
+    expected: "Symbole und Ordner-Marke: Daumen und Ordner in der Farbe der Schrift"
+  },
+  {
+    nr: '2061', name: "Ein Link auf einen Ordner bleibt eine rohe Adresse",
+    file: 'public/app.js',
+    search: "  if (folder) return `o${Number(folder[2])}`;\n",
+    replacement: "",
+    expected: "Symbole und Ordner-Marke: Daumen und Ordner in der Farbe der Schrift"
+  },
+  {
+    nr: '2062', name: "Der Server liefert keine Ordner zu Verweisen",
+    file: 'server.js',
+    search: "    if (row) out.push({ key: 'o' + row.id, ...row });",
+    replacement: "    if (false) out.push({ key: 'o' + row.id, ...row });",
+    expected: "Kommentare: Link auf einen Ordner wird zur Marke"
+  },
+  {
+    nr: '2063', name: "Ein abgebrochenes Modul zaehlt wieder nicht",
+    file: 'testbench.js',
+    search: "  if (report.abort) driverRed(name, `ist abgebrochen: ${report.abort}`);\n",
+    replacement: "  if (report.abort) console.log(`\\n  ✗ Das Modul ${name} ist abgebrochen: ${report.abort}`);\n",
+    expected: "Der Treiber sieht den Rueckgabewert — 0.34.4"
+  }
+,
+  {
+    nr: '2064', name: "Video, Audio und Proxy stehen wieder offen",
+    file: 'public/app.js',
+    search: ") + (video.length ? moreGroup(tracks) : tracks);",
+    replacement: ") + tracks;",
+    expected: "Infos: „Erweiterte Infos“ und die Aufloesung unter „Allgemein“"
+  },
+  {
+    nr: '2065', name: "Die Aufloesung fehlt unter „Allgemein“",
+    file: 'public/app.js',
+    search: "    ['entry.mediaResolution', video.length ? area(video[0].width, video[0].height) : ''],\n",
+    replacement: "",
+    expected: "Infos: „Erweiterte Infos“ und die Aufloesung unter „Allgemein“"
+  },
+  {
+    nr: '2066', name: "Bei Bildern steht „Format“ zweimal",
+    file: 'public/app.js',
+    search: "  return mediaGroup(t('entry.kindImage'), [\n",
+    replacement: "  return mediaGroup(t('entry.kindImage'), [['entry.mediaFormat', main.format],\n",
+    expected: "Infos: „Erweiterte Infos“ und die Aufloesung unter „Allgemein“"
+  },
+  {
+    nr: '2067', name: "Der Zaehler fehlt in der Leiste",
+    file: 'public/app.js',
+    search: "      <div class=\"lb-tools\">\n        <span class=\"lb-count\"></span>\n",
+    replacement: "      <div class=\"lb-tools\">\n",
+    expected: "Vollbild: Reihenfolge der Knopfleiste"
+  },
+  {
+    nr: '2068', name: "Am Telefon steht wieder der Text statt des Zylinders",
+    file: 'public/style.css',
+    search: "  .lb-btn.whole .lb-phone { display: flex; }\n",
+    replacement: "",
+    expected: "Vollbild: „Ganz laden“ als Symbol, mit Groesse und Haken"
+  },
+  {
+    nr: '2069', name: "Ein ganz gepuffertes Video bekommt keinen Haken",
+    file: 'public/app.js',
+    search: "((!!wholeCopy && source === wholeCopy.url) || bufferedAll());",
+    replacement: "(!!wholeCopy && source === wholeCopy.url);",
+    expected: "Vollbild: „Ganz laden“ als Symbol, mit Groesse und Haken"
+  },
+  {
+    nr: '2070', name: "Der Titel von „Ganz laden“ nennt die Groesse nicht",
+    file: 'public/app.js',
+    search: ": done ? t('entry.loadWholeDone') : t('entry.loadWholeTitle', { size: fmtBytes(bytes) });",
+    replacement: ": done ? t('entry.loadWholeDone') : t('entry.loadWhole');",
+    expected: "Vollbild: „Ganz laden“ als Symbol, mit Groesse und Haken"
+  },
+  {
+    nr: '2071', name: "Beim Laden steht auf der Buehne nichts",
+    file: 'public/app.js',
+    search: "    loadingBox.hidden = !loading;\n",
+    replacement: "    loadingBox.hidden = true;\n",
+    expected: "Video ganz laden"
+  },
+  {
+    nr: '2072', name: "Ein Klick auf das gewaehlte Feld schaltet um",
+    file: 'public/app.js',
+    search: "    if (b && (b.dataset.source === 'original') !== original) switchFile(!original);",
+    replacement: "    if (b) switchFile(!original);",
+    expected: "Vollbild: „Proxy · Original“ als verbundene Leiste"
+  },
+  {
+    nr: '2073', name: "Das freie Feld hat im hellen Schema zu wenig Kontrast",
+    file: 'public/style.css',
+    search: ".lb-source .pill:not(.on) { color: var(--text-2); }\n",
+    replacement: "",
+    expected: "Vollbild: „Proxy · Original“ als verbundene Leiste"
+  },
+  {
+    nr: '2074', name: "Am Telefon blendet kein Rand aus",
+    file: 'public/style.css',
+    search: "\n.more-after { mask-image",
+    replacement: "\n.more-none { mask-image",
+    expected: "Vollbild: die Leiste am Telefon laesst sich wischen"
+  },
+  {
+    nr: '2075', name: "Die Leiste merkt nicht, dass rechts Knoepfe folgen",
+    file: 'public/app.js',
+    search: "  row.classList.toggle('more-after', end > 1 && row.scrollLeft < end - 1);\n",
+    replacement: "",
+    expected: "Vollbild: die Leiste am Telefon laesst sich wischen"
+  },
+  {
+    nr: '2076', name: "Der Doppeltipp fuehrt wieder auf das Original",
+    file: 'public/app.js',
+    search: "    const scale = kind === 'actual' ? natural / width : Math.min(ZOOM_TAP, most);",
+    replacement: "    const scale = natural / width;",
+    expected: "Vollbild: Zoom mit Maus und Doppeltipp"
+  },
+  {
+    nr: '2077', name: "Der Doppeltipp zaehlt CSS-Pixel statt Geraetepixel",
+    file: 'public/app.js',
+    search: "    const most = Math.max(1, natural / (width * dpr()));",
+    replacement: "    const most = Math.max(1, natural / width);",
+    expected: "Vollbild: Zoom mit Maus und Doppeltipp"
+  },
+  {
+    nr: '2078', name: "Zwei Finger zoomen wieder die Seite",
+    file: 'public/style.css',
+    search: ".lightbox { touch-action: pan-x pan-y; }\n",
+    replacement: "",
+    expected: "Vollbild: zwei Finger zoomen das Bild"
+  },
+  {
+    nr: '2079', name: "Spreizen laedt das Original nicht",
+    file: 'public/app.js',
+    search: "        pinch.width * pinch.r * dpr() > (img.naturalWidth || Infinity)) zoomIn('keep', null);",
+    replacement: "        false) zoomIn('keep', null);",
+    expected: "Vollbild: zwei Finger zoomen das Bild"
+  },
+  {
+    nr: '2080', name: "Ziehen verschiebt den Ausschnitt nicht",
+    file: 'public/app.js',
+    search: "    stage.scrollLeft = press.left - (e.clientX - press.x);\n",
+    replacement: "",
+    expected: "Vollbild: Zoom mit Maus und Doppeltipp"
+  },
+  {
+    nr: '2081', name: "Jedes Loslassen schaltet den Zoom aus",
+    file: 'public/app.js',
+    search: "      if (moved >= DRAG_MOVE || !hasOriginal(photos[i])) return;",
+    replacement: "      if (!hasOriginal(photos[i])) return;",
+    expected: "Vollbild: Zoom mit Maus und Doppeltipp"
+  },
+  {
+    nr: '2082', name: "Gezoomt sagt der Titel nicht, wie es zurueckgeht",
+    file: 'public/app.js',
+    search: "    img.title = t('list.zoomedHint');\n",
+    replacement: "",
+    expected: "Vollbild: Zoom mit Maus und Doppeltipp"
+  },
+  {
+    nr: '2083', name: "Ohne Original zeigt der Zeiger die Lupe",
+    file: 'public/style.css',
+    search: ".lb-stage img.lb-plain { cursor: default; }\n",
+    replacement: "",
+    expected: "Vollbild: Zoom mit Maus und Doppeltipp"
+  },
+  {
+    nr: '2084', name: "Der Zoom tauscht die Quelle sofort",
+    file: 'public/app.js',
+    search: "    if (preload.getAttribute('src') === address && preload.complete && preload.naturalWidth) zoomReady(preload.naturalWidth);\n    else preload.src = address;",
+    replacement: "    img.src = address;\n    preload.src = address;",
+    expected: "Vollbild: Zoom mit Maus und Doppeltipp"
+  },
+  {
+    nr: '2085', name: "Beim Zoom erscheint keine Ladeanzeige",
+    file: 'public/app.js',
+    search: "    if (on) waitTimer = setTimeout(() => { waitSign.hidden = false; }, WAIT_MS);",
+    replacement: "",
+    expected: "Vollbild: Zoom mit Maus und Doppeltipp"
+  },
+  {
+    nr: '2086', name: "Beim Blaettern bleibt das alte Bild stehen",
+    file: 'public/app.js',
+    search: "        img.classList.add('lb-coming');\n",
+    replacement: "",
+    expected: "Vollbild: Zoom mit Maus und Doppeltipp"
+  },
+  {
+    nr: '2087', name: "Wischen nach rechts wird wieder zu „Zurueck“",
+    file: 'public/style.css',
+    search: "html:has(> body.lb-open) { overflow: hidden; overscroll-behavior-x: none; }",
+    replacement: "html:has(> body.lb-open) { overflow: hidden; }",
+    expected: "Vollbild: Zurueck, Meldung und das letzte Bild"
+  },
+  {
+    nr: '2088', name: "↓ ist wieder ein Schriftzeichen",
+    file: 'public/app.js',
+    search: ">${ICON_DOWNLOAD}</a>",
+    replacement: ">↓</a>",
+    expected: "Vollbild: Reihenfolge der Knopfleiste"
+  },
+  {
+    nr: '2089', name: "Die Pfeile verdecken die Meldung",
+    file: 'public/style.css',
+    search: "gap: 14px; padding: 0 70px;",
+    replacement: "gap: 14px; padding: 0 24px;",
+    expected: "Vollbild: Zurueck, Meldung und das letzte Bild"
+  },
+  {
+    nr: '2090', name: "„Vorschaubild wählen …“ oeffnet ohne Hinweis",
+    file: 'public/app.js',
+    search: "    if (a.mine && a.preview === 'video') sort.push({ label: t('entry.chooseStill'), run: () => showFile(a.id, true) });",
+    replacement: "    if (a.mine && a.preview === 'video') sort.push({ label: t('entry.chooseStill'), run: () => showFile(a.id) });",
+    expected: "Vollbild: „Vorschaubild wählen …“ sagt, was zu tun ist"
+  },
+  {
+    nr: '2091', name: "Die Leiste rollt nicht bis zum Bildsymbol",
+    file: 'public/app.js',
+    search: "      if (at.right > box.right - 24) tools.scrollLeft += at.right - box.right + 24;\n",
+    replacement: "",
+    expected: "Vollbild: „Vorschaubild wählen …“ sagt, was zu tun ist"
+  },
+  {
+    nr: '2092', name: "Nach dem letzten Bild kommt das erste",
+    file: 'public/app.js',
+    search: "    if (i >= photos.length) i = photos.length - 1;\n    buildStrip();",
+    replacement: "    buildStrip();",
+    expected: "Vollbild: Zurueck, Meldung und das letzte Bild"
+  },
+  {
+    nr: '2093', name: "Ein Tipp auf das laufende Video zeigt die Pfeile nicht",
+    file: 'public/app.js',
+    search: "    if (s.target === videoPlayer && Math.hypot(dx, dy) <= TAP_MOVE && !videoPlayer.paused) arrowsOverVideo();",
+    replacement: "",
+    expected: "Vollbild: Wischen auf dem Video, Pfeile nach einem Tipp"
+  },
+  {
+    nr: '2094', name: "Die Pfeile bleiben ueber dem laufenden Video verborgen",
+    file: 'public/style.css',
+    search: "  .lightbox.lb-arrows .lb-nav { visibility: visible; }\n",
+    replacement: "",
+    expected: "Vollbild: Wischen auf dem Video, Pfeile nach einem Tipp"
+  },
+  {
+    nr: '2095', name: "Die Pfeile ueber Fotos bleiben stehen",
+    file: 'public/app.js',
+    search: "    idleTimer = setTimeout(() => { if (!img.hidden) lb.classList.add('lb-idle'); }, ARROWS_MS);",
+    replacement: "",
+    expected: "Vollbild: Wischen auf dem Video, Pfeile nach einem Tipp"
+  },
+  {
+    nr: '2096', name: "Der Doppeltipp zeigt die Pfeile wieder",
+    file: 'public/app.js',
+    search: "    lastTap = 0;\n    clearTimeout(tapTimer);",
+    replacement: "    lastTap = 0;",
+    expected: "Vollbild: Wischen auf dem Video, Pfeile nach einem Tipp"
+  },
+  {
+    nr: '2097', name: "Audiodateien sind keine eigene Art",
+    file: 'attachments.js',
+    search: "  if (AUDIO_TYPES[e]) return 'audio';\n",
+    replacement: "",
+    expected: "Audio: Endungen, Typen und Art"
+  },
+  {
+    nr: '2098', name: "Audio geht nur als Download hinaus",
+    file: 'attachments.js',
+    search: "                                ...Object.values(VIDEO_TYPES), ...Object.values(AUDIO_TYPES), 'application/pdf']);",
+    replacement: "                                ...Object.values(VIDEO_TYPES), 'application/pdf']);",
+    expected: "Audio: Endungen, Typen und Art"
+  },
+  {
+    nr: '2099', name: "Das Cover wird kein Standbild",
+    file: 'server.js',
+    search: "    if (still && !qStillSize.get(id)) {",
+    replacement: "    if (false) {",
+    expected: "Audio: das Cover wird Standbild und Kachel"
+  },
+  {
+    nr: '2100', name: "Ein Cover in WebP bleibt WebP",
+    file: 'server.js',
+    search: "  if (['image/jpeg', 'image/png'].includes(attachments.typeFromBytes(cover)) && cover.length <= limitBytes('photo')) return cover;",
+    replacement: "  return cover;",
+    expected: "Audio: das Cover wird Standbild und Kachel"
+  },
+  {
+    nr: '2101', name: "Die Bytes des Covers landen in den Infos",
+    file: 'server.js',
+    search: "    const { cover, ...read } = await readMediaOf(a, kind === 'audio');\n    facts = read;",
+    replacement: "    const read = await readMediaOf(a, kind === 'audio'), cover = read.cover;\n    facts = read;",
+    expected: "Audio: das Cover wird Standbild und Kachel"
+  },
+  {
+    nr: '2102', name: "Eine Audiodatei bekommt keine Kachel aus dem Cover",
+    file: 'server.js',
+    search: "  const fromStill = kind === 'video' || kind === 'audio';",
+    replacement: "  const fromStill = kind === 'video';",
+    expected: "Audio: das Cover wird Standbild und Kachel"
+  },
+  {
+    nr: '2103', name: "Jeder darf die Wellenform setzen",
+    file: 'server.js',
+    search: "  if (!selfOnly(req, a.user_id)) return res.status(403).json({ error: t(localeOf(req), DENIED_SELF)});\n  if (!isAudioFile(a.filename))",
+    replacement: "  if (!isAudioFile(a.filename))",
+    expected: "Audio: die Wellenform"
+  },
+  {
+    nr: '2104', name: "Die Wellenform darf jede Laenge haben",
+    file: 'server.js',
+    search: "  return bytes.length === WAVEFORM_PEAKS ? bytes : null;",
+    replacement: "  return bytes.length ? bytes : null;",
+    expected: "Audio: die Wellenform"
+  },
+  {
+    nr: '2105', name: "Die Antwort nennt die Wellenform nicht",
+    file: 'server.js',
+    search: "                               peaks: wavePeaksOut(a2.peaks),",
+    replacement: "                               peaks: null,",
+    expected: "Audio: die Wellenform"
+  },
+  {
+    nr: '2106', name: "Audio nimmt keine Stelle an",
+    file: 'server.js',
+    search: "!playsAsVideo(id, target.filename) && !isAudioFile(target.filename)))",
+    replacement: "!playsAsVideo(id, target.filename)))",
+    expected: "Audio: die Stelle wird gemerkt"
+  },
+  {
+    nr: '2107', name: "Eine einzeln geloeschte Datei verliert ihre Wellenform",
+    file: 'server.js',
+    search: "    peaks: wavePeaksOut(a.peaks),\n",
+    replacement: "",
+    expected: "Audio: Papierkorb, Export und Import"
+  },
+  {
+    nr: '2108', name: "Export und Papierkorb des Eintrags verlieren die Wellenform",
+    file: 'server.js',
+    search: "                    ...(wavePeaksOut(a2.peaks) ? { peaks: wavePeaksOut(a2.peaks) } : {}) }));",
+    replacement: "                    }));",
+    expected: "Audio: Papierkorb, Export und Import"
+  },
+  {
+    nr: '2109', name: "Der Import schreibt keine Wellenform",
+    file: 'server.js',
+    search: "        if (a2.peaks) putWaveform.run(added.lastInsertRowid, a2.peaks);\n",
+    replacement: "",
+    expected: "Audio: Papierkorb, Export und Import"
+  },
+  {
+    nr: '2110', name: "Die Kachel zeigt keine Wellenform",
+    file: 'public/app.js',
+    search: "      wave: audio && !a.missing ? wavePeaksOf(a) : undefined,",
+    replacement: "      wave: undefined,",
+    expected: "Dateien: Audio an Kachel, in der Vorschau und im Vollbild"
+  },
+  {
+    nr: '2111', name: "Am Rechner oeffnet Audio gleich das Vollbild",
+    file: 'public/app.js',
+    search: "    if (a.preview === 'audio' && isNarrow()) return showFile(a.id);",
+    replacement: "    if (a.preview === 'audio') return showFile(a.id);",
+    expected: "Dateien: Audio an Kachel, in der Vorschau und im Vollbild"
+  },
+  {
+    nr: '2112', name: "Ein Tipp auf die Wellenform spult nicht",
+    file: 'public/app.js',
+    search: "    player.currentTime = Math.min(1, Math.max(0, (e.clientX - box.left) / box.width)) * d;",
+    replacement: "",
+    expected: "Dateien: Audio an Kachel, in der Vorschau und im Vollbild"
+  },
+  {
+    nr: '2113', name: "Auf der Wellenform blaettert ein Wisch",
+    file: 'public/app.js',
+    search: "    if (e.target.closest?.('.sdeck')) return false;",
+    replacement: "",
+    expected: "Dateien: Audio an Kachel, in der Vorschau und im Vollbild"
+  },
+  {
+    nr: '2114', name: "Ohne Cover bleibt die Wellenform klein",
+    file: 'public/app.js',
+    search: "    const peaks = wavePeaksOf(p), picture = imageSource(p, 'medium'), big = !picture && !!peaks;",
+    replacement: "    const peaks = wavePeaksOf(p), picture = imageSource(p, 'medium'), big = false;",
+    expected: "Dateien: Audio an Kachel, in der Vorschau und im Vollbild"
+  },
+  {
+    nr: '2115', name: "Eine fehlende Wellenform wird nicht nachgeholt",
+    file: 'public/app.js',
+    search: "    if (audio && !a.peaks && !a.missing && a.mine === true && shown) catchUpWave(id, a);",
+    replacement: "",
+    expected: "Dateien: die Wellenform entsteht im Browser"
+  },
+  {
+    nr: '2116', name: "Die Wellenform vom Hochladen wird nicht geschickt",
+    file: 'public/app.js',
+    search: "  u.wave.then(peaks => (peaks ? sendWave(u.itemId, fresh.id, peaks) : null));",
+    replacement: "",
+    expected: "Dateien: die Wellenform entsteht im Browser"
+  },
+  {
+    nr: '2117', name: "Nur der letzte Kanal geht in die Wellenform ein",
+    file: 'public/app.js',
+    search: "  for (let c = 0; c < sound.numberOfChannels; c++) {\n    const data = sound.getChannelData(c);",
+    replacement: "  for (let c = sound.numberOfChannels - 1; c < sound.numberOfChannels; c++) {\n    const data = sound.getChannelData(c);",
+    expected: "Dateien: die Wellenform entsteht im Browser"
+  },
+  {
+    nr: '2118', name: "Ein zweiter Klick auf „Getestet“ schaltet nicht aus",
+    file: 'public/app.js',
+    search: "      b.onclick = () => { f[key] = f[key] === v ? 'all' : v; redraw(); };",
+    replacement: "      b.onclick = () => { f[key] = v; redraw(); };",
+    expected: "Uebersicht: „Status“ und „Ablehnung“ als Leisten ohne „Alle“"
+  },
+  {
+    nr: '2119', name: "„★ Favoriten“ steht in der Leiste",
+    file: 'public/app.js',
+    search: "  r1.appendChild(bFav);",
+    replacement: "  r1.querySelector('#f-tested').appendChild(bFav);",
+    expected: "Uebersicht: „Status“ und „Ablehnung“ als Leisten ohne „Alle“"
+  },
+  {
+    nr: '2120', name: "Die Zahlen der Kategorien zaehlen den ganzen Bestand",
+    file: 'public/app.js',
+    search: "  const besideCategory = visibleItems({ ...f, categoryIds: [] });",
+    replacement: "  const besideCategory = state.all;",
+    expected: "Uebersicht: Kategorie ohne „Alle“, Zahlen gegen die uebrigen Filter"
+  },
+  {
+    nr: '2121', name: "Tags werden nur bei gewaehltem Tag gedaempft",
+    file: 'public/app.js',
+    search: "      if (f.tagIds.includes(tag.id)) return;\n",
+    replacement: "      if (f.tagIds.includes(tag.id) || !f.tagIds.length) return;\n",
+    expected: "Uebersicht: Kategorie ohne „Alle“, Zahlen gegen die uebrigen Filter"
+  },
+  {
+    nr: '2122', name: "„Und · Oder“ hat wieder runde Pillen",
+    file: 'public/style.css',
+    search: ".tagmode .pill:first-child { border-radius: 999px 0 0 999px; margin-left: 0; }",
+    replacement: ".tagmode .pill:first-child { margin-left: 0; }",
+    expected: "Uebersicht: „Und · Oder“, Sortieren und „Meine · Alle“ als Leisten"
+  },
+  {
+    nr: '2123', name: "Die Leiste der Richtung schrumpft",
+    file: 'public/style.css',
+    search: ".sort-way { flex-shrink: 0; }",
+    replacement: ".sort-way { flex-shrink: 1; }",
+    expected: "Uebersicht: „Und · Oder“, Sortieren und „Meine · Alle“ als Leisten"
+  },
+  {
+    nr: '2124', name: "„Meine · Alle“ in „Offene Aufgaben“ ist keine Leiste",
+    file: 'public/app.js',
+    search: "<div class=\"pills seg\" id=\"open-view\"",
+    replacement: "<div class=\"pills\" id=\"open-view\"",
+    expected: "Uebersicht: „Und · Oder“, Sortieren und „Meine · Alle“ als Leisten"
+  },
+  {
+    nr: '2125', name: "Die zweite Gruppe steht ohne Behaelter in der Zeile",
+    file: 'public/app.js',
+    search: "    group.className = 'fgroup';",
+    replacement: "    group.className = 'fgroup-off';",
+    expected: "Uebersicht: am Telefon rollbar mit ausgeblendetem Rand, Gruppen brechen nur ganz um"
+  },
+  {
+    nr: '2126', name: "Der linke Rand blendet nicht aus",
+    file: 'public/app.js',
+    search: "  row.classList.toggle('more-before', end > 1 && row.scrollLeft > 1);\n",
+    replacement: "",
+    expected: "Uebersicht: am Telefon rollbar mit ausgeblendetem Rand, Gruppen brechen nur ganz um"
+  },
+  {
+    nr: '2127', name: "Unter der Zeitleiste stehen wieder zwei Linien",
+    file: 'public/style.css',
+    search: ".timeline-years { position: relative; height: 18px; margin-top: 4px; }",
+    replacement: ".timeline-years { position: relative; height: 18px; margin-top: 4px; border-top: 1px solid var(--timeline-line); }",
+    expected: "Zeitleiste: eine Linie unten, Legende, Zoom und die gespeicherte Spanne"
+  },
+  {
+    nr: '2128', name: "„Alles zeigen“ fehlt",
+    file: 'public/app.js',
+    search: "      view.full ? '' : `<button type=\"button\" class=\"link-btn tl-all\">${tH('list.timelineShowAll')}</button>`}</div>`;",
+    replacement: "      ''}</div>`;",
+    expected: "Zeitleiste: Beschriftung ueber dem Rahmen, „Alles zeigen“, Notenskala"
+  },
+  {
+    nr: '2129', name: "Die Zeitleiste zeigt ohne Spanne den ganzen Bestand",
+    file: 'public/app.js',
+    search: "const TIMELINE_DEFAULT_DAYS = 1096;",
+    replacement: "const TIMELINE_DEFAULT_DAYS = 36600;",
+    expected: "Zeitleiste: eine Linie unten, Legende, Zoom und die gespeicherte Spanne"
+  },
+  {
+    nr: '2130', name: "Der Zoom geht bis einen Monat",
+    file: 'public/app.js',
+    search: "const TIMELINE_MIN_DAYS = 91;",
+    replacement: "const TIMELINE_MIN_DAYS = 30;",
+    expected: "Zeitleiste: eine Linie unten, Legende, Zoom und die gespeicherte Spanne"
+  },
+  {
+    nr: '2131', name: "Esc beendet die Zeitleiste nicht",
+    file: 'public/app.js',
+    search: "  e.stopPropagation();\n  setTimelineActive(false);\n}",
+    replacement: "  e.stopPropagation();\n}",
+    expected: "Zeitleiste: eine Linie unten, Legende, Zoom und die gespeicherte Spanne"
+  },
+  {
+    nr: '2132', name: "Am Touchgeraet oeffnet schon der erste Tipp",
+    file: 'public/app.js',
+    search: "  if (pointerType !== 'mouse' && tl.tapped !== dot.dataset.key) {",
+    replacement: "  if (false) {",
+    expected: "Zeitleiste: am Touchgeraet zeigt der erste Tipp den Punkt, der zweite oeffnet"
+  },
+  {
+    nr: '2133', name: "Das Menuezeichen traegt keinen Punkt",
+    file: 'public/app.js',
+    search: "  atElement('menu-dot', el => { el.hidden = !fresh; });",
+    replacement: "  atElement('menu-dot', el => { el.hidden = true; });",
+    expected: "Kopfzeile: Punkt am Menue, Neuigkeiten bleiben bis zum Neuladen"
+  },
+  {
+    nr: '2134', name: "Neuigkeiten fuehren nicht zum Kommentar",
+    file: 'public/app.js',
+    search: "      a.href = entryAddress(it.id, '', it.first);",
+    replacement: "      a.href = entryAddress(it.id, '', 0);",
+    expected: "Kopfzeile: Punkt am Menue, Neuigkeiten bleiben bis zum Neuladen"
+  },
+  {
+    nr: '2135', name: "Geoeffnete Neuigkeiten sind nicht gedaempft",
+    file: 'public/app.js',
+    search: "        BELL_READ.add(it.id);\n",
+    replacement: "",
+    expected: "Kopfzeile: Punkt am Menue, Neuigkeiten bleiben bis zum Neuladen"
+  },
+  {
+    nr: '2136', name: "Der Text einer Aufgabe fuehrt nur zum Eintrag",
+    file: 'public/app.js',
+    search: "        text.href = entryAddress(g.id, '', z.id);",
+    replacement: "        text.href = entryAddress(g.id, '', 0);",
+    expected: "Offene Aufgaben und Vergleich: Sprung zur Aufgabe, ← fuehrt zurueck"
+  },
+  {
+    nr: '2137', name: "← fuehrt immer zur Uebersicht",
+    file: 'public/app.js',
+    search: "  const back = entry && ENTRY_FROM ? BACK_WORDS[ENTRY_FROM.view] : 'list.backToList';",
+    replacement: "  const back = 'list.backToList';",
+    expected: "Offene Aufgaben und Vergleich: Sprung zur Aufgabe, ← fuehrt zurueck"
+  },
+  {
+    nr: '2138', name: "Das Suchfeld ist ein Textfeld",
+    file: 'public/app.js',
+    search: "type=\"search\" enterkeyhint=\"search\"",
+    replacement: "type=\"text\"",
+    expected: "Suche: Feld fuer das Telefon und der Ablehnungsgrund"
+  },
+  {
+    nr: '2139', name: "Der Ablehnungsgrund ist keine Quelle der Suche",
+    file: 'server.js',
+    search: "  { key: 'rejection',\n    value: 'CASE WHEN i.rejected AND instr(kkl(i.rejected_reason), :q) > 0 THEN i.rejected_reason END' },\n",
+    replacement: "",
+    expected: "Server: Spanne der Zeitleiste, erster neuer Kommentar, Suche im Ablehnungsgrund"
+  },
+  {
+    nr: '2140', name: "Eine Ansicht mit gleichem Namen kommt hinten dazu",
+    file: 'public/app.js',
+    search: "  const next = old ? VIEWS.map(a => (a === old ? { name: old.name, ...viewOutState() } : a))",
+    replacement: "  const next = old ? [...VIEWS.filter(a => a !== old), { name: old.name, ...viewOutState() }]",
+    expected: "Ansichten: gleicher Name ersetzt nach Rueckfrage"
+  },
+  {
+    nr: '2141', name: "Die Karte nennt die Note nicht",
+    file: 'public/app.js',
+    search: "⌀ ${esc(V.grade)} ",
+    replacement: "⌀ ",
+    expected: "Karten: Note am Durchschnitt, Titel hoechstens vier Zeilen, Zeichen fuer den Vergleich"
+  },
+  {
+    nr: '2142', name: "Der Titel der Karte endet nach drei Zeilen",
+    file: 'public/style.css',
+    search: "-webkit-line-clamp: 4; line-clamp: 4;",
+    replacement: "-webkit-line-clamp: 3; line-clamp: 3;",
+    expected: "Karten: Note am Durchschnitt, Titel hoechstens vier Zeilen, Zeichen fuer den Vergleich"
+  },
+  {
+    nr: '2143', name: "Das Kaestchen zeigt ein Plus",
+    file: 'public/app.js',
+    search: "${state.compare.has(it.id) ? ICON_CHECK : ICON_COMPARE}",
+    replacement: "${state.compare.has(it.id) ? ICON_CHECK : '+'}",
+    expected: "Karten: Note am Durchschnitt, Titel hoechstens vier Zeilen, Zeichen fuer den Vergleich"
+  },
+  {
+    nr: '2144', name: "Die Uebersicht beginnt nach dem Eintrag oben",
+    file: 'public/app.js',
+    search: "  if (LIST_SCROLL) window.scrollTo(0, LIST_SCROLL);",
+    replacement: "",
+    expected: "Uebersicht: nach der Rueckkehr aus einem Eintrag dieselbe Stelle"
+  },
+  {
+    nr: '2145', name: "Am Telefon bleiben die Spalten",
+    file: 'public/app.js',
+    search: "  if (isNarrow()) return drawTable(bestOf, bestTest);",
+    replacement: "",
+    expected: "Vergleich: Tabelle am Telefon, drei Spalten am Tablet hochkant"
+  },
+  {
+    nr: '2146', name: "Woerter werden nur an Leerzeichen getrennt",
+    file: 'public/app.js',
+    search: "  .split(/[^\\p{L}\\p{N}]+/u).filter(w => w.length >= SIMILAR_WORD);",
+    replacement: "  .split(/\\s+/u).filter(w => w.length >= SIMILAR_WORD);",
+    expected: "Anlegen: aehnliche Titel ueber ganze Woerter"
+  },
+  {
+    nr: '2147', name: "Direkt aufgerufen bleibt das Blaettern gesperrt",
+    file: 'public/app.js',
+    search: "  if (!state.all.length) loadAll().then(() => {",
+    replacement: "  if (false) loadAll().then(() => {",
+    expected: "Direktaufruf eines Eintrags: Titel und Blaettern"
+  },
+  {
+    nr: '2148', name: "Am Tablet hochkant steht der Titel unter dem Bild",
+    file: 'public/style.css',
+    search: "  .meta-col { display: contents; }\n  .title-head { order: -1; }\n}\n\n.viewer",
+    replacement: "  .meta-col { display: contents; }\n}\n\n.viewer",
+    expected: "Eintrag: Titel zuerst bis 860 px, leerer Titel, Schalter mit Schloss"
+  },
+  {
+    nr: '2149', name: "Ein leerer Titel setzt still den alten",
+    file: 'public/app.js',
+    search: "      if (!v) return toast(t('entry.titleEmpty'));",
+    replacement: "      if (!v) { titleEl.value = item.title; return; }",
+    expected: "Eintrag: Titel zuerst bis 860 px, leerer Titel, Schalter mit Schloss"
+  },
+  {
+    nr: '2150', name: "Der gesperrte Schalter traegt kein Schloss",
+    file: 'public/app.js',
+    search: "      toggle.querySelector('.sw-lock').hidden = !locked;",
+    replacement: "      toggle.querySelector('.sw-lock').hidden = true;",
+    expected: "Eintrag: Titel zuerst bis 860 px, leerer Titel, Schalter mit Schloss"
+  },
+  {
+    nr: '2151', name: "Bei Videos steht der Zaehler ueber der Zeitleiste",
+    file: 'public/style.css',
+    search: ".vcount.on-video { top: 10px; bottom: auto; }",
+    replacement: ".vcount.on-video { }",
+    expected: "Eintrag: Zaehler, Hinweis bei Touch, Auswahlmodus, Platzhalter"
+  },
+  {
+    nr: '2152', name: "Bei Touch heisst es weiter „per Ziehen“",
+    file: 'public/app.js',
+    search: "isTouch() ? tH('entry.photoOrderTouch'",
+    replacement: "false ? tH('entry.photoOrderTouch'",
+    expected: "Eintrag: Zaehler, Hinweis bei Touch, Auswahlmodus, Platzhalter"
+  },
+  {
+    nr: '2153', name: "Im Auswahlmodus traegt das angezeigte Foto den orangen Rahmen",
+    file: 'public/style.css',
+    search: ".thumbs.picking .thumb.current:not(.picked) { border-color: var(--line); }",
+    replacement: "",
+    expected: "Eintrag: Zaehler, Hinweis bei Touch, Auswahlmodus, Platzhalter"
+  },
+  {
+    nr: '2154', name: "Der Platzhalter fuer Tags nennt die Taste",
+    file: 'public/languages/de.json',
+    search: "  \"entry.tagInputHint\": \"Neuer Tag\",",
+    replacement: "  \"entry.tagInputHint\": \"Tag eingeben, Enter bestätigt\",",
+    expected: "Eintrag: Zaehler, Hinweis bei Touch, Auswahlmodus, Platzhalter"
+  },
+  {
+    nr: '2155', name: "Die fruehere Vorgabe gilt als verschoben",
+    file: 'public/app.js',
+    search: "  const sideSaved = raw && Array.isArray(raw.side) && raw.side.join() === BLOCK_SIDE_BEFORE.join() ? null : raw && raw.side;",
+    replacement: "  const sideSaved = raw && raw.side;",
+    expected: "Eintrag: Bloecke in neuer Reihenfolge, Felder zum Anlegen erst nach Klick"
+  },
+  {
+    nr: '2156', name: "Der Server liefert die fruehere Vorgabe weiter",
+    file: 'server.js',
+    search: "  const side = Array.isArray(g.side) && g.side.join() === BLOCK_SIDE_BEFORE.join() ? null : g.side;",
+    replacement: "  const side = g.side;",
+    expected: "Server: Spanne der Zeitleiste, erster neuer Kommentar, Suche im Ablehnungsgrund"
+  },
+  {
+    nr: '2157', name: "Nach „+ Neue Kategorie“ bleibt der Fokus am Knopf",
+    file: 'public/app.js',
+    search: "    (first?.matches('input') ? first : first?.querySelector('input'))?.focus();\n",
+    replacement: "",
+    expected: "Eintrag: Bloecke in neuer Reihenfolge, Felder zum Anlegen erst nach Klick"
+  },
+  {
+    nr: '2158', name: "Am Testtag heisst der Knopf wieder „+“",
+    file: 'public/app.js',
+    search: "plus.textContent = t('entry.dayTagsOpen');",
+    replacement: "plus.textContent = '+';",
+    expected: "Eintrag: Tags am Testtag mit „+ Tags“, Sterne und ✕ zusammen"
+  },
+  {
+    nr: '2159', name: "Sterne und ✕ brechen getrennt um",
+    file: 'public/style.css',
+    search: ".tend { display: inline-flex; align-items: center; gap: 12px; flex-shrink: 0; white-space: nowrap; }",
+    replacement: ".tend { display: inline-flex; align-items: center; gap: 12px; }",
+    expected: "Eintrag: Tags am Testtag mit „+ Tags“, Sterne und ✕ zusammen"
+  },
+  {
+    nr: '2160', name: "Ein Name bricht nur nach „_“ um",
+    file: 'public/app.js',
+    search: "  String(name).split(/(?<=[_.-])/).forEach((part, i) => {",
+    replacement: "  String(name).split(/(?<=[_])/).forEach((part, i) => {",
+    expected: "Dateien: Namen ohne Trennung mitten im Wort, in der Mitte gekuerzt"
+  },
+  {
+    nr: '2161', name: "Ein zu langer Name wird nicht gekuerzt",
+    file: 'public/app.js',
+    search: "    .filter(el => el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1);",
+    replacement: "    .filter(() => false);",
+    expected: "Dateien: Namen ohne Trennung mitten im Wort, in der Mitte gekuerzt"
+  },
+  {
+    nr: '2162', name: "Die Angabe des Ordners steht am Telefon neben dem Namen",
+    file: 'public/style.css',
+    search: "  .afolder-meta { flex: 1 0 100%; margin-left: 46px; }",
+    replacement: "",
+    expected: "Dateien: Namen ohne Trennung mitten im Wort, in der Mitte gekuerzt"
+  },
+  {
+    nr: '2163', name: "Die Spalte „Typ“ ist wieder 6rem breit",
+    file: 'public/style.css',
+    search: ".alist { --acols: 32px minmax(0, 1fr) 10.7rem 4.6rem 5.8rem; }",
+    replacement: ".alist { --acols: 32px minmax(0, 1fr) 6rem 4.6rem 5.8rem; }",
+    expected: "Dateien: Namen ohne Trennung mitten im Wort, in der Mitte gekuerzt"
+  },
+  {
+    nr: '2164', name: "Die Vorschau bleibt ausserhalb des Bilds",
+    file: 'public/app.js',
+    search: "    previewBox.scrollIntoView?.({ block: 'nearest' });\n",
+    replacement: "",
+    expected: "Dateien: Vorschau im Bild, zu grosse Datei, Restzeit, Hinweis am Ort, Ruecknahme"
+  },
+  {
+    nr: '2165', name: "Die Grenze steht in MB statt wie an „+“",
+    file: 'public/app.js',
+    search: "{ name: big.name, size: fmtMb(fileLimit()) })",
+    replacement: "{ name: big.name, size: fileLimit() + ' MB' })",
+    expected: "Dateien: Vorschau im Bild, zu grosse Datei, Restzeit, Hinweis am Ort, Ruecknahme"
+  },
+  {
+    nr: '2166', name: "Die Upload-Kachel nennt keine Restzeit",
+    file: 'public/app.js',
+    search: "  if (took < UPLOAD_PACE_MS || moved <= 0) return line;",
+    replacement: "  return line;",
+    expected: "Dateien: Vorschau im Bild, zu grosse Datei, Restzeit, Hinweis am Ort, Ruecknahme"
+  },
+  {
+    nr: '2167', name: "Der Hinweis zum Bildschirm bleibt unter allen Gruppen",
+    file: 'public/app.js',
+    search: "      if (home && awake.parentNode !== home) home.appendChild(awake);\n",
+    replacement: "",
+    expected: "Dateien: Vorschau im Bild, zu grosse Datei, Restzeit, Hinweis am Ort, Ruecknahme"
+  },
+  {
+    nr: '2168', name: "Die Rueckfrage nennt nicht, wer zurueckholt",
+    file: 'public/app.js',
+    search: "        + (OWNER ? '' : ` ${t('entry.fileRestoreOwner')}`), t('dialog.delete'), 'danger')) return false;",
+    replacement: ", t('dialog.delete'), 'danger')) return false;",
+    expected: "Dateien: Vorschau im Bild, zu grosse Datei, Restzeit, Hinweis am Ort, Ruecknahme"
+  },
+  {
+    nr: '2169', name: "Die Vorschau zeichnet keinen Abspielkopf",
+    file: 'public/app.js',
+    search: "    soundWire(boxId.querySelector('.sdeck'), player);\n",
+    replacement: "",
+    expected: "Audio: Abspielkopf auch in der Vorschau, Vollbild ohne Cover ueber die Breite"
+  },
+  {
+    nr: '2170', name: "Der Abspieler im Vollbild ist wieder 640 px schmal",
+    file: 'public/style.css',
+    search: "width: calc(100% - 140px); height: 100%; padding: 16px 0; }",
+    replacement: "width: calc(100% - 140px); max-width: 640px; height: 100%; padding: 16px 0; }",
+    expected: "Audio: Abspielkopf auch in der Vorschau, Vollbild ohne Cover ueber die Breite"
+  },
+  {
+    nr: '2171', name: "Die Meldung steht wieder mit translateX in der Mitte",
+    file: 'public/style.css',
+    search: ".toast { position: fixed; bottom: calc(22px + env(safe-area-inset-bottom)); left: 16px; right: 16px; margin: 0 auto; width: fit-content;",
+    replacement: ".toast { position: fixed; bottom: calc(22px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);",
+    expected: "Meldungen: ueber die Breite, oben ueber einem Dialog, Fehler bis ✕"
+  },
+  {
+    nr: '2172', name: "Ueber einem Dialog steht die Meldung unten",
+    file: 'public/app.js',
+    search: "    + (document.querySelector('.backdrop') ? ' top' : '');",
+    replacement: "    + '';",
+    expected: "Meldungen: ueber die Breite, oben ueber einem Dialog, Fehler bis ✕"
+  },
+  {
+    nr: '2173', name: "Meldungen bleiben beim Wechsel der Ansicht stehen",
+    file: 'public/app.js',
+    search: "  document.querySelectorAll('.toast').forEach(el => { if (el.dataset.view !== viewKey(h)) el.remove(); });\n",
+    replacement: "",
+    expected: "Meldungen: ueber die Breite, oben ueber einem Dialog, Fehler bis ✕"
+  },
+  {
+    nr: '2174', name: "Jede Meldung steht 2,6 s",
+    file: 'public/app.js',
+    search: "    : Math.min(TOAST_MS.max, Math.max(TOAST_MS.min, String(msg).length * TOAST_MS.perSign));",
+    replacement: "    : TOAST_MS.min;",
+    expected: "Meldungen: ueber die Breite, oben ueber einem Dialog, Fehler bis ✕"
+  },
+  {
+    nr: '2175', name: "Ein Fehler verschwindet nach Ablauf und traegt kein ✕",
+    file: 'public/app.js',
+    search: "  if (isErr) {\n    const x = document.createElement('button');",
+    replacement: "  if (false) {\n    const x = document.createElement('button');",
+    expected: "Meldungen: ueber die Breite, oben ueber einem Dialog, Fehler bis ✕"
+  },
+  {
+    nr: '2176', name: "Der Hinweis zum Bildausschnitt ist wieder eine Meldung",
+    file: 'public/app.js',
+    search: "      v.insertAdjacentHTML('afterend', `<p class=\"hint hint-sm\" id=\"crop-hint\">${tH('entry.cropHint')}</p>`);",
+    replacement: "      toast(t('entry.cropHint'));",
+    expected: "Meldungen: ueber die Breite, oben ueber einem Dialog, Fehler bis ✕"
+  },
+  {
+    nr: '2177', name: "Ein fehlender Titel ist eine Meldung statt einer Zeile am Feld",
+    file: 'public/app.js',
+    search: "    if (!title) return fieldError(nt, t('list.titleMissing'));",
+    replacement: "    if (!title) return toast(t('list.titleMissing'), true);",
+    expected: "Dialoge: Fehler stehen am Feld"
+  },
+  {
+    nr: '2178', name: "Das Feld mit Fehler ist nicht rot umrandet",
+    file: 'public/style.css',
+    search: ".input.bad, .input.bad:focus { border-color: var(--red); box-shadow: 0 0 0 3px var(--red-dim); }",
+    replacement: "",
+    expected: "Dialoge: Fehler stehen am Feld"
+  },
+  {
+    nr: '2179', name: "Ein Fehler beim Speichern schliesst den Dialog",
+    file: 'public/app.js',
+    search: "      else if (error) fieldError(field, error);",
+    replacement: "      else if (error) { toast(error, true); done(null); }",
+    expected: "Dialoge: Fehler stehen am Feld"
+  },
+  {
+    nr: '2180', name: "Der Ordner meldet seinen Fehler als Meldung",
+    file: 'public/app.js',
+    search: "        else fieldError(field, result);",
+    replacement: "        else toast(result, true);",
+    expected: "Dialoge: Fehler stehen am Feld"
+  },
+  {
+    nr: '2181', name: "Auf der Anmeldeseite fehlt „Passwort vergessen?“",
+    file: 'public/app.js',
+    search: "    <p class=\"sub login-forgot\">${tH('login.forgotHint')}</p>\n",
+    replacement: "",
+    expected: "Anmeldung: Hinweis, Sperre mit Zaehler, Einladung, Abmelden in der Vorgabesprache"
+  },
+  {
+    nr: '2182', name: "Die Sperre zaehlt nicht herunter",
+    file: 'public/app.js',
+    search: "      if (box) box.textContent = t('login.throttledWait', { wait: waitText(left) });",
+    replacement: "",
+    expected: "Anmeldung: Hinweis, Sperre mit Zaehler, Einladung, Abmelden in der Vorgabesprache"
+  },
+  {
+    nr: '2183', name: "„Anmelden“ bleibt waehrend der Sperre frei",
+    file: 'public/app.js',
+    search: "    b.disabled = true;\n    const tick = () => {",
+    replacement: "    const tick = () => {",
+    expected: "Anmeldung: Hinweis, Sperre mit Zaehler, Einladung, Abmelden in der Vorgabesprache"
+  },
+  {
+    nr: '2184', name: "Die Meldung der Sperre nennt das Netz nicht",
+    file: 'public/languages/de.json',
+    search: "  \"server.throttled\": \"Zu viele Fehlversuche aus diesem Netz; die Sperre gilt für alle Geräte darin. Bitte in {wait} erneut versuchen.\",",
+    replacement: "  \"server.throttled\": \"Zu viele Fehlversuche. Bitte in {wait} erneut versuchen.\",",
+    expected: "Einrichtung: Sprache wird Vorgabe und Sprache des Accounts, Kriterien in ihr; Sperre je Netz"
+  },
+  {
+    nr: '2185', name: "Die Antwort der Sperre traegt keine Sekunden",
+    file: 'server.js',
+    search: "  error: t(localeOf(req), 'server.throttled', { wait: waitWords(localeOf(req), throttle.retryInSec) }),\n  retryIn: throttle.retryInSec });",
+    replacement: "  error: t(localeOf(req), 'server.throttled', { wait: waitWords(localeOf(req), throttle.retryInSec) }) });",
+    expected: "Einrichtung: Sprache wird Vorgabe und Sprache des Accounts, Kriterien in ihr; Sperre je Netz"
+  },
+  {
+    nr: '2186', name: "Die Einladung nennt Abmelden und „Passwort vergessen?“",
+    file: 'public/app.js',
+    search: "        ${status.withoutPassword ? '' : `<br>${tH('login.logoutHint')}<br>${tH('login.forgotHint')}`}</p>",
+    replacement: "        <br>${tH('login.logoutHint')}<br>${tH('login.forgotHint')}</p>",
+    expected: "Anmeldung: Hinweis, Sperre mit Zaehler, Einladung, Abmelden in der Vorgabesprache"
+  },
+  {
+    nr: '2187', name: "Der Name in der Einladung ist beschreibbar",
+    file: 'public/app.js',
+    search: "autocomplete=\"username\" value=\"${esc(status.username || '')}\" readonly>",
+    replacement: "autocomplete=\"username\" value=\"${esc(status.username || '')}\">",
+    expected: "Anmeldung: Hinweis, Sperre mit Zaehler, Einladung, Abmelden in der Vorgabesprache"
+  },
+  {
+    nr: '2188', name: "Nach dem Abmelden bleibt das Vokabular des Accounts",
+    file: 'public/app.js',
+    search: "    V = {};\n    await loadLanguages(LANGUAGE_DEFAULT);",
+    replacement: "    await loadLanguages(LANGUAGE_DEFAULT);",
+    expected: "Anmeldung: Hinweis, Sperre mit Zaehler, Einladung, Abmelden in der Vorgabesprache"
+  },
+  {
+    nr: '2189', name: "Ein schon benutzter Code heisst wieder „stimmt nicht“",
+    file: 'auth.js',
+    search: "    ? 'login.codeUsed' : TWO_FACTOR_DENIAL;",
+    replacement: "    ? TWO_FACTOR_DENIAL : TWO_FACTOR_DENIAL;",
+    expected: "Server: Titel „Kriterion“, schon verwendeter Code, Englisch klein mitten im Satz"
+  },
+  {
+    nr: '2190', name: "Eine neue Installation heisst wieder „Bewertungskatalog“",
+    file: 'db.js',
+    search: "const TITLE_DEFAULT = 'Kriterion';",
+    replacement: "const TITLE_DEFAULT = 'Bewertungskatalog';",
+    expected: "Server: Titel „Kriterion“, schon verwendeter Code, Englisch klein mitten im Satz"
+  },
+  {
+    nr: '2191', name: "/api/config nennt vor der Einrichtung keine Sprachen",
+    file: 'server.js',
+    search: "    language: languageDefault(),\n    ...(setupRequired ? { languages: LANGUAGE_CODES.map(code => ({ code, name: languageName(code) })) } : {})",
+    replacement: "    language: languageDefault()",
+    expected: "Einrichtung: Sprache wird Vorgabe und Sprache des Accounts, Kriterien in ihr; Sperre je Netz"
+  },
+  {
+    nr: '2192', name: "Die Sprache der Einrichtung wird nicht Vorgabesprache",
+    file: 'server.js',
+    search: "    writeLanguages(language, null);\n",
+    replacement: "",
+    expected: "Einrichtung: Sprache wird Vorgabe und Sprache des Accounts, Kriterien in ihr; Sperre je Netz"
+  },
+  {
+    nr: '2193', name: "Der erste Account bekommt die Sprache der Einrichtung nicht",
+    file: 'server.js',
+    search: "    putUserSetting(created.id, 'language', JSON.stringify(language));\n",
+    replacement: "",
+    expected: "Einrichtung: Sprache wird Vorgabe und Sprache des Accounts, Kriterien in ihr; Sperre je Netz"
+  },
+  {
+    nr: '2194', name: "Die mitgelieferten Kriterien bleiben englisch",
+    file: 'server.js',
+    search: "    seedCriteriaIn(language);\n",
+    replacement: "",
+    expected: "Einrichtung: Sprache wird Vorgabe und Sprache des Accounts, Kriterien in ihr; Sperre je Netz"
+  },
+  {
+    nr: '2195', name: "Die Einrichtung waehlt die Sprache des Browsers nicht vor",
+    file: 'public/app.js',
+    search: "  if (setupNeeded) SETUP_LANGUAGE = browserLanguage(SETUP_LANGUAGES.map(l => l.code)) || LANGUAGE_DEFAULT;",
+    replacement: "  if (setupNeeded) SETUP_LANGUAGE = LANGUAGE_DEFAULT;",
+    expected: "Einrichtung: Sprache aus dem Browser, Leiste oder Auswahlliste"
+  },
+  {
+    nr: '2196', name: "Die Wahl geht nicht an den Server",
+    file: 'public/app.js',
+    search: "body: JSON.stringify({ user: u.value, password: p1.value, ...(SETUP_LANGUAGE ? { language: SETUP_LANGUAGE } : {}) })",
+    replacement: "body: JSON.stringify({ user: u.value, password: p1.value })",
+    expected: "Einrichtung: Sprache aus dem Browser, Leiste oder Auswahlliste"
+  },
+  {
+    nr: '2197', name: "Beim Laden verschwindet auch die Kopfzeile",
+    file: 'public/app.js',
+    search: "    [...shell.children].forEach(el => { if (!el.matches('.masthead')) el.remove(); });",
+    replacement: "    [...shell.children].forEach(el => el.remove());",
+    expected: "Laden: alter Inhalt bleibt stehen, „Lädt …“ erst nach 300 ms unter der Kopfzeile"
+  },
+  {
+    nr: '2198', name: "„Lädt …“ ersetzt sofort den alten Inhalt",
+    file: 'public/app.js',
+    search: "  if (!app.firstElementChild) { app.innerHTML = `<div class=\"shell\">${loading}</div>`; return; }",
+    replacement: "  app.innerHTML = `<div class=\"shell\">${loading}</div>`; return;",
+    expected: "Laden: alter Inhalt bleibt stehen, „Lädt …“ erst nach 300 ms unter der Kopfzeile"
+  },
+  {
+    nr: '2199', name: "Englisch heisst es wieder „Searching …“",
+    file: 'public/languages/en.json',
+    search: "  \"list.searching\": \"Search …\",",
+    replacement: "  \"list.searching\": \"Searching …\",",
+    expected: "Sprachen: Englisch klein mitten im Satz, Beschriftungen, Suchen, Hinweise"
+  },
+  {
+    nr: '2200', name: "Englisch steht die Vokabel mitten im Satz gross",
+    file: 'public/app.js',
+    search: "    if (lower && V && V[name] === value && vocabularyInside(all, at))",
+    replacement: "    if (false)",
+    expected: "Sprachen: Englisch klein mitten im Satz, Beschriftungen, Suchen, Hinweise"
+  },
+  {
+    nr: '2201', name: "Der Server setzt die Vokabel mitten im Satz gross",
+    file: 'server.js',
+    search: "    return localeTag(locale).startsWith('en') && ",
+    replacement: "    return false && ",
+    expected: "Server: Titel „Kriterion“, schon verwendeter Code, Englisch klein mitten im Satz"
+  },
+  {
+    nr: '2202', name: "Die Kennzahlen leihen sich die Woerter des Dialogs",
+    file: 'public/app.js',
+    search: "tH('card.statComments')",
+    replacement: "tH('dialog.comments')",
+    expected: "Sprachen: Englisch klein mitten im Satz, Beschriftungen, Suchen, Hinweise"
+  },
+  {
+    nr: '2203', name: "Der leere Bestand nennt die Bewertung ohne „Getestet“",
+    file: 'public/languages/de.json',
+    search: "  \"list.emptyHint\": \"Mit „+ {entryOne}“ anlegen. Fotos und Kategorie lassen sich danach ergänzen, {ratingOne} und {dayMany} nach „{testedYes}“.\",",
+    replacement: "  \"list.emptyHint\": \"Mit „+ {entryOne}“ anlegen. Fotos, Kategorie, {ratingOne} und {dayMany} lassen sich danach ergänzen.\",",
+    expected: "Sprachen: Englisch klein mitten im Satz, Beschriftungen, Suchen, Hinweise"
+  },
+  {
+    nr: '2204', name: "„Lädt …“ ersetzt auch einen schon gezeichneten Eintrag",
+    file: 'public/app.js',
+    search: "    if (run !== VIEW_RUN || !shell || app.firstElementChild !== old) return;",
+    replacement: "    if (run !== VIEW_RUN || !shell) return;",
+    expected: "Laden: alter Inhalt bleibt stehen, „Lädt …“ erst nach 300 ms unter der Kopfzeile"
+  },
+  {
+    nr: '2205', name: "Nach Ablauf der Sperre bleibt „Anmelden“ gesperrt",
+    file: 'public/app.js',
+    search: "      if (rest <= 0) { box?.remove(); b.disabled = false; return; }",
+    replacement: "      if (rest <= 0) { box?.remove(); return; }",
+    expected: "Anmeldung: Hinweis, Sperre mit Zaehler, Einladung, Abmelden in der Vorgabesprache"
+  },
+  {
+    nr: '2206', name: "Die Reiter der Einstellungen klappen auch am Tablett ein",
+    file: 'public/style.css',
+    search: "  .filter-toggle { display: inline-flex; }\n  .filters.closed { display: none; }\n}",
+    replacement: "  .filter-toggle { display: inline-flex; }\n  .sys-toggle { display: inline-flex; }\n  .filters.closed, .sys-tabs.closed { display: none; }\n}",
+    expected: "Einstellungen: Reiter am Tablett offen, „Abschnitte“ nur am Telefon"
+  },
+  {
+    nr: '2207', name: "Der Satz zur Adresse fehlt unter dem Feld E-Mail",
+    file: 'public/app.js',
+    search: "            placeholder=\"${esc(t('card.noneStoredYet'))}\"></div>\n        ${setting('', tH('card.resetMailHint'), SIGNUP ? tH('card.addressRequiredHint') : '')}\n",
+    replacement: "            placeholder=\"${esc(t('card.noneStoredYet'))}\"></div>\n",
+    expected: "Mein Account: Satz zur Adresse am Feld, „Speichern“ unter den Passwortfeldern"
+  },
+  {
+    nr: '2208', name: "„Speichern“ steht wieder unter dem Kasten „Auf dem Server“",
+    file: 'public/app.js',
+    search: "        <button class=\"btn btn-accent btn-sm\" id=\"pw-save\">${tH('dialog.save')}</button>\n        <div class=\"acc-after\">${serverBox(t('card.forgotPasswordHint'), 'docker compose exec kriterion node usertool.js password <name>') ||\n          `<p class=\"desc\">${tH('card.passwordAskAdmin')}</p>`}</div>\n",
+    replacement: "        <div class=\"acc-after\">${serverBox(t('card.forgotPasswordHint'), 'docker compose exec kriterion node usertool.js password <name>') ||\n          `<p class=\"desc\">${tH('card.passwordAskAdmin')}</p>`}</div>\n        <button class=\"btn btn-accent btn-sm\" id=\"pw-save\">${tH('dialog.save')}</button>\n",
+    expected: "Mein Account: Satz zur Adresse am Feld, „Speichern“ unter den Passwortfeldern"
+  },
+  {
+    nr: '2209', name: "Unter den Wiederherstellungscodes fehlt „Alle kopieren“",
+    file: 'public/app.js',
+    search: "      <button type=\"button\" class=\"btn btn-sm codes-copy\" data-copy=\"${esc(codes.join('\\n'))}\">${tH('card.copyAll')}</button>\n",
+    replacement: "",
+    expected: "Zweiter Faktor: „Alle kopieren“ unter den Codes"
+  },
+  {
+    nr: '2210', name: "Die Reihen der Karte „Darstellung“ bleiben lose Pillen",
+    file: 'public/app.js',
+    search: "    fitBar(box);\n  };\n  draw();\n}",
+    replacement: "  };\n  draw();\n}",
+    expected: "Darstellung: alle Reihen als Leisten, Zahlen ohne Einheit"
+  },
+  {
+    nr: '2211', name: "„Bildstreifen“ nennt „px“ wieder in jedem Feld",
+    file: 'public/app.js',
+    search: "get: () => STRIP, set: v => { STRIP = v; }, label: v => String(v),",
+    replacement: "get: () => STRIP, set: v => { STRIP = v; }, label: v => v + ' px',",
+    expected: "Darstellung: alle Reihen als Leisten, Zahlen ohne Einheit"
+  },
+  {
+    nr: '2212', name: "„Suchmaschinen“ nennt wieder „Namen“ im Feld",
+    file: 'public/app.js',
+    search: "get: () => SEARCH_NAMES, set: v => { SEARCH_NAMES = v; }, label: v => String(v),",
+    replacement: "get: () => SEARCH_NAMES, set: v => { SEARCH_NAMES = v; }, label: v => v + ' Namen',",
+    expected: "Darstellung: alle Reihen als Leisten, Zahlen ohne Einheit"
+  },
+  {
+    nr: '2213', name: "Eine zu breite Leiste bleibt eine Leiste",
+    file: 'public/app.js',
+    search: "  if (list) { box.hidden = true; list.hidden = false; }\n  else box.classList.remove('seg');\n}",
+    replacement: "  if (list) { box.hidden = true; list.hidden = false; }\n}",
+    expected: "Darstellung: passt eine Leiste nicht, umbrechende Pillen; die Sprache als Auswahlliste"
+  },
+  {
+    nr: '2214', name: "Die Sprache faellt nicht auf die Auswahlliste zurueck",
+    file: 'public/app.js',
+    search: "  if (list) { box.hidden = true; list.hidden = false; }\n  else box.classList.remove('seg');\n}",
+    replacement: "  box.classList.remove('seg');\n}",
+    expected: "Darstellung: passt eine Leiste nicht, umbrechende Pillen; die Sprache als Auswahlliste"
+  },
+  {
+    nr: '2215', name: "Nach der Schriftgröße werden die Leisten nicht neu geprueft",
+    file: 'public/app.js',
+    search: "apply: () => { applyFont(); refitBars(); }, key: 'font'",
+    replacement: "apply: applyFont, key: 'font'",
+    expected: "Darstellung: passt eine Leiste nicht, umbrechende Pillen; die Sprache als Auswahlliste"
+  },
+  {
+    nr: '2216', name: "Der Wechsel der Sprache springt wieder nach oben",
+    file: 'public/app.js',
+    search: "        await renderSystem({ keepScroll: true });\n        // Die Karten davor aendern mit der Sprache ihre Hoehe.\n",
+    replacement: "        await renderSystem();\n        // Die Karten davor aendern mit der Sprache ihre Hoehe.\n",
+    expected: "Darstellung: nach dem Wechsel der Sprache bleibt die Karte an ihrer Stelle"
+  },
+  {
+    nr: '2217', name: "Die Karte „Darstellung“ wird nach dem Wechsel nicht an ihre Stelle gerollt",
+    file: 'public/app.js',
+    search: "        if (card && again) window.scrollBy(0, again.getBoundingClientRect().top - top);\n",
+    replacement: "",
+    expected: "Darstellung: nach dem Wechsel der Sprache bleibt die Karte an ihrer Stelle"
+  },
+  {
+    nr: '2218', name: "„Farbschema“ unter „Dokumente“ hat wieder die langen Texte",
+    file: 'public/languages/de.json',
+    search: "\"card.documentsThemeLight\": \"Hell\",",
+    replacement: "\"card.documentsThemeLight\": \"Modern Hell\",",
+    expected: "Dokumente: „Kriterion · Hell · Dunkel“ und „Nur ich · Alle“"
+  },
+  {
+    nr: '2219', name: "„Nur ich · Alle“ steht vertauscht",
+    file: 'public/app.js',
+    search: "label: v => t(v ? 'card.editEveryone' : 'card.editOnlyMe'),\n    key: 'filesEditAll'",
+    replacement: "label: v => t(v ? 'card.editOnlyMe' : 'card.editEveryone'),\n    key: 'filesEditAll'",
+    expected: "Dokumente: „Kriterion · Hell · Dunkel“ und „Nur ich · Alle“"
+  },
+  {
+    nr: '2220', name: "Die Leiste unter „Installation“ schreibt die eigene Vorgabe",
+    file: 'public/app.js',
+    search: "key: 'documentEditAll', mark: true });",
+    replacement: "key: 'filesEditAll', mark: true });",
+    expected: "Dokumente: „Kriterion · Hell · Dunkel“ und „Nur ich · Alle“"
+  },
+  {
+    nr: '2221', name: "Ein offener Aufklapper schliesst sich beim Messen",
+    file: 'public/app.js',
+    search: "    else box.open = wasOpen;",
+    replacement: "    else box.open = false;",
+    expected: "„Mehr“: ab drei Zeilen hinter dem Knopf, darunter direkt, neu gemessen bei anderer Breite"
+  },
+  {
+    nr: '2222', name: "„★ Favoriten“ steht wieder vor „Ablehnung“",
+    file: 'public/app.js',
+    search: "  bFav.onclick = () => { f.favorite = !f.favorite; redraw(); };\n  r1.appendChild(bFav);",
+    replacement: "  bFav.onclick = () => { f.favorite = !f.favorite; redraw(); };\n  r1.insertBefore(bFav, r1.querySelector('.fgroup'));",
+    expected: "Filterleiste: „★ Favoriten“ am Ende der Statuszeile"
+  },
+  {
+    nr: '2223', name: "Am Telefon rutscht „★ Favoriten“ unter die letzte Leiste",
+    file: 'public/style.css',
+    search: "  .fgroup:has(+ .pill-fav) > .pills { grid-column: 2; }\n",
+    replacement: "",
+    expected: "Filterleiste: „★ Favoriten“ am Ende der Statuszeile"
+  },
+  {
+    nr: '2224', name: "Die beiden Worte stehen nebeneinander statt übereinander",
+    file: 'public/style.css',
+    search: ".sort-flip > span { grid-area: 1 / 1; text-align: center; }\n",
+    replacement: "",
+    expected: "Sortieren: Richtung als ein Knopf in der Übersicht und unter „Dateien“"
+  },
+  {
+    nr: '2225', name: "Der Knopf zeigt das Wort der anderen Richtung",
+    file: 'public/app.js',
+    search: "[[false, downText], [true, upText]]",
+    replacement: "[[true, downText], [false, upText]]",
+    expected: "Sortieren: Richtung als ein Knopf in der Übersicht und unter „Dateien“"
+  },
+  {
+    nr: '2226', name: "Ein Klick kehrt die Richtung nicht um",
+    file: 'public/app.js',
+    search: "  b.onclick = () => pick(!asc);",
+    replacement: "  b.onclick = () => pick(asc);",
+    expected: "Sortieren: Richtung als ein Knopf in der Übersicht und unter „Dateien“"
+  },
+  {
+    nr: '2227', name: "Unter „Dateien“ fehlt der Knopf",
+    file: 'public/app.js',
+    search: "    fillSortWay(sortDir, t(s.down), t(s.up), FILES_SORT.asc, (asc) => takeFilesSort(FILES_SORT.key, asc));",
+    replacement: "    sortDir.textContent = way;",
+    expected: "Sortieren: Richtung als ein Knopf in der Übersicht und unter „Dateien“"
+  },
+  {
+    nr: '2228', name: "Auswahlliste und Richtung kleben wieder aneinander",
+    file: 'public/style.css',
+    search: ".sort-pair { display: flex; align-items: center; gap: 8px; min-width: 0; }",
+    replacement: ".sort-pair { display: flex; align-items: stretch; min-width: 0; }",
+    expected: "Sortieren: Richtung als ein Knopf in der Übersicht und unter „Dateien“"
+  },
+  {
+    nr: '2229', name: "Vor der Leiste der Sprachen fehlt „Namen in:“",
+    file: 'public/app.js',
+    search: "<span class=\"eyebrow\">${tH(words ? 'card.wordsIn' : 'card.namesIn')}</span>",
+    replacement: "",
+    expected: "Bestand: „Namen in:“ vor der Leiste, die Zahl erklaert; die Sprache gilt nur in den Einstellungen"
+  },
+  {
+    nr: '2230', name: "Die Sprachen der Namen bleiben lose Pillen",
+    file: 'public/app.js',
+    search: "function languageBar(box) {\n  if (box.children.length > BAR_MAX) return;\n  box.dataset.bar = '';\n  fitBar(box);\n}",
+    replacement: "function languageBar(box) {\n  if (box.children.length > BAR_MAX) return;\n}",
+    expected: "Bestand: „Namen in:“ vor der Leiste, die Zahl erklaert; die Sprache gilt nur in den Einstellungen"
+  },
+  {
+    nr: '2231', name: "Umbenennen in einer anderen Sprache nennt die Sprache nicht",
+    file: 'public/app.js',
+    search: "toast(other ? t('card.renamedIn', { language: other.name }) : t('card.renamed'));",
+    replacement: "toast(t('card.renamed'));",
+    expected: "Bestand: „Namen in:“ vor der Leiste, die Zahl erklaert; die Sprache gilt nur in den Einstellungen"
+  },
+  {
+    nr: '2232', name: "Die Sprache der Namen gilt auch ausserhalb der Einstellungen",
+    file: 'public/app.js',
+    search: "  if (!h.startsWith('#/system')) NAMES_SHOWN = null;\n",
+    replacement: "",
+    expected: "Bestand: „Namen in:“ vor der Leiste, die Zahl erklaert; die Sprache gilt nur in den Einstellungen"
+  },
+  {
+    nr: '2233', name: "Die Zahlen in den Listen stehen wieder ohne Wort",
+    file: 'public/app.js',
+    search: "        ${countCell(spec.counter ? spec.counter(entry) : `${entry.usage_count} ${vThing(entry.usage_count)}`)}",
+    replacement: "        ${countCell(String(entry.usage_count))}",
+    expected: "Bestand: Zahlen mit Wort, „Gewicht“ ueber der Spalte, zwei Zeilen bei Platzmangel"
+  },
+  {
+    nr: '2234', name: "Vor dem Gewichtsfeld steht wieder „×“",
+    file: 'public/app.js',
+    search: "? `<span class=\"mweight\" title=\"${esc(t('list.weightedAvg'))}\"><input class=\"mweight-field\"",
+    replacement: "? `<span class=\"mweight\" title=\"${esc(t('list.weightedAvg'))}\">×<input class=\"mweight-field\"",
+    expected: "Bestand: Zahlen mit Wort, „Gewicht“ ueber der Spalte, zwei Zeilen bei Platzmangel"
+  },
+  {
+    nr: '2235', name: "Ueber den Gewichten fehlt „Gewicht“",
+    file: 'public/app.js',
+    search: "    if (spec.weight) box.insertAdjacentHTML('beforeend', `<div class=\"mhead\"",
+    replacement: "    if (spec.none) box.insertAdjacentHTML('beforeend', `<div class=\"mhead\"",
+    expected: "Bestand: Zahlen mit Wort, „Gewicht“ ueber der Spalte, zwei Zeilen bei Platzmangel"
+  },
+  {
+    nr: '2236', name: "Lange Kriteriennamen werden wieder gekuerzt statt umgebrochen",
+    file: 'public/style.css',
+    search: ".mrow.mline { flex-wrap: wrap; row-gap: 3px; }",
+    replacement: ".mrow.mline { flex-wrap: nowrap; row-gap: 3px; }",
+    expected: "Bestand: Zahlen mit Wort, „Gewicht“ ueber der Spalte, zwei Zeilen bei Platzmangel"
+  },
+  {
+    nr: '2237', name: "Ein vorhandener Name gilt als neu angelegt",
+    file: 'public/app.js',
+    search: "        if (made?.existed) return nameTaken(field, made, kind === 'cat' ? 'mcats' : 'mtags');\n",
+    replacement: "",
+    expected: "Bestand: ein vorhandener Name und ein leeres Feld melden sich am Feld"
+  },
+  {
+    nr: '2238', name: "Ein leeres Feld schweigt",
+    file: 'public/app.js',
+    search: "      if (!name) return fieldError(field, t('server.nameMissing'));\n      /* Ohne Sprache:",
+    replacement: "      if (!name) return;\n      /* Ohne Sprache:",
+    expected: "Bestand: ein vorhandener Name und ein leeres Feld melden sich am Feld"
+  },
+  {
+    nr: '2239', name: "Der Server meldet eine vorhandene Kategorie nicht",
+    file: 'server.js',
+    search: "  if (found) return res.json({ ...found, existed: true });\n  // Erst nach dem Nachschlagen",
+    replacement: "  if (found) return res.json(found);\n  // Erst nach dem Nachschlagen",
+    expected: "Server: ein vorhandener Name kommt mit `existed` zurueck"
+  },
+  {
+    nr: '2240', name: "Der Server meldet einen vorhandenen Tag nicht",
+    file: 'server.js',
+    search: "  const found = findTag(name);\n  if (found) return res.json({ ...found, existed: true });",
+    replacement: "  const found = findTag(name);\n  if (found) return res.json(found);",
+    expected: "Server: ein vorhandener Name kommt mit `existed` zurueck"
+  },
+  {
+    nr: '2241', name: "Der Satz unter der Schwelle nennt nicht beide",
+    file: 'public/languages/de.json',
+    search: "\"card.partialShareMore\": \"Gilt für {ratingOne} und {potential}.\",",
+    replacement: "\"card.partialShareMore\": \"Ein Wert für {potential} und {ratingOne}.\",",
+    expected: "Kriterien: die Schwelle steht nur unter „Bewertung“, „Gewicht“ unter „Potenzial“ verweist darauf"
+  },
+  {
+    nr: '2242', name: "„Gewicht“ unter „Potenzial“ erklaert alles noch einmal",
+    file: 'public/app.js',
+    search: "tH('card.weightSeeRating', { card: t('card.criteriaLabel', { label: V.ratingOne }) })",
+    replacement: "tH('card.weightExplainHint')",
+    expected: "Kriterien: die Schwelle steht nur unter „Bewertung“, „Gewicht“ unter „Potenzial“ verweist darauf"
+  },
+  {
+    nr: '2243', name: "Der Satz zum Modus sagt wieder „Schätzung“",
+    file: 'public/languages/de.json',
+    search: "\"card.potentialModeHint\": \"Ist der Modus aus, verschwindet „{potential}“ überall",
+    replacement: "\"card.potentialModeHint\": \"Ist der Modus aus, verschwindet die Schätzung überall",
+    expected: "Kriterien: die Schwelle steht nur unter „Bewertung“, „Gewicht“ unter „Potenzial“ verweist darauf"
+  },
+  {
+    nr: '2244', name: "„Nur Admins · Jeder“ steht vertauscht",
+    file: 'public/app.js',
+    search: "label: v => t(v ? 'card.everyone' : 'card.onlyAdmins'), key, mark: true });",
+    replacement: "label: v => t(v ? 'card.onlyAdmins' : 'card.everyone'), key, mark: true });",
+    expected: "Neue Kategorien und Tags: Leiste „Nur Admins · Jeder“"
+  },
+  {
+    nr: '2245', name: "Der Satz zu neuen Kategorien erklaert wieder das Haekchen",
+    file: 'public/languages/de.json',
+    search: "\"card.adminOnlyCategory\": \"Wer neue Kategorien anlegen darf.\",",
+    replacement: "\"card.adminOnlyCategory\": \"Mit Häkchen legt jeder neue Kategorien an; ohne Häkchen nur Admins.\",",
+    expected: "Neue Kategorien und Tags: Leiste „Nur Admins · Jeder“"
+  },
+  {
+    nr: '2246', name: "Nach dem Anlegen bleibt die Rolle stehen",
+    file: 'public/app.js',
+    search: "      if (roleField) roleField.value = 'user';\n",
+    replacement: "",
+    expected: "Neuer Benutzer: „Erstes Passwort“ als Leiste, danach wieder die Vorgabe"
+  },
+  {
+    nr: '2247', name: "Nach dem Anlegen bleibt die Art des Passworts stehen",
+    file: 'public/app.js',
+    search: "      userKindSet('link');\n",
+    replacement: "",
+    expected: "Neuer Benutzer: „Erstes Passwort“ als Leiste, danach wieder die Vorgabe"
+  },
+  {
+    nr: '2248', name: "Der Linkkasten des vorigen Benutzers bleibt stehen",
+    file: 'public/app.js',
+    search: "    document.getElementById('user-link')?.replaceChildren();\n",
+    replacement: "",
+    expected: "Neuer Benutzer: „Erstes Passwort“ als Leiste, danach wieder die Vorgabe"
+  },
+  {
+    nr: '2249', name: "Die Leiste traegt wieder den langen Satz",
+    file: 'public/languages/de.json',
+    search: "\"card.kindPassword\": \"Passwort vergeben\",",
+    replacement: "\"card.kindPassword\": \"Ich vergebe das erste Passwort\",",
+    expected: "Neuer Benutzer: „Erstes Passwort“ als Leiste, danach wieder die Vorgabe"
+  },
+  {
+    nr: '2250', name: "Nach dem Sperren meldet das Statuswort „gesperrt“",
+    file: 'public/app.js',
+    search: "t('card.lockedToast')",
+    replacement: "t('card.locked')",
+    expected: "Neuer Benutzer: „Erstes Passwort“ als Leiste, danach wieder die Vorgabe"
+  },
+  {
+    nr: '2251', name: "Der Eigentuemer-Admin liest, dass der Eigentuemer-Admin den Mailzugang einrichtet",
+    file: 'server.js',
+    search: "if (!mail.configured(raw)) return { ok: false, key: self ? 'server.noAccountSelf' : 'server.noAccountOwner' };",
+    replacement: "if (!mail.configured(raw)) return { ok: false, key: 'server.noAccountOwner' };",
+    expected: "Server: Saetze fuer den Eigentuemer-Admin, neue eigene Suchmaschine zur Wahl, Backup in Ortszeit"
+  },
+  {
+    nr: '2252', name: "„Anfragen“ fragt nicht, wer liest",
+    file: 'server.js',
+    search: "  res.json(requestCard(localeOf(req), isOwner(req)));\n});\n\napp.put('/api/signup/toggle'",
+    replacement: "  res.json(requestCard(localeOf(req)));\n});\n\napp.put('/api/signup/toggle'",
+    expected: "Server: Saetze fuer den Eigentuemer-Admin, neue eigene Suchmaschine zur Wahl, Backup in Ortszeit"
+  },
+  {
+    nr: '2253', name: "Eine neue eigene Suchmaschine steht nicht zur Wahl",
+    file: 'server.js',
+    search: "        writePool(pool[0], [...pool, ...fresh]);",
+    replacement: "        writePool(pool[0], pool);",
+    expected: "Server: Saetze fuer den Eigentuemer-Admin, neue eigene Suchmaschine zur Wahl, Backup in Ortszeit"
+  },
+  {
+    nr: '2254', name: "Backups heissen wieder nach UTC",
+    file: 'backup.js',
+    search: "  const file = path.join(folder, `kriterion-${backupMark()}.sqlite`);",
+    replacement: "  const file = path.join(folder, `kriterion-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.sqlite`);",
+    expected: "Server: Saetze fuer den Eigentuemer-Admin, neue eigene Suchmaschine zur Wahl, Backup in Ortszeit"
+  },
+  {
+    nr: '2255', name: "Eine abgelehnte Verbindung bleibt ohne Satz",
+    file: 'mail.js',
+    search: "  [/ECONNREFUSED/, 'mail.errRefused'],",
+    replacement: "  [/ECONNREFUSED_NIE/, 'mail.errRefused'],",
+    expected: "Mailversand: bekannte Fehler als Satz, die Meldung des Servers bleibt dabei"
+  },
+  {
+    nr: '2256', name: "Mit dem Satz faellt die Meldung des Servers weg",
+    file: 'mail.js',
+    search: "  return { reasonKey: known ? known[1] : '', reason: raw.length > 120 ? raw.slice(0, 117) + '…' : raw };",
+    replacement: "  return known ? { reasonKey: known[1], reason: '' } : { reasonKey: '', reason: raw.length > 120 ? raw.slice(0, 117) + '…' : raw };",
+    expected: "Mailversand: bekannte Fehler als Satz, die Meldung des Servers bleibt dabei"
+  },
+  {
+    nr: '2257', name: "Unter dem Satz fehlt die Meldung des Servers",
+    file: 'public/app.js',
+    search: "${detail ? `<small class=\"mail-detail\">${esc(detail)}</small>` : ''}",
+    replacement: "",
+    expected: "Mailversand: unter dem Satz zum Fehlschlag steht die Meldung des Servers"
+  },
+  {
+    nr: '2258', name: "Ohne PNG steht kein Grund unter dem gesperrten Knopf",
+    file: 'public/app.js',
+    search: "!png ? tH('card.pngNone') :",
+    replacement: "!png ? '' :",
+    expected: "Bildformate: der gesperrte Knopf nennt den Grund; „Standard“ als Auswahlpunkt"
+  },
+  {
+    nr: '2259', name: "Die Ablage zeigt wieder „Standard“ in jeder Zeile",
+    file: 'public/app.js',
+    search: "${attrs}><span class=\"sdot\"></span></button>`;",
+    replacement: "${attrs}>${tH('card.standard')}</button>`;",
+    expected: "Bildformate: der gesperrte Knopf nennt den Grund; „Standard“ als Auswahlpunkt"
+  },
+  {
+    nr: '2260', name: "Ueber den Ablagen fehlt der Kopf „Standard“",
+    file: 'public/app.js',
+    search: "${defaultHead(false)}${IMAGE_STORES.map(k => {",
+    replacement: "${IMAGE_STORES.map(k => {",
+    expected: "Bildformate: der gesperrte Knopf nennt den Grund; „Standard“ als Auswahlpunkt"
+  },
+  {
+    nr: '2261', name: "„WebP verlustfrei“ heisst wieder „Vorgabe“",
+    file: 'public/languages/de.json',
+    search: "\"card.storeLosslessHint\": \"verlustfrei, gemessen rund zwei Drittel kleiner\",",
+    replacement: "\"card.storeLosslessHint\": \"Vorgabe — verlustfrei, gemessen rund zwei Drittel kleiner\",",
+    expected: "Bildformate: der gesperrte Knopf nennt den Grund; „Standard“ als Auswahlpunkt"
+  },
+  {
+    nr: '2262', name: "Ueber den Sprachen fehlt der Kopf „Standard“",
+    file: 'public/app.js',
+    search: "    box.innerHTML = defaultHead(true);\n    LANGUAGES.forEach(a => {",
+    replacement: "    box.innerHTML = '';\n    LANGUAGES.forEach(a => {",
+    expected: "Sprachen und Suchmaschinen: „Standard“ als Spalte mit Auswahlpunkten; leere Plaetze ohne Punkt"
+  },
+  {
+    nr: '2263', name: "Ein leerer Platz zeigt einen Punkt",
+    file: 'public/app.js',
+    search: "      st.classList.toggle('none', !a.present);\n",
+    replacement: "",
+    expected: "Sprachen und Suchmaschinen: „Standard“ als Spalte mit Auswahlpunkten; leere Plaetze ohne Punkt"
+  },
+  {
+    nr: '2264', name: "Der Verweis nennt wieder die Karte „Links“",
+    file: 'public/languages/de.json',
+    search: "stellt jeder für sich unter „Darstellung“ ein.",
+    replacement: "stellt jeder für sich in der Karte „Links“ ein.",
+    expected: "Sprachen und Suchmaschinen: „Standard“ als Spalte mit Auswahlpunkten; leere Plaetze ohne Punkt"
+  },
+  {
+    nr: '2265', name: "Das Feld fuer die Adresse ist wieder schmal",
+    file: 'public/style.css',
+    search: ".engine-slot input[id^=\"se-vorlage\"] { flex: 1 1 100%; min-width: 0; }",
+    replacement: ".engine-slot input[id^=\"se-vorlage\"] { flex: 1; min-width: 0; }",
+    expected: "Sprachen und Suchmaschinen: „Standard“ als Spalte mit Auswahlpunkten; leere Plaetze ohne Punkt"
+  },
+  {
+    nr: '2266', name: "„Vorschau und Export bis“ steht vor der Grenze fuer Dateien",
+    file: 'public/app.js',
+    search: "  ['file', 'card.limitFile'], ['attachment', 'card.limitAttachment']];",
+    replacement: "  ['attachment', 'card.limitAttachment'], ['file', 'card.limitFile']];",
+    expected: "Grenzen beim Hochladen: „Vorschau und Export bis“ unter der Grenze fuer Dateien"
+  },
+  {
+    nr: '2267', name: "„Vorschau und Export bis“ ist wieder eingerueckt",
+    file: 'public/app.js',
+    search: "return `<div class=\"field numfield\"><div class=\"numfield-text\">",
+    replacement: "return `<div class=\"field numfield${kind === 'attachment' ? ' limit-sub' : ''}\"><div class=\"numfield-text\">",
+    expected: "Grenzen beim Hochladen: „Vorschau und Export bis“ buendig, mit und ohne Recht"
+  },
+  {
+    nr: '2268', name: "Ein Backup von heute ist „vor 0 Tagen“",
+    file: 'public/app.js',
+    search: "const ageWords = (n) => (n === 0 ? t('card.today') : n < 2 ? t('card.yesterday') : t('card.daysAgo', { n }));",
+    replacement: "const ageWords = (n) => t('card.daysAgo', { n });",
+    expected: "Backup: „heute“ und „gestern“, die Einzahl, „nur in diesem Backup“; die Zeile bricht um"
+  },
+  {
+    nr: '2269', name: "Die Dauer des Backups steht immer in der Mehrzahl",
+    file: 'public/app.js',
+    search: "tH('card.duringBackupHint', { dbBytes: fmtBytes(d.dbBytes), n: d.durationSeconds })",
+    replacement: "tH('card.duringBackupHint', { dbBytes: fmtBytes(d.dbBytes), n: 2 })",
+    expected: "Backup: „heute“ und „gestern“, die Einzahl, „nur in diesem Backup“; die Zeile bricht um"
+  },
+  {
+    nr: '2270', name: "Die Zeile der Dateien wird wieder gekuerzt",
+    file: 'public/style.css',
+    search: "  color: var(--faint); }\n#cleanup-list .mrow .mbefore",
+    replacement: "  color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n#cleanup-list .mrow .mbefore",
+    expected: "Backup: „heute“ und „gestern“, die Einzahl, „nur in diesem Backup“; die Zeile bricht um"
+  },
+  {
+    nr: '2271', name: "Der fette Satz zur Registrierung kommt zurueck",
+    file: 'public/app.js',
+    search: "        ${setting('', tH('card.signupHint'),\n          `${tH('card.signupHintMore')}",
+    replacement: "        ${setting('', `${tH('card.signupHint')}${requests.an ? '' : ` <strong>${tH('card.signupOffNow')}</strong>`}`,\n          `${tH('card.signupHintMore')}",
+    expected: "Anfragen: die Registrierung steht nicht dreimal da"
+  },
+  {
+    nr: '2272', name: "Die Wellenform speichert wieder den hoechsten Ausschlag",
+    file: 'public/app.js',
+    search: "j < end; j++) squares[k] += data[j] * data[j];",
+    replacement: "j < end; j++) squares[k] = Math.max(squares[k], data[j] * data[j]);",
+    expected: "Wellenform: mittlere Lautstaerke je Abschnitt, Balken aus dem Mittel, Hoehe hoch 1,5"
+  },
+  {
+    nr: '2273', name: "Ein Balken zeigt den hoechsten seiner Abschnitte",
+    file: 'public/app.js',
+    search: "{ sum += peaks[j]; count++; }",
+    replacement: "{ sum = Math.max(sum, peaks[j]); count = 1; }",
+    expected: "Wellenform: mittlere Lautstaerke je Abschnitt, Balken aus dem Mittel, Hoehe hoch 1,5"
+  },
+  {
+    nr: '2274', name: "Die Hoehe ist linear",
+    file: 'public/app.js',
+    search: "const WAVE_CONTRAST = 1.5;",
+    replacement: "const WAVE_CONTRAST = 1;",
+    expected: "Wellenform: mittlere Lautstaerke je Abschnitt, Balken aus dem Mittel, Hoehe hoch 1,5"
+  },
+  {
+    nr: '2275', name: "Der Browser rechnet wieder 1.000 Werte",
+    file: 'public/app.js',
+    search: "const WAVE_PEAKS = 1024;",
+    replacement: "const WAVE_PEAKS = 1000;",
+    expected: "Wellenform: mittlere Lautstaerke je Abschnitt, Balken aus dem Mittel, Hoehe hoch 1,5"
+  },
+  {
+    nr: '2276', name: "Gespeicherte Spitzenwerte mit 1.000 Byte gehen wieder hinaus",
+    file: 'server.js',
+    search: "const wavePeaksOut = (buf) => (buf && buf.length === WAVEFORM_PEAKS ? buf.toString('base64') : null);",
+    replacement: "const wavePeaksOut = (buf) => (buf ? buf.toString('base64') : null);",
+    expected: "Audio: die Wellenform"
+  },
+  {
+    nr: '2277', name: "Feste Namen wie image.jpg werden gespeichert",
+    file: 'server.js',
+    search: "const PLACEHOLDER_STEM = /^(image|video|audio|blob|file)$/i;",
+    replacement: "const PLACEHOLDER_STEM = /^$/;",
+    expected: "Originalnamen: Fotos und Videos behalten den Namen vom Hochladen"
+  },
+  {
+    nr: '2278', name: "Das Foto vergisst seinen Namen beim Hochladen",
+    file: 'server.js',
+    search: "        if (p.name) putPhotoName.run(id, p.name);\n",
+    replacement: "",
+    expected: "Originalnamen: Fotos und Videos behalten den Namen vom Hochladen"
+  },
+  {
+    nr: '2279', name: "Das Video vergisst seinen Namen beim Hochladen",
+    file: 'server.js',
+    search: "      if (name) putPhotoName.run(added, name);\n",
+    replacement: "",
+    expected: "Originalnamen: Fotos und Videos behalten den Namen vom Hochladen"
+  },
+  {
+    nr: '2280', name: "Das Original laedt wieder als photo-<Nummer>",
+    file: 'server.js',
+    search: "    name: named ? photoStem(named, named.title, localeOf(req)) : `photo-${p.id}` });",
+    replacement: "    name: `photo-${p.id}` });",
+    expected: "Originalnamen: Fotos und Videos behalten den Namen vom Hochladen"
+  },
+  {
+    nr: '2281', name: "Auch Kachel und Mittelgroesse tragen den Namen",
+    file: 'server.js',
+    search: "  const named = want === 'data' ? qPhotoNaming().get(p.id) : null;",
+    replacement: "  const named = qPhotoNaming().get(p.id);",
+    expected: "Originalnamen: Fotos und Videos behalten den Namen vom Hochladen"
+  },
+  {
+    nr: '2282', name: "Die alte Endung bleibt vor der neuen stehen",
+    file: 'server.js',
+    search: "  if (p.filename) return nameStem(p.filename);",
+    replacement: "  if (p.filename) return p.filename;",
+    expected: "Originalnamen: Fotos und Videos behalten den Namen vom Hochladen"
+  },
+  {
+    nr: '2283', name: "detail() nennt die Endung vom Hochladen",
+    file: 'server.js',
+    search: "    p.filename = ext === 'bin' && photoNames.has(p.id) ? photoNames.get(p.id) : `${stem}.${ext}`;",
+    replacement: "    p.filename = photoNames.get(p.id) || `${stem}.${ext}`;",
+    expected: "Originalnamen: Fotos und Videos behalten den Namen vom Hochladen"
+  },
+  {
+    nr: '2284', name: "Der Ersatzname kommt ohne Titel",
+    file: 'server.js',
+    search: "const withTitle = (title, rest) => (titleForName(title) ? `${titleForName(title)}_${rest}` : rest);",
+    replacement: "const withTitle = (title, rest) => rest;",
+    expected: "Originalnamen: Ersatzname mit Titel und Nummern, im Vokabular und in der Sprache des Accounts"
+  },
+  {
+    nr: '2285', name: "Der Ersatzname ist immer deutsch",
+    file: 'server.js',
+    search: "    : t(locale, 'server.namePhoto', { item: p.item_id, photo: p.id }));",
+    replacement: "    : t('de', 'server.namePhoto', { item: p.item_id, photo: p.id }));",
+    expected: "Originalnamen: Ersatzname mit Titel und Nummern, im Vokabular und in der Sprache des Accounts"
+  },
+  {
+    nr: '2286', name: "Doppelte Leerzeichen im Titel bleiben stehen",
+    file: 'server.js',
+    search: "  .replace(/\\s+/g, ' ').trim().slice(0, 40).replace(/[ .]+$/, '');",
+    replacement: "  .trim().slice(0, 40);",
+    expected: "Originalnamen: Ersatzname mit Titel und Nummern, im Vokabular und in der Sprache des Accounts"
+  },
+  {
+    nr: '2287', name: "Im Kommentar zaehlt auch image.png als Name",
+    file: 'server.js',
+    search: "  const own = uploadName(m.filename);",
+    replacement: "  const own = m.filename;",
+    expected: "Originalnamen: Bilder und Videos in Kommentaren"
+  },
+  {
+    nr: '2288', name: "Kommentarbilder laden wieder als image-<Nummer>",
+    file: 'server.js',
+    search: "    name: named ? commentMediaStem(named, false, named.title, localeOf(req)) : `image-${b.id}` });",
+    replacement: "    name: `image-${b.id}` });",
+    expected: "Originalnamen: Bilder und Videos in Kommentaren"
+  },
+  {
+    nr: '2289', name: "Kommentarvideos laden wieder als video-<Nummer>",
+    file: 'server.js',
+    search: "    name: named ? commentMediaStem(named, true, named.title, localeOf(req)) : `video-${v.id}` });",
+    replacement: "    name: `video-${v.id}` });",
+    expected: "Originalnamen: Bilder und Videos in Kommentaren"
+  },
+  {
+    nr: '2290', name: "Der Export laesst den Namen weg",
+    file: 'server.js',
+    search: "        if (p.filename) z.filename = p.filename;\n",
+    replacement: "",
+    expected: "Originalnamen: Export 23, Import und Papierkorb tragen den Namen"
+  },
+  {
+    nr: '2291', name: "Der Import nimmt auch image.jpg als Namen",
+    file: 'server.js',
+    search: "duration: isVideo || isAudio ? durationValue(p.duration) : null, name: uploadName(p.filename),",
+    replacement: "duration: isVideo || isAudio ? durationValue(p.duration) : null, name: p.filename || null,",
+    expected: "Originalnamen: Export 23, Import und Papierkorb tragen den Namen"
+  },
+  {
+    nr: '2292', name: "Import und Papierkorb vergessen den Namen",
+    file: 'server.js',
+    search: "        if (p.name) putPhotoName.run(photoId, p.name);\n",
+    replacement: "",
+    expected: "Originalnamen: Export 23, Import und Papierkorb tragen den Namen"
+  },
+  {
+    nr: '2293', name: "Der Name bleibt nach dem Loeschen des Fotos stehen",
+    file: 'schema.js',
+    search: "CREATE TABLE IF NOT EXISTS photo_names (\n  photo_id INTEGER PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,",
+    replacement: "CREATE TABLE IF NOT EXISTS photo_names (\n  photo_id INTEGER PRIMARY KEY,",
+    expected: "Originalnamen: Export 23, Import und Papierkorb tragen den Namen"
+  },
+  {
+    nr: '2294', name: "„Infos“ nennt wieder nur die Stelle",
+    file: 'public/app.js',
+    search: "  const photoInfo = (p, back) => showMediaInfo(`/api/photos/${Number(p.id)}/info`, p.filename || '', back,",
+    replacement: "  const photoInfo = (p, back) => showMediaInfo(`/api/photos/${Number(p.id)}/info`, '', back,",
+    expected: "Originalnamen: der Name steht im Vollbild und in „Infos“"
+  },
+  {
+    nr: '2295', name: "Die Stelle faellt unter dem Namen weg",
+    file: 'public/app.js',
+    search: "${place ? `<p class=\"minfo-place\">${esc(place)}</p>` : ''}",
+    replacement: "",
+    expected: "Originalnamen: der Name steht im Vollbild und in „Infos“"
+  },
+  {
+    nr: '2296', name: "Kommentarbilder kommen ohne Namen ins Vollbild",
+    file: 'public/app.js',
+    search: "      const media = [...(c.images || []).map(x => ({ id: x.id, source: 'comment', filename: x.filename })),",
+    replacement: "      const media = [...(c.images || []).map(x => ({ id: x.id, source: 'comment' })),",
+    expected: "Originalnamen: der Name steht im Vollbild und in „Infos“"
+  },
+  {
+    nr: '2297', name: "Jeder Inhalt gilt als Audio",
+    file: 'server.js',
+    search: "  if (/^audio\\//.test(type || '')) return type;",
+    replacement: "  if (/^audio\\//.test(type || '')) return type;\n  if (!type) return 'audio/mpeg';",
+    expected: "Audio bei den Fotos: Hochladen, Inhalt und Grenze"
+  },
+  {
+    nr: '2298', name: "MP4 gilt mit jeder Endung als Audio",
+    file: 'server.js',
+    search: "  return AUDIO_IN_CONTAINER[attachments.extension(name)] === type ? type : null;",
+    replacement: "  return type;",
+    expected: "Audio bei den Fotos: Hochladen, Inhalt und Grenze"
+  },
+  {
+    nr: '2299', name: "Audio laeuft unter der Grenze fuer Dateien",
+    file: 'server.js',
+    search: "             () => ({ count: 1, bytes: limitBytes('audio'), key: 'server.audioOne' })),",
+    replacement: "             () => ({ count: 1, bytes: limitBytes('file'), key: 'server.audioOne' })),",
+    expected: "Audio bei den Fotos: Hochladen, Inhalt und Grenze"
+  },
+  {
+    nr: '2300', name: "Das Cover wird keine Kachel",
+    file: 'server.js',
+    search: "    if (!known) v = await coverVariants(cover);\n",
+    replacement: "",
+    expected: "Audio bei den Fotos: Hochladen, Inhalt und Grenze"
+  },
+  {
+    nr: '2301', name: "MediaInfo liest das Cover nicht",
+    file: 'server.js',
+    search: "      (length, offset) => data.subarray(offset, offset + length), { audio: p.kind === 'audio' });",
+    replacement: "      (length, offset) => data.subarray(offset, offset + length));",
+    expected: "Audio bei den Fotos: Hochladen, Inhalt und Grenze"
+  },
+  {
+    nr: '2302', name: "Audio bleibt ohne Dauer",
+    file: 'server.js',
+    search: "    if (p.kind === 'audio') putPhotoDuration().run(durationValue(facts.general.duration), id);\n",
+    replacement: "",
+    expected: "Audio bei den Fotos: Hochladen, Inhalt und Grenze"
+  },
+  {
+    nr: '2303', name: "Audio ohne Namen heisst „Foto“",
+    file: 'server.js',
+    search: "  if (p.kind === 'audio') return withTitle(title, t(locale, 'server.nameAudio', { item: p.item_id, photo: p.id }));\n",
+    replacement: "",
+    expected: "Audio bei den Fotos: Hochladen, Inhalt und Grenze"
+  },
+  {
+    nr: '2304', name: "typeFromBytes() kennt kein Audio",
+    file: 'attachments.js',
+    search: "  if (b[0] === 0x42 && b[1] === 0x4d) return 'image/bmp';\n  return audioType(b);",
+    replacement: "  if (b[0] === 0x42 && b[1] === 0x4d) return 'image/bmp';\n  return null;",
+    expected: "Audio bei den Fotos: Hochladen, Inhalt und Grenze"
+  },
+  {
+    nr: '2305', name: "M4A gilt als Video",
+    file: 'attachments.js',
+    search: "    if (ISO_BRANDS_AUDIO.has(brand)) return 'audio/mp4';\n",
+    replacement: "",
+    expected: "Audio bei den Fotos: Hochladen, Inhalt und Grenze"
+  },
+  {
+    nr: '2306', name: "Jede Ogg-Datei gilt als Audio",
+    file: 'attachments.js',
+    search: "  return head === 'OpusHead' || head.slice(0, 7) === '\\x01vorbis';",
+    replacement: "  return true;",
+    expected: "Audio bei den Fotos: Hochladen, Inhalt und Grenze"
+  },
+  {
+    nr: '2307', name: "Eine FLAC hinter einem ID3-Tag gilt als MP3",
+    file: 'attachments.js',
+    search: "    if (b.length >= tag + 4 && b.slice(tag, tag + 4).toString('latin1') === 'fLaC') return 'audio/flac';\n",
+    replacement: "",
+    expected: "Audio bei den Fotos: Hochladen, Inhalt und Grenze"
+  },
+  {
+    nr: '2308', name: "Audio ohne Range",
+    file: 'server.js',
+    search: "  let rangeable = p.kind === 'video' || p.kind === 'audio';",
+    replacement: "  let rangeable = p.kind === 'video';",
+    expected: "Audio bei den Fotos: Auslieferung, FLAC mit ID3-Tag"
+  },
+  {
+    nr: '2309', name: "Ohne Cover liefert die Kachel die Audiodatei",
+    file: 'server.js',
+    search: "    else if (p.kind === 'audio') return res.status(404).end();\n",
+    replacement: "",
+    expected: "Audio bei den Fotos: Auslieferung, FLAC mit ID3-Tag"
+  },
+  {
+    nr: '2310', name: "Die FLAC bei den Fotos beginnt mit dem ID3-Tag",
+    file: 'server.js',
+    search: "  if (p.kind === 'audio' && want === 'data' && req.query.inline === '1')",
+    replacement: "  if (false)",
+    expected: "Audio bei den Fotos: Auslieferung, FLAC mit ID3-Tag"
+  },
+  {
+    nr: '2311', name: "Die FLAC unter Dateien beginnt mit dem ID3-Tag",
+    file: 'server.js',
+    search: "    const skip = inline && !out.filename && isFlacName(filename) ? await attachments.flacSkip(f.size, sealedReader(handle, f)) : 0;",
+    replacement: "    const skip = 0;",
+    expected: "Audio bei den Fotos: Auslieferung, FLAC mit ID3-Tag"
+  },
+  {
+    nr: '2312', name: "Content-Range zaehlt das Tag mit",
+    file: 'server.js',
+    search: "      if (b) res.set('Content-Range', `bytes ${from - skip}-${to - skip}/${size}`);",
+    replacement: "      if (b) res.set('Content-Range', `bytes ${from}-${to}/${size}`);",
+    expected: "Audio bei den Fotos: Auslieferung, FLAC mit ID3-Tag"
+  },
+  {
+    nr: '2313', name: "flacSkip() findet nichts",
+    file: 'attachments.js',
+    search: "  return at && at + 4 <= size && (await read(4, at)).toString('latin1') === 'fLaC' ? at : 0;",
+    replacement: "  return 0;",
+    expected: "Audio bei den Fotos: Auslieferung, FLAC mit ID3-Tag"
+  },
+  {
+    nr: '2314', name: "Audio und Video ohne media-src",
+    file: 'attachments.js',
+    search: "  return /^(audio|video)\\//.test(type) ? \"default-src 'none'; media-src 'self'; sandbox\" : \"default-src 'none'; sandbox\";",
+    replacement: "  return \"default-src 'none'; sandbox\";",
+    expected: "Audio bei den Fotos: Auslieferung, FLAC mit ID3-Tag"
+  },
+  {
+    nr: '2315', name: "Die Wellenform nimmt auch ein Bild",
+    file: 'server.js',
+    search: "  if (p.kind !== 'audio') return res.status(400).json({ error: t(localeOf(req), 'server.audioOnly')});",
+    replacement: "",
+    expected: "Audio bei den Fotos: Wellenform, Stelle, Bittiefe"
+  },
+  {
+    nr: '2316', name: "Jeder setzt die Wellenform",
+    file: 'server.js',
+    search: "  if (!entryFree(req, res, p.item_id)) return;\n  if (p.kind !== 'audio')",
+    replacement: "  if (p.kind !== 'audio')",
+    expected: "Audio bei den Fotos: Wellenform, Stelle, Bittiefe"
+  },
+  {
+    nr: '2317', name: "Bei Audio wird keine Stelle gemerkt",
+    file: 'server.js',
+    search: "  photo: lateStatement(\"SELECT 1 FROM photos WHERE id = ? AND kind IN ('video', 'audio')\"),",
+    replacement: "  photo: lateStatement(\"SELECT 1 FROM photos WHERE id = ? AND kind = 'video'\"),",
+    expected: "Audio bei den Fotos: Wellenform, Stelle, Bittiefe"
+  },
+  {
+    nr: '2318', name: "Audio bekommt einen Ausschnitt",
+    file: 'server.js',
+    search: "  if (p.kind === 'audio') return res.status(400).json({ error: t(localeOf(req), 'server.cropInvalid')});\n",
+    replacement: "",
+    expected: "Audio bei den Fotos: Wellenform, Stelle, Bittiefe"
+  },
+  {
+    nr: '2319', name: "MediaInfo liefert keine Bittiefe der Audiospur",
+    file: 'attachments.js',
+    search: "bitRate: mediaNumber(tr.BitRate), bitDepth: mediaNumber(tr.BitDepth),\n      language: mediaText(tr.Language) })),",
+    replacement: "bitRate: mediaNumber(tr.BitRate),\n      language: mediaText(tr.Language) })),",
+    expected: "Audio bei den Fotos: Wellenform, Stelle, Bittiefe"
+  },
+  {
+    nr: '2320', name: "Aeltere Zeilen ohne Bittiefe bleiben",
+    file: 'server.js',
+    search: "  OR (${SOUND_STALE})`;",
+    replacement: "`;",
+    expected: "Audio bei den Fotos: Wellenform, Stelle, Bittiefe"
+  },
+  {
+    nr: '2321', name: "Ohne Zeile in photo_media fehlt die Bittiefe",
+    file: 'server.js',
+    search: "    p.bitDepth = sound?.bits ?? (p.mime_type === 'audio/flac' ? photoFlacBits(p.id) : null);",
+    replacement: "    p.bitDepth = sound?.bits ?? null;",
+    expected: "Audio bei den Fotos: Wellenform, Stelle, Bittiefe"
+  },
+  {
+    nr: '2322', name: "Die Bittiefe aus STREAMINFO ist immer 16",
+    file: 'attachments.js',
+    search: "  return (((b[20] & 1) << 4) | (b[21] >> 4)) + 1;",
+    replacement: "  return 16;",
+    expected: "Audio bei den Fotos: Wellenform, Stelle, Bittiefe"
+  },
+  {
+    nr: '2323', name: "Die Kachel zaehlt Audio nicht",
+    file: 'server.js',
+    search: "    it.audioCount = ph.filter(p2 => p2.kind === 'audio').length;\n",
+    replacement: "",
+    expected: "Audio bei den Fotos: Zaehlung"
+  },
+  {
+    nr: '2324', name: "Audio zaehlt als Foto",
+    file: 'server.js',
+    search: "    it.photoCount = ph.filter(p2 => p2.kind === 'image').length;",
+    replacement: "    it.photoCount = ph.filter(p2 => p2.kind !== 'video').length;",
+    expected: "Audio bei den Fotos: Zaehlung"
+  },
+  {
+    nr: '2325', name: "Das Hauptbild der Kachel kommt ohne Wellenform",
+    file: 'server.js',
+    search: "    if (it.mainPhoto?.kind === 'audio' && !it.mainPhoto.thumbLength)",
+    replacement: "    if (false)",
+    expected: "Audio bei den Fotos: Zaehlung"
+  },
+  {
+    nr: '2326', name: "Der Loeschdialog zaehlt Audio nicht",
+    file: 'server.js',
+    search: "    audios: one(\"SELECT COUNT(*) n FROM photos WHERE item_id = ? AND kind = 'audio'\", id),\n",
+    replacement: "",
+    expected: "Audio bei den Fotos: Zaehlung"
+  },
+  {
+    nr: '2327', name: "„Kennzahlen“ zaehlen Audio als Video",
+    file: 'server.js',
+    search: "      const into = kind === 'video' ? vi : au;",
+    replacement: "      const into = vi;",
+    expected: "Audio bei den Fotos: Zaehlung"
+  },
+  {
+    nr: '2328', name: "Der Export laesst die Wellenform weg",
+    file: 'server.js',
+    search: "          if (wavePeaksOut(p.peaks)) z.peaks = wavePeaksOut(p.peaks);\n",
+    replacement: "",
+    expected: "Audio bei den Fotos: Export, Import und Papierkorb"
+  },
+  {
+    nr: '2329', name: "Audio geht mit den Fotos statt mit den Videos",
+    file: 'server.js',
+    search: "        if (p.kind !== 'video' && p.kind !== 'audio') {",
+    replacement: "        if (p.kind !== 'video') {",
+    expected: "Audio bei den Fotos: Export, Import und Papierkorb"
+  },
+  {
+    nr: '2330', name: "Der Import macht Audio zum Bild",
+    file: 'server.js',
+    search: "                    kind: isVideo ? 'video' : isAudio ? 'audio' : 'image',",
+    replacement: "                    kind: isVideo ? 'video' : 'image',",
+    expected: "Audio bei den Fotos: Export, Import und Papierkorb"
+  },
+  {
+    nr: '2331', name: "Fehlendes Audio wird nicht gemeldet",
+    file: 'server.js',
+    search: "        if (isAudio) audiosMissing++;\n",
+    replacement: "",
+    expected: "Audio bei den Fotos: Export, Import und Papierkorb"
+  },
+  {
+    nr: '2332', name: "Import und Papierkorb verlieren die Wellenform",
+    file: 'server.js',
+    search: "        if (p.peaks) putPhotoWaveform.run(photoId, p.peaks);\n",
+    replacement: "",
+    expected: "Audio bei den Fotos: Export, Import und Papierkorb"
+  },
+  {
+    nr: '2333', name: "Der Import nimmt die Audiodatei als Cover",
+    file: 'server.js',
+    search: "      const template = isVideo || isAudio ? bytesOf(p, 'standbild', bytesSource, spilled) : buf;",
+    replacement: "      const template = isVideo ? bytesOf(p, 'standbild', bytesSource, spilled) : buf;",
+    expected: "Audio bei den Fotos: Export, Import und Papierkorb"
+  },
+  {
+    nr: '2334', name: "Die Umwandlung liest auch Audio",
+    file: 'server.js',
+    search: "  \"SELECT id FROM photos WHERE kind = 'image'\");",
+    replacement: "  \"SELECT id FROM photos WHERE kind != 'video'\");",
+    expected: "Audio bei den Fotos: Bildlaeufe lassen Audio aus"
+  },
+  {
+    nr: '2335', name: "Das Nachtragen der Kacheln liest auch Audio",
+    file: 'server.js',
+    search: "    \"SELECT id FROM photos WHERE (thumb IS NULL OR medium IS NULL) AND kind = 'image'\").all();",
+    replacement: "    \"SELECT id FROM photos WHERE (thumb IS NULL OR medium IS NULL) AND kind != 'video'\").all();",
+    expected: "Audio bei den Fotos: Bildlaeufe lassen Audio aus"
+  },
+  {
+    nr: '2336', name: "Der Kachellauf liest bei Audio die Audiodatei",
+    file: 'batchrun.js',
+    search: "const isPlayedRow = (z) => z && (z.kind === 'video' || z.kind === 'audio');",
+    replacement: "const isPlayedRow = (z) => z && z.kind === 'video';",
+    expected: "Audio bei den Fotos: Bildlaeufe lassen Audio aus"
+  },
+  {
+    nr: '2337', name: "Ohne Cover steht kein Zeichen da",
+    file: 'public/app.js',
+    search: "    : `<span class=\"awave\">${peaks ? waveSvg(peaks, bars) : ICON_WAVE}</span>`;\n}",
+    replacement: "    : '';\n}",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2338', name: "Audio ohne Cover fragt nach einer Kachel",
+    file: 'public/app.js',
+    search: "  if (isAudio(p) && !Number(p.thumbLength)) return '';\n",
+    replacement: "",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2339', name: "Die Kachel zeigt bei Audio kein ♪",
+    file: 'public/app.js',
+    search: "      ${isAudio(it.mainPhoto) ? `<div class=\"card-play card-sound\"",
+    replacement: "      ${false ? `<div class=\"card-play card-sound\"",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2340', name: "Die Zahl auf der Kachel nennt Audio nicht",
+    file: 'public/app.js',
+    search: "  if (a) parts.push(t('list.audioCount', { n: a }));\n",
+    replacement: "",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2341', name: "Die Bildleiste zeigt bei Audio kein ♪",
+    file: 'public/app.js',
+    search: "        (isVideo(p) ? `<span class=\"play-badge\">▶</span>` : isAudio(p) ? `<span class=\"play-badge\">♪</span>` : '') +",
+    replacement: "        (isVideo(p) ? `<span class=\"play-badge\">▶</span>` : '') +",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2342', name: "Die Bildleiste nennt bei Audio keine Dauer",
+    file: 'public/app.js',
+    search: "      const length = isVideo(p) || isAudio(p) ? durationText(p.duration) : '';",
+    replacement: "      const length = isVideo(p) ? durationText(p.duration) : '';",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2343', name: "Das Hauptbild zeigt Audio als Bild",
+    file: 'public/app.js',
+    search: "        : showsAudio ? soundViewer(ps[idx])",
+    replacement: "        : false ? soundViewer(ps[idx])",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2344', name: "Audio spielt ohne inline=1",
+    file: 'public/app.js',
+    search: "  ? (isAudio(p) ? `/api/photos/${Number(p.id)}/raw?inline=1` : imageSource(p, ''))",
+    replacement: "  ? imageSource(p, '')",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2345', name: "Audio hat einen Knopf fuer den Ausschnitt",
+    file: 'public/app.js',
+    search: "        ${mayEdit() && !showsAudio ? `<button class=\"vfocus",
+    replacement: "        ${mayEdit() ? `<button class=\"vfocus",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2346', name: "Das Hauptbild nennt den Grund bei 32 Bit nicht",
+    file: 'public/app.js',
+    search: "        flac32(p) ? `<p class=\"lb-why\">${tH('entry.flac32Hint')}</p>` : ''}\n        <a href=\"${esc(imageSource(p, ''))}\" download>",
+    replacement: "        ''}\n        <a href=\"${esc(imageSource(p, ''))}\" download>",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2347', name: "Bei den Fotos gilt keine Datei als FLAC",
+    file: 'public/app.js',
+    search: "  && (p.source === 'file' ? fileKind(p.filename).toLowerCase() === 'flac' : /\\/flac$/.test(p.mime_type || ''));",
+    replacement: "  && p.source === 'file' && fileKind(p.filename).toLowerCase() === 'flac';",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2348', name: "Das Vollbild nennt den Grund nicht",
+    file: 'public/app.js',
+    search: "    why.hidden = !(audio && flac32(photos[i]));",
+    replacement: "    why.hidden = true;",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2349', name: "Im Vollbild fehlt bei Audio der Download",
+    file: 'public/app.js',
+    search: "    link.hidden = photos[i].source !== 'file' && !audio;",
+    replacement: "    link.hidden = photos[i].source !== 'file';",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2350', name: "Der Streifen im Vollbild zeigt bei Audio ▶",
+    file: 'public/app.js',
+    search: "        + (isVideo(p) ? `<span class=\"play-badge\">▶</span>` : isAudio(p) ? `<span class=\"play-badge\">♪</span>` : '');\n      tile.onclick",
+    replacement: "        + (isVideo(p) || isAudio(p) ? `<span class=\"play-badge\">▶</span>` : '');\n      tile.onclick",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2351', name: "Hochladen trennt Audio nicht ab",
+    file: 'public/app.js',
+    search: "    const sounds = files.filter(f => /^audio\\//.test(f.type) || isAudioName(f.name));",
+    replacement: "    const sounds = [];",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2352', name: "Die Wellenform liest das ID3-Tag mit",
+    file: 'public/app.js',
+    search: "  return String.fromCharCode(...b.subarray(at, at + 4)) === 'fLaC' ? bytes.slice(at) : bytes;",
+    replacement: "  return bytes;",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2353', name: "„Infos“ nennt die Bittiefe nur beim Video",
+    file: 'public/app.js',
+    search: "      ['entry.mediaBitDepth', bits(s.bitDepth)],\n",
+    replacement: "",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2354', name: "Fehlende Wellenformen bleiben fehlend",
+    file: 'public/app.js',
+    search: "  catchUpPhotoWaves();\n",
+    replacement: "",
+    expected: "Audio bei den Fotos: Kachel, Bildleiste, Hauptbild und Vollbild"
+  },
+  {
+    nr: '2355', name: "Die Zahlenfelder stehen wieder unter dem Text",
+    file: 'public/style.css',
+    search: ".numfield { display: grid; grid-template-columns: minmax(0, 1fr) 96px; column-gap: 14px; align-items: center; }",
+    replacement: ".numfield { display: block; }",
+    expected: "Zahlenfelder: rechts neben Name und Spanne, buendig"
+  },
+  {
+    nr: '2356', name: "„Vorschau und Export bis“ ohne Erklaerung unter dem Feld",
+    file: 'public/app.js',
+    search: "          ${kind === 'attachment' ? `<p class=\"desc numfield-hint\">${tH('card.limitAttachmentHint')}</p>` : ''}</div>`;",
+    replacement: "          </div>`;",
+    expected: "Zahlenfelder: rechts neben Name und Spanne, buendig"
+  },
+  {
+    nr: '2357', name: "„Mindestens behalten“ steht wieder unter dem Text",
+    file: 'public/app.js',
+    search: "      <div class=\"field numfield\"><div class=\"numfield-text\"><label for=\"cleanup-keep\">",
+    replacement: "      <div class=\"field\"><div class=\"numfield-text\"><label for=\"cleanup-keep\">",
+    expected: "Zahlenfelder: rechts neben Name und Spanne, buendig"
+  },
+  {
+    nr: '2358', name: "Ohne Recht ist „Vorschau und Export bis“ eingerueckt",
+    file: 'public/app.js',
+    search: "          if (!OWNER) return `<div class=\"kv\"><span class=\"k\">",
+    replacement: "          if (!OWNER) return `<div class=\"kv${kind === 'attachment' ? ' limit-sub' : ''}\"><span class=\"k\">",
+    expected: "Grenzen beim Hochladen: „Vorschau und Export bis“ buendig, mit und ohne Recht"
+  },
+  {
+    nr: '2359', name: "Ein kurzer Rest zeigt den Knopf „Mehr“ weiter",
+    file: 'public/style.css',
+    search: ".more.more-plain > summary { display: none; }\n",
+    replacement: "",
+    expected: "„Mehr“: ab drei Zeilen hinter dem Knopf, darunter direkt, neu gemessen bei anderer Breite"
+  },
+  {
+    nr: '2360', name: "„Mehr“ vergisst, dass der Text offen war",
+    file: 'public/app.js',
+    search: "    if (short) box.dataset.wasOpen = wasOpen ? '1' : '';\n",
+    replacement: "    if (short) box.dataset.wasOpen = '';\n",
+    expected: "„Mehr“: ab drei Zeilen hinter dem Knopf, darunter direkt, neu gemessen bei anderer Breite"
+  },
+  {
+    nr: '2361', name: "Die Notenskala fehlt",
+    file: 'public/app.js',
+    search: "    g.textContent = String(score);\n    axis.appendChild(g);\n",
+    replacement: "    g.textContent = String(score);\n",
+    expected: "Zeitleiste: Beschriftung ueber dem Rahmen, „Alles zeigen“, Notenskala"
+  },
+  {
+    nr: '2362', name: "Die Beschriftung klebt am Rahmen",
+    file: 'public/style.css',
+    search: "gap: 4px 14px; margin: 0 0 18px;",
+    replacement: "gap: 4px 14px; margin: 0 0 2px;",
+    expected: "Zeitleiste: Beschriftung ueber dem Rahmen, „Alles zeigen“, Notenskala"
+  },
+  {
+    nr: '2363', name: "„Alles zeigen“ speichert die Spanne nicht",
+    file: 'public/app.js',
+    search: "    TIMELINE_SPAN = 0;\n    tl.end = null;\n    saveTimelineSpan();\n",
+    replacement: "    TIMELINE_SPAN = 0;\n    tl.end = null;\n",
+    expected: "Zeitleiste: Beschriftung ueber dem Rahmen, „Alles zeigen“, Notenskala"
+  },
+  {
+    nr: '2364', name: "Die Notenskala steht links ausserhalb des Rahmens",
+    file: 'public/style.css',
+    search: "position: relative; margin: 0; padding: 14px 0 4px 16px;",
+    replacement: "position: relative; margin: 0; padding: 14px 0 4px;",
+    expected: "Zeitleiste: Beschriftung ueber dem Rahmen, „Alles zeigen“, Notenskala"
+  },
+  {
+    nr: '2365', name: "Das Werkzeug rechnet ohne videoproxy.js",
+    file: 'tools/publish.js',
+    search: "  'videoproxy.js'];",
+    replacement: "  ];",
+    expected: "Veroeffentlichen: dieselben Dateien und derselbe Fingerprint wie der Server"
+  },
+  {
+    nr: '2366', name: "tools/ux geht mit hinaus",
+    file: 'tools/publish.js',
+    search: "  'tools/ux'                  // Testumgebung fuer den Browser\n",
+    replacement: "",
+    expected: "Veroeffentlichen: dieselben Dateien und derselbe Fingerprint wie der Server"
+  },
+  {
+    nr: '2367', name: "Der zweite Commit hat keinen Elternteil",
+    file: 'tools/publish.js',
+    search: "  if (oben) args.push('-p', oben);\n",
+    replacement: "",
+    expected: "Veroeffentlichen: Gegenstelle, Version, CHANGELOG, Tag und Notizen"
+  },
+  {
+    nr: '2368', name: "Dieselbe Version geht noch einmal hinaus",
+    file: 'tools/publish.js',
+    search: "  if (oeffentlich && !hoeher(version, oeffentlich))",
+    replacement: "  if (false)",
+    expected: "Veroeffentlichen: Gegenstelle, Version, CHANGELOG, Tag und Notizen"
+  },
+  {
+    nr: '2369', name: "Ein falscher Fingerprint im CHANGELOG faellt nicht auf",
+    file: 'tools/publish.js',
+    search: "  if (oberster.fingerprint !== fp.value)",
+    replacement: "  if (false)",
+    expected: "Veroeffentlichen: Gegenstelle, Version, CHANGELOG, Tag und Notizen"
+  },
+  {
+    nr: '2370', name: "Ein abweichender Zweig publish faellt nicht auf",
+    file: 'tools/publish.js',
+    search: "  if (lokal && lokal !== oben)",
+    replacement: "  if (false)",
+    expected: "Veroeffentlichen: Gegenstelle, Version, CHANGELOG, Tag und Notizen"
+  },
+  {
+    nr: '2371', name: "Der Commit bekommt keinen Tag",
+    file: 'tools/publish.js',
+    search: "  git('tag', '-a', `v${version}`, '-m', version, commit);\n",
+    replacement: "",
+    expected: "Veroeffentlichen: Gegenstelle, Version, CHANGELOG, Tag und Notizen"
+  },
+  {
+    nr: '2372', name: "Die Notizen lassen die Kaesten weg",
+    file: 'tools/publish.js',
+    search: "    '## Before you update', kaesten.length ? kaesten.join('\\n\\n') : 'Nothing to do.',",
+    replacement: "    '## Before you update', 'Nothing to do.',",
+    expected: "Veroeffentlichen: Gegenstelle, Version, CHANGELOG, Tag und Notizen"
+  },
+  {
+    nr: '2373', name: "Die Notizen nehmen die oeffentliche Version mit",
+    file: 'tools/publish.js',
+    search: "  const neu = alle.slice(0, bis);",
+    replacement: "  const neu = alle.slice(0, bis + 1);",
+    expected: "Veroeffentlichen: Gegenstelle, Version, CHANGELOG, Tag und Notizen"
+  },
+  {
+    nr: '2374', name: "Ohne Gegenstelle laeuft das Werkzeug weiter",
+    file: 'tools/publish.js',
+    search: "  catch { abbruch(`keine Gegenstelle \"${GEGENSTELLE}\". Eintragen mit: git remote add ${GEGENSTELLE} <adresse>`); }",
+    replacement: "  catch { return null; }",
+    expected: "Veroeffentlichen: Gegenstelle, Version, CHANGELOG, Tag und Notizen"
+  },
+  {
+    nr: '2375', name: "Der eigene Index bleibt unter TMPDIR liegen",
+    file: 'tools/publish.js',
+    search: "  } finally { fs.rmSync(ordner, { recursive: true, force: true }); }",
+    replacement: "  } finally { }",
+    expected: "Veroeffentlichen: Gegenstelle, Version, CHANGELOG, Tag und Notizen"
+  },
+  {
+    nr: '2376', name: "Der Pfad fuer NPMplus laesst Audio aus",
+    file: 'README-de.md',
+    search: "/(photos|videos|audio|comments|images))$`",
+    replacement: "/(photos|videos|comments|images))$`",
+    expected: "Reverse Proxy: die Pfade fuer NPMplus in der README"
+  },
+  {
+    nr: '2377', name: "detail() nennt bei Dateien keine Kanaele",
+    file: 'server.js',
+    search: "channels: a2.audio_channels ?? null,",
+    replacement: "channels: null,",
+    expected: "Abspieler: Kanaele der ersten Audiospur in detail()"
+  },
+  {
+    nr: '2378', name: "Fotos nennen keine Kanaele",
+    file: 'server.js',
+    search: "    p.channels = sound?.channels ?? null;",
+    replacement: "    p.channels = null;",
+    expected: "Abspieler: Kanaele der ersten Audiospur in detail()"
+  },
+  {
+    nr: '2379', name: "Das Hauptbild zeigt die Leiste des Browsers",
+    file: 'public/app.js',
+    search: "      <audio preload=\"metadata\" src=\"${esc(playSource(p))}\"></audio></div>`;",
+    replacement: "      <audio controls preload=\"metadata\" src=\"${esc(playSource(p))}\"></audio></div>`;",
+    expected: "Abspieler: eigene Bedienung an vier Stellen"
+  },
+  {
+    nr: '2380', name: "Die Vorschau zeigt die Leiste des Browsers",
+    file: 'public/app.js',
+    search: "<audio preload=\"metadata\" src=\"/api/attachments/${Number(a.id)}/raw?inline=1\">",
+    replacement: "<audio controls preload=\"metadata\" src=\"/api/attachments/${Number(a.id)}/raw?inline=1\">",
+    expected: "Abspieler: eigene Bedienung an vier Stellen"
+  },
+  {
+    nr: '2381', name: "Pegel und Regler auch ohne Maus",
+    file: 'public/app.js',
+    search: "const fineSound = () => !!window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;",
+    replacement: "const fineSound = () => true;",
+    expected: "Abspieler: eigene Bedienung an vier Stellen"
+  },
+  {
+    nr: '2382', name: "Mono zeigt zwei Balken",
+    file: 'public/app.js',
+    search: "mono = Number(p.channels) === 1;",
+    replacement: "mono = false;",
+    expected: "Abspieler: eigene Bedienung an vier Stellen"
+  },
+  {
+    nr: '2383', name: "Die Wellenform ist kein Regler",
+    file: 'public/app.js',
+    search: "role=\"slider\" tabindex=\"0\"",
+    replacement: "aria-hidden=\"true\"",
+    expected: "Abspieler: eigene Bedienung an vier Stellen"
+  },
+  {
+    nr: '2384', name: "Ohne Wellenform fehlt die Mittellinie",
+    file: 'public/app.js',
+    search: "${peaks ? waveDraw(peaks, bars) : line}",
+    replacement: "${peaks ? waveDraw(peaks, bars) : ''}",
+    expected: "Abspieler: eigene Bedienung an vier Stellen"
+  },
+  {
+    nr: '2385', name: "Die linke Spalte steht nicht mittig",
+    file: 'public/style.css',
+    search: ".sdeck.fine { padding-left: max(0px, calc(30px - var(--sd-edge, 30px))); }",
+    replacement: ".sdeck.fine { padding-left: max(0px, calc(28px - var(--sd-edge, 28px))); }",
+    expected: "Abspieler: eigene Bedienung an vier Stellen"
+  },
+  {
+    nr: '2386', name: "Die Wellenform spult nicht mit den Pfeilen",
+    file: 'public/app.js',
+    search: "v = el instanceof HTMLMediaElement ? el : el?.mediaPlayer;",
+    replacement: "v = el;",
+    expected: "Abspieler: Tasten, ▷/⏸ und Zeit"
+  },
+  {
+    nr: '2387', name: "Pos1 und Ende spulen nicht",
+    file: 'public/app.js',
+    search: "  else if ((e.key === 'Home' || e.key === 'End') && el !== v) v.currentTime = e.key === 'Home' ? 0 : Number.isFinite(end) ? end : v.currentTime;\n",
+    replacement: "",
+    expected: "Abspieler: Tasten, ▷/⏸ und Zeit"
+  },
+  {
+    nr: '2388', name: "Vorleser hoeren keine Zeit",
+    file: 'public/app.js',
+    search: "    wave.setAttribute('aria-valuetext', all ? t('entry.soundSpotText', { at: now, of: all }) : now);\n",
+    replacement: "",
+    expected: "Abspieler: Tasten, ▷/⏸ und Zeit"
+  },
+  {
+    nr: '2389', name: "Waehrend der Wiedergabe bleibt das Dreieck",
+    file: 'public/app.js',
+    search: "play.innerHTML = playing ? ICON_PAUSE : ICON_PLAY;",
+    replacement: "play.innerHTML = ICON_PLAY;",
+    expected: "Abspieler: Tasten, ▷/⏸ und Zeit"
+  },
+  {
+    nr: '2390', name: "Die Leertaste spielt nicht",
+    file: 'public/app.js',
+    search: "    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); toggle(); }\n",
+    replacement: "",
+    expected: "Abspieler: Tasten, ▷/⏸ und Zeit"
+  },
+  {
+    nr: '2391', name: "Im Vollbild ist der Abspieler nicht verdrahtet",
+    file: 'public/app.js',
+    search: "    deckOff = soundWire(deckBox.firstElementChild, audioPlayer);\n",
+    replacement: "",
+    expected: "Abspieler: Tasten, ▷/⏸ und Zeit"
+  },
+  {
+    nr: '2392', name: "Die Lautstaerke wird nicht gemerkt",
+    file: 'public/app.js',
+    search: "slider.oninput = () => { keepVolume({ level: Number(slider.value), muted: false }); showVolume(); soundVolume(player); };",
+    replacement: "slider.oninput = () => { soundVolume(player); };",
+    expected: "Abspieler: Lautstaerke je Browser"
+  },
+  {
+    nr: '2393', name: "Ohne Maus gilt die gemerkte Lautstaerke",
+    file: 'public/app.js',
+    search: "  mark();\n  markPlay();\n  paint();\n  return () =>",
+    replacement: "  soundVolume(player);\n  mark();\n  markPlay();\n  paint();\n  return () =>",
+    expected: "Abspieler: Lautstaerke je Browser"
+  },
+  {
+    nr: '2394', name: "Die Skala reicht bis -60 dBFS",
+    file: 'public/app.js',
+    search: "const METER_FLOOR = -48,",
+    replacement: "const METER_FLOOR = -60,",
+    expected: "Pegel: Rechnung in dBFS"
+  },
+  {
+    nr: '2395', name: "Der Balken faellt nicht",
+    file: 'public/app.js',
+    search: "  const decay = METER_DECAY * ms / 1000;",
+    replacement: "  const decay = 0;",
+    expected: "Pegel: Rechnung in dBFS"
+  },
+  {
+    nr: '2396', name: "Die Spitze haelt nicht",
+    file: 'public/app.js',
+    search: "  else if (now - holdAt > METER_HOLD_MS) hold",
+    replacement: "  else hold",
+    expected: "Pegel: Rechnung in dBFS"
+  },
+  {
+    nr: '2397', name: "Die Marke verschwindet mit dem naechsten Bild",
+    file: 'public/app.js',
+    search: "clip: state.clip || peak >= 1 }",
+    replacement: "clip: peak >= 1 }",
+    expected: "Pegel: Rechnung in dBFS"
+  },
+  {
+    nr: '2398', name: "Rot beginnt bei -12 dBFS",
+    file: 'public/style.css',
+    search: "rgb(var(--gold-rgb)) 62.5% 87.5%, rgb(var(--red-rgb)) 87.5% 100%",
+    replacement: "rgb(var(--gold-rgb)) 62.5% 75%, rgb(var(--red-rgb)) 75% 100%",
+    expected: "Pegel: Rechnung in dBFS"
+  },
+  {
+    nr: '2399', name: "Pause laesst die Balken stehen",
+    file: 'public/app.js',
+    search: "  ['pause', 'ended', 'emptied'].forEach(type => player.addEventListener(type, quiet, on));\n",
+    replacement: "",
+    expected: "Pegel: Balken, Pause, Marke und Lautstaerke hinter dem Abgriff"
+  },
+  {
+    nr: '2400', name: "Pause nimmt die Marke weg",
+    file: 'public/app.js',
+    search: "states = states.map(s => ({ ...METER_QUIET, clip: s.clip }));",
+    replacement: "states = states.map(() => ({ ...METER_QUIET }));",
+    expected: "Pegel: Balken, Pause, Marke und Lautstaerke hinter dem Abgriff"
+  },
+  {
+    nr: '2401', name: "Klick nimmt die Marke nicht weg",
+    file: 'public/app.js',
+    search: "  if (meter) meter.onclick = () => { states = states.map(s => ({ ...s, clip: false })); paint(); };\n",
+    replacement: "",
+    expected: "Pegel: Balken, Pause, Marke und Lautstaerke hinter dem Abgriff"
+  },
+  {
+    nr: '2402', name: "Die Lautstaerke regelt das <audio> vor dem Pegel",
+    file: 'public/app.js',
+    search: "  if (route) route.gain.gain.value = level; else player.volume = level;",
+    replacement: "  player.volume = level;",
+    expected: "Pegel: Balken, Pause, Marke und Lautstaerke hinter dem Abgriff"
+  },
+  {
+    nr: '2403', name: "Umgeleitet auch ohne laufenden AudioContext",
+    file: 'public/app.js',
+    search: "    if (SOUND_CONTEXT.state !== 'running') return null;\n",
+    replacement: "",
+    expected: "Pegel: nur bei laufendem AudioContext umgeleitet"
+  },
+  {
+    nr: '2404', name: "Mehrkanal wird nicht auf L und R gemischt",
+    file: 'public/app.js',
+    search: "    mix.channelCountMode = 'explicit';\n",
+    replacement: "",
+    expected: "Pegel: nur bei laufendem AudioContext umgeleitet"
+  },
+  {
+    nr: '2405', name: "Die Einrueckung steht wieder im Stilblatt",
+    file: 'public/style.css',
+    search: ".numfield .numfield-hint { grid-column: 1 / -1; margin-top: 6px; }\n",
+    replacement: ".numfield .numfield-hint { grid-column: 1 / -1; margin-top: 6px; }\n.limit-sub { margin-left: 18px; }\n",
+    expected: "Grenzen beim Hochladen: „Vorschau und Export bis“ buendig, mit und ohne Recht"
+  },
+  {
+    nr: '2406', name: "„Mehr“ bleibt neben einer hoeheren Karte zu",
+    file: 'public/app.js',
+    search: "  roomMore(root);\n",
+    replacement: "",
+    expected: "„Mehr“ neben einer hoeheren Karte offen, sonst hinter dem Knopf"
+  },
+  {
+    nr: '2407', name: "Der Rest bleibt offen, auch wenn die Karte hoeher wird",
+    file: 'public/app.js',
+    search: "      if (card.getBoundingClientRect().height <= height + 0.5) continue;\n",
+    replacement: "      continue;\n",
+    expected: "„Mehr“ neben einer hoeheren Karte offen, sonst hinter dem Knopf"
+  },
+  {
+    nr: '2408', name: "Ohne Layout stehen alle Reste offen",
+    file: 'public/app.js',
+    search: "    if (!(height > 0)) continue;\n",
+    replacement: "",
+    expected: "Einstellungen: je Einstellung ein Satz, der Rest unter „Mehr“"
+  },
+  {
+    nr: '2409', name: "Nach der Sprachliste klebt der Rest am Hinweis",
+    file: 'public/style.css',
+    search: ".engine-list + .more { margin-top: 10px; }\n",
+    replacement: "",
+    expected: "„Mehr“ neben einer hoeheren Karte offen, sonst hinter dem Knopf"
+  },
+  {
+    nr: '2410', name: "Das Backup raeumt wieder nach der Regel auf",
+    file: 'server.js',
+    search: "    try { cleanBackupFiles(target.filePath); } catch (e) { logFail('Clearing up after the backup failed:', e.message); }",
+    replacement: "    { const r = cleanupStatus(); if (r.an) removeBackups(target.filePath, ruleHit(backupList(target.filePath) || [], r.keep, r.days, Date.now(), null).map(d => d.name)); }\n    try { cleanBackupFiles(target.filePath); } catch (e) { logFail('Clearing up after the backup failed:', e.message); }",
+    expected: "Alte Backups: einmal am Tag um Mitternacht, nicht nach dem Backup"
+  },
+  {
+    nr: '2411', name: "Der Start holt die verpasste Mitternacht nicht nach",
+    file: 'server.js',
+    search: "  if (!DATABASE_INCOMPLETE) planCleanup(0);",
+    replacement: "  if (!DATABASE_INCOMPLETE) planCleanup(BENCH.midnight || backup.nextMidnight(nowMs()) - nowMs());",
+    expected: "Alte Backups: einmal am Tag um Mitternacht, nicht nach dem Backup"
+  },
+  {
+    nr: '2412', name: "Am selben Tag ein zweites Mal",
+    file: 'server.js',
+    search: "  if (!cleanupStatus().an || getSetting('backupCleanupAt', null)?.day === day) return next;",
+    replacement: "  if (!cleanupStatus().an) return next;",
+    expected: "Alte Backups: einmal am Tag um Mitternacht, nicht nach dem Backup"
+  },
+  {
+    nr: '2413', name: "Ohne Schalter wird aufgeraeumt",
+    file: 'server.js',
+    search: "  if (!cleanupStatus().an || getSetting('backupCleanupAt', null)?.day === day) return next;",
+    replacement: "  if (getSetting('backupCleanupAt', null)?.day === day) return next;",
+    expected: "Alte Backups: einmal am Tag um Mitternacht, nicht nach dem Backup"
+  },
+  {
+    nr: '2414', name: "Der Zeitgeber stellt sich nicht neu",
+    file: 'server.js',
+    search: "  CLEANUP_TIMER = setTimeout(() => planCleanup(dailyCleanup()), delay);",
+    replacement: "  CLEANUP_TIMER = setTimeout(dailyCleanup, delay);",
+    expected: "Alte Backups: einmal am Tag um Mitternacht, nicht nach dem Backup"
+  },
+  {
+    nr: '2415', name: "Bei laufendem Backup erst am naechsten Tag",
+    file: 'server.js',
+    search: "const CLEANUP_RETRY_MS = HOUR_MS;",
+    replacement: "const CLEANUP_RETRY_MS = DAY_MS;",
+    expected: "Alte Backups: einmal am Tag um Mitternacht, nicht nach dem Backup"
+  },
+  {
+    nr: '2416', name: "Das Aufraeumen achtet nicht auf die Sperre",
+    file: 'server.js',
+    search: "  if (!lock) {\n    logLine(`Old backups: a backup is running",
+    replacement: "  if (false) {\n    logLine(`Old backups: a backup is running",
+    expected: "Alte Backups: einmal am Tag um Mitternacht, nicht nach dem Backup"
+  },
+  {
+    nr: '2417', name: "Das Sicherheitsprotokoll nennt den Server nicht",
+    file: 'server.js',
+    search: "auth.log('backup.delete', { detail: 'daily' });",
+    replacement: "auth.log('backup.delete', {});",
+    expected: "Alte Backups: einmal am Tag um Mitternacht, nicht nach dem Backup"
+  },
+  {
+    nr: '2418', name: "`backupCleanupAt` nennt nur den Tag",
+    file: 'server.js',
+    search: "  putSetting.run('backupCleanupAt', JSON.stringify({ day, at: sqlTime(now), removed, failed }));",
+    replacement: "  putSetting.run('backupCleanupAt', JSON.stringify({ day }));",
+    expected: "Alte Backups: einmal am Tag um Mitternacht, nicht nach dem Backup"
+  },
+  {
+    nr: '2419', name: "Das Merkmal fuer den Server fehlt",
+    file: 'auth.js',
+    search: "'both', 'part', 'daily'];",
+    replacement: "'both', 'part'];",
+    expected: "Alte Backups: einmal am Tag um Mitternacht, nicht nach dem Backup"
+  },
+  {
+    nr: '2420', name: "Das Server-Log nennt die Dateien",
+    file: 'server.js',
+    search: "      logLine(`Old backups removed at midnight: ${removed} (${out2.bytes} bytes freed)` +",
+    replacement: "      logLine(`Old backups removed at midnight: ${matched.map(d => d.name).join(', ')} (${out2.bytes} bytes freed)` +",
+    expected: "Alte Backups: einmal am Tag um Mitternacht, nicht nach dem Backup"
+  },
+  {
+    nr: '2421', name: "Der Schalter heisst wie der Hinweis",
+    file: 'public/app.js',
+    search: "        ${tH('card.cleanupAtMidnight')}</label>",
+    replacement: "        ${tH('card.cleanupHint')}</label>",
+    expected: "Alte Backups: der Schalter um Mitternacht und das letzte Aufräumen"
+  },
+  {
+    nr: '2422', name: "Die Karte nennt das letzte Aufraeumen nicht",
+    file: 'public/app.js',
+    search: "${tH('card.onlyOnButton')}</p>${lastCleanup(a.last)}",
+    replacement: "${tH('card.onlyOnButton')}</p>",
+    expected: "Alte Backups: der Schalter um Mitternacht und das letzte Aufräumen"
+  },
+  {
+    nr: '2423', name: "Ohne geloeschte Backups bleibt die Zeile leer",
+    file: 'public/app.js',
+    search: "      : tH('card.cleanupLastNone', { at: fmtDate(last.at) })}</p>`);",
+    replacement: "      : ''}</p>`);",
+    expected: "Alte Backups: der Schalter um Mitternacht und das letzte Aufräumen"
+  },
+  {
+    nr: '2424', name: "Das Protokoll nennt die Kommandozeile als Urheber",
+    file: 'public/app.js',
+    search: "    if (z.detail === 'daily') return t('card.atMidnight');\n",
+    replacement: "",
+    expected: "Alte Backups: der Schalter um Mitternacht und das letzte Aufräumen"
+  },
+  {
+    nr: '2425', name: "Die Meldung nach dem Backup fragt wieder nach `cleaned`",
+    file: 'public/app.js',
+    search: "        toast(t('card.backupWrittenFile', { file: r.file, bytes: fmtBytes(r.bytes) }));",
+    replacement: "        toast(t('card.backupWrittenFile', { file: r.file, bytes: fmtBytes(r.bytes) }) + (r.cleaned ? ' ·' : ''));",
+    expected: "Alte Backups: der Schalter um Mitternacht und das letzte Aufräumen"
+  },
+  {
+    nr: '2426', name: "Die Detailansicht fehlt in den Einstellungen",
+    file: 'public/app.js',
+    search: "  { key: 'detailview',   section: 'personal', visible: () => true,\n    markup: cardDetailView,  wireUp: setUpDetailViewOut },\n",
+    replacement: "",
+    expected: "„Darstellung“ und „Detailansicht“"
+  },
+  {
+    nr: '2427', name: "Die Pillen der Detailansicht bleiben leer",
+    file: 'public/app.js',
+    search: "function setUpDetailViewOut() {\n  drawStrip();\n  drawLinkRows();\n  drawSearchNames();\n",
+    replacement: "function setUpDetailViewOut() {\n",
+    expected: "„Darstellung“ und „Detailansicht“"
+  },
+  {
+    nr: '2428', name: "Die zweite Karte heisst anders",
+    file: 'public/languages/de.json',
+    search: "  \"card.detailView\": \"Detailansicht\",",
+    replacement: "  \"card.detailView\": \"Ansicht\",",
+    expected: "„Darstellung“ und „Detailansicht“"
+  },
+  {
+    nr: '2429', name: "„Links“ nennt die Zahl zweimal",
+    file: 'public/app.js',
+    search: "    case 'kommentare': case 'links': return '';",
+    replacement: "    case 'kommentare': return '';\n    case 'links': return String(item.links.length);",
+    expected: "Eintrag: „Links“ nennt die Zahl einmal; ↓ ↑ unter „Dateien“ so hoch wie die Felder"
+  },
+  {
+    nr: '2430', name: "↓ ↑ unter „Dateien“ bleiben 31 px hoch",
+    file: 'public/style.css',
+    search: ".asort-box .sort-way .pill { padding: 3px 9px; font-size: .7rem; }\n",
+    replacement: "",
+    expected: "Eintrag: „Links“ nennt die Zahl einmal; ↓ ↑ unter „Dateien“ so hoch wie die Felder"
+  },
+  {
+    nr: '2431', name: "Die Zeile nennt immer 50 MB",
+    file: 'public/app.js',
+    search: "size: `${UPLOAD_LIMITS.attachment} MB` }",
+    replacement: "size: '50 MB' }",
+    expected: "„Speicher und Wartung“: die Zeile nennt Einstellung und Wert"
+  },
+  {
+    nr: '2432', name: "Der Wert der Zeile bricht wieder um",
+    file: 'public/app.js',
+    search: "<span class=\"v kv-num\">${value}</span>",
+    replacement: "<span class=\"v\">${value}</span>",
+    expected: "„Speicher und Wartung“: die Zeile nennt Einstellung und Wert"
+  },
+  {
+    nr: '2433', name: "Der Zurück-Knopf zeigt nur den Pfeil",
+    file: 'public/app.js',
+    search: "${ICON_BACK_OUT}<span class=\"back-word\">${tH('entry.menuBack')}</span></a>",
+    replacement: "${ICON_BACK_OUT}</a>",
+    expected: "Zurück-Knopf: mit Wort, wo die Kopfzeile kein Menü hat"
+  },
+  {
+    nr: '2434', name: "Am Telefon steht das Wort neben dem Pfeil",
+    file: 'public/style.css',
+    search: "  .sub-back .back-word { display: none; }\n",
+    replacement: "",
+    expected: "Zurück-Knopf: mit Wort, wo die Kopfzeile kein Menü hat"
+  },
+  {
+    nr: '2435', name: "Die Sperre beginnt wieder gleich nach dem Start",
+    file: 'test/release_050.js',
+    search: "    const longWaited = await lockFor(long, 12000);",
+    replacement: "    const longWaited = await lockFor(long, 9500);",
+    expected: "Prüfung zur Umlagerung: die Sperre ab der Datei unter upload/"
+  },
+  {
+    nr: '2436', name: "Das Cover ist nicht mehr begrenzt",
+    file: 'public/style.css',
+    search: "width: 100%; max-width: 640px; display: flex; align-items: center; justify-content: center; }",
+    replacement: "width: 100%; display: flex; align-items: center; justify-content: center; }",
+    expected: "Vollbild mit Cover: die Wellenform über die Breite, das Cover bis 640 px"
+  },
+  {
+    nr: '2437', name: "Der Regler setzt `--vol` nicht",
+    file: 'public/app.js',
+    search: "      slider.style.setProperty('--vol', `${v.level}%`);\n",
+    replacement: "",
+    expected: "Vollbild mit Cover: die Wellenform über die Breite, das Cover bis 640 px"
+  },
+  {
+    nr: '2438', name: "Der Knopf des Reglers ist wieder 16 px",
+    file: 'public/style.css',
+    search: "width: 12px; height: 12px; margin-left: -4px;",
+    replacement: "width: 16px; height: 16px; margin-left: -6px;",
+    expected: "Vollbild mit Cover: die Wellenform über die Breite, das Cover bis 640 px"
+  },
+  {
+    nr: '2439', name: "Der Knopf bleibt beim Darüberfahren grau",
+    file: 'public/style.css',
+    search: ".sd-volume:hover::-webkit-slider-thumb, .sd-volume:focus-visible::-webkit-slider-thumb { background: var(--accent-edge); }\n",
+    replacement: "",
+    expected: "Vollbild mit Cover: die Wellenform über die Breite, das Cover bis 640 px"
+  },
+  {
+    nr: '2440', name: "Zwei Finger zoomen nicht",
+    file: 'public/app.js',
+    search: "      zoomTimeline(pinch.gap / now, share((a.x + b.x) / 2));\n",
+    replacement: "",
+    expected: "Zeitleiste: zoomen mit zwei Fingern über Pointer-Ereignisse"
+  },
+  {
+    nr: '2441', name: "Der erste Finger auf der inaktiven Leiste zählt nicht mit",
+    file: 'public/app.js',
+    search: "    if (e.pointerType === 'touch') {\n      TL_FINGERS.set(",
+    replacement: "    if (e.pointerType === 'touch' && tl.active) {\n      TL_FINGERS.set(",
+    expected: "Zeitleiste: zoomen mit zwei Fingern über Pointer-Ereignisse"
+  },
+  {
+    nr: '2442', name: "Das Ende eines Fingers beendet das Ziehen nicht",
+    file: 'public/app.js',
+    search: "    drag = null; downs.delete(e.pointerId);",
+    replacement: "    downs.delete(e.pointerId);",
+    expected: "Zeitleiste: zoomen mit zwei Fingern über Pointer-Ereignisse"
+  },
+  {
+    nr: '2443', name: "Ein Finger ausserhalb der Leiste bleibt gezählt",
+    file: 'public/app.js',
+    search: "for (const type of ['pointerup', 'pointercancel']) document.addEventListener(type, (e) => { TL_FINGERS.delete(e.pointerId); }, true);\n",
+    replacement: "",
+    expected: "Zeitleiste: zoomen mit zwei Fingern über Pointer-Ereignisse"
+  },
+  {
+    nr: '2444', name: "Die inaktive Leiste überlässt die Geste dem Browser",
+    file: 'public/style.css',
+    search: "  touch-action: pan-y;\n  /* Ein Doppelklick schaltet die Leiste um und markiert sonst die Jahreszahlen. */\n  user-select: none;\n}\n.timeline.active { outline-color: var(--accent-edge); cursor: grab; }",
+    replacement: "  user-select: none;\n}\n.timeline.active { outline-color: var(--accent-edge); cursor: grab; touch-action: pan-y; }",
+    expected: "Zeitleiste: zoomen mit zwei Fingern über Pointer-Ereignisse"
+  },
+  {
+    nr: '2445', name: "Zwei Finger zoomen wieder über touchmove",
+    file: 'public/app.js',
+    search: "  box.addEventListener('pointercancel', end);\n}\n/* In px: Bewegung,",
+    replacement: "  box.addEventListener('pointercancel', end);\n  box.addEventListener('touchmove', () => {}, { passive: true });\n}\n/* In px: Bewegung,",
+    expected: "Zeitleiste: zoomen mit zwei Fingern über Pointer-Ereignisse"
+  },
+  {
+    nr: '2446', name: "„Mein Account“ speichert ohne Rückfrage",
+    file: 'public/app.js',
+    search: "    const e = await confirmFieldFree(t('card.myAccount'), t('card.passwordNeeded'), false);\n    if (e === null) return;\n",
+    replacement: "    const e = { password: '' };\n",
+    expected: "„Persönlich“: Karte „Passwort“, „Zweiter Faktor“ unter „Mein Account“"
+  },
+  {
+    nr: '2447', name: "Die Rückfrage verlangt auch den Code",
+    file: 'public/app.js',
+    search: "confirmFieldFree(t('card.myAccount'), t('card.passwordNeeded'), false)",
+    replacement: "confirmFieldFree(t('card.myAccount'), t('card.passwordNeeded'), true)",
+    expected: "„Persönlich“: Karte „Passwort“, „Zweiter Faktor“ unter „Mein Account“"
+  },
+  {
+    nr: '2448', name: "„Passwort“ schickt den Namen mit",
+    file: 'public/app.js',
+    search: "{ oldPassword: old, newPassword: new1 }",
+    replacement: "{ oldPassword: old, newPassword: new1, username: NAME }",
+    expected: "„Persönlich“: Karte „Passwort“, „Zweiter Faktor“ unter „Mein Account“"
+  },
+  {
+    nr: '2449', name: "„Passwort“ meldet ein fehlendes neues Passwort nicht",
+    file: 'public/app.js',
+    search: "    if (!new1) return toast(t('card.newPasswordMissing'), true);\n",
+    replacement: "",
+    expected: "„Persönlich“: Karte „Passwort“, „Zweiter Faktor“ unter „Mein Account“"
+  },
+  {
+    nr: '2450', name: "Unter dem Titel des zweiten Faktors steht wieder eine Linie",
+    file: 'public/style.css',
+    search: ".two-factor-state { font-size: .87rem; line-height: 1.55; color: var(--text-2); }\n",
+    replacement: ".two-factor-block { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }\n.two-factor-state { font-size: .87rem; line-height: 1.55; color: var(--text-2); }\n",
+    expected: "„Persönlich“: Karte „Passwort“, „Zweiter Faktor“ unter „Mein Account“"
+  },
+  {
+    nr: '2451', name: "Die Karte „Passwort“ fehlt",
+    file: 'public/app.js',
+    search: "  { key: 'password',     section: 'personal', visible: () => true,\n    markup: cardPassword,   wireUp: setUpPasswordOut },\n",
+    replacement: "",
+    expected: "„Persönlich“: Karte „Passwort“, „Zweiter Faktor“ unter „Mein Account“"
+  },
+  {
+    nr: '2452', name: "„Mein Account“ zeichnet den zweiten Faktor nicht",
+    file: 'public/app.js',
+    search: "  drawTwoFactor(fetched.account.twoFactor);\n}\n\n/* ---- Karte „Passwort",
+    replacement: "}\n\n/* ---- Karte „Passwort",
+    expected: "„Persönlich“: Karte „Passwort“, „Zweiter Faktor“ unter „Mein Account“"
+  },
+  {
+    nr: '2453', name: "Am Telefon ist der Knopf der Richtung unter „Dateien“ 24 px hoch",
+    file: 'public/style.css',
+    search: "  .asort-box .sort-flip { min-height: 44px; }\n",
+    replacement: "",
+    expected: "Sortierrichtung: am Telefon so hoch wie „Kacheln · Liste“"
+  },
+  {
+    nr: '2454', name: "Ohne Namen im Rumpf scheitert ein Passwortwechsel",
+    file: 'auth.js',
+    search: "  const name = String(newName || '').trim() || u.username;",
+    replacement: "  const name = String(newName || '').trim();",
+    expected: "PUT /api/account nimmt Teile des Rumpfs"
+  },
+  {
+    nr: '2455', name: "Im Container gilt wieder der Pfad im Container",
+    file: 'backup.js',
+    search: "  if (b.id === a.id) return { inWorkDir: liesIn(root, appDir), sameDisk };",
+    replacement: "  return { inWorkDir: liesIn(root, appDir), sameDisk };",
+    expected: "Backup-Ordner: Lage auf dem Host aus /proc/self/mountinfo"
+  },
+  {
+    nr: '2456', name: "Jeder Ordner gilt als derselbe Datenträger",
+    file: 'backup.js',
+    search: "  const sameDisk = b.dev === d.dev;",
+    replacement: "  const sameDisk = true;",
+    expected: "Backup-Ordner: Lage auf dem Host aus /proc/self/mountinfo"
+  },
+  {
+    nr: '2457', name: "Leerzeichen als \\040 werden nicht gelesen",
+    file: 'backup.js',
+    search: "source: plain(f[3]), point: plain(f[4])",
+    replacement: "source: f[3], point: f[4]",
+    expected: "Backup-Ordner: Lage auf dem Host aus /proc/self/mountinfo"
+  },
+  {
+    nr: '2458', name: "`data/` an der Wurzel seines Dateisystems gilt als Projektordner",
+    file: 'backup.js',
+    search: "inWorkDir: project === '/' ? null : liesIn(b.host, project)",
+    replacement: "inWorkDir: liesIn(b.host, project)",
+    expected: "Backup-Ordner: Lage auf dem Host aus /proc/self/mountinfo"
+  },
+  {
+    nr: '2459', name: "Der Server liest /proc/self/mountinfo nicht",
+    file: 'server.js',
+    search: "  return backup.backupState(BACKUP_DIR, DATA_DIR, APP_DIR, mounts);",
+    replacement: "  return backup.backupState(BACKUP_DIR, DATA_DIR, APP_DIR);",
+    expected: "Backup-Ordner: die Antwort der Karte und kein Unterordner mehr"
+  },
+  {
+    nr: '2460', name: "backuptool.js überspringt `--ort` still",
+    file: 'backuptool.js',
+    search: "    else if (args[i] === '--yes') options.yes = true;\n",
+    replacement: "    else if (args[i] === '--yes') options.yes = true;\n    else if (args[i] === '--ort') i++;\n",
+    expected: "Backup-Ordner: die Antwort der Karte und kein Unterordner mehr"
+  },
+  {
+    nr: '2461', name: "Der Satz zum Datenträger fehlt",
+    file: 'public/app.js',
+    search: "      : d.sameDisk === true\n        ? `<p class=\"desc\" id=\"backup-place\" style=\"margin:0 0 12px\">${tMarks('card.backupSameDisk', { word: '<code>data/</code>' })}</p>` : '';",
+    replacement: "      : '';",
+    expected: "Die Sicherung in der Oberflaeche"
+  },
+  {
+    nr: '2462', name: "Ohne Vergleich warnt die Karte trotzdem",
+    file: 'public/app.js',
+    search: "    const situation = d.inWorkDir === true\n",
+    replacement: "    const situation = d.inWorkDir !== false\n",
+    expected: "Die Sicherung in der Oberflaeche"
+  },
+  {
+    nr: '2463', name: "Ein einzelner Tipp schaltet die Leiste um",
+    file: 'public/app.js',
+    search: "    if (lastTap && time - lastTap.time <= TL_DOUBLE_MS",
+    replacement: "    if (true || lastTap && time - lastTap.time <= TL_DOUBLE_MS",
+    expected: "Zeitleiste: Doppeltipp und Doppelklick schalten ein und aus"
+  },
+  {
+    nr: '2464', name: "Der Doppeltipp kennt keine Zeitgrenze",
+    file: 'public/app.js',
+    search: "    if (lastTap && time - lastTap.time <= TL_DOUBLE_MS && ",
+    replacement: "    if (lastTap && ",
+    expected: "Zeitleiste: Doppeltipp und Doppelklick schalten ein und aus"
+  },
+  {
+    nr: '2465', name: "Der Doppeltipp kennt keinen Abstand",
+    file: 'public/app.js',
+    search: " && Math.hypot(down.x - lastTap.x, down.y - lastTap.y) <= TL_DOUBLE_PX) {",
+    replacement: ") {",
+    expected: "Zeitleiste: Doppeltipp und Doppelklick schalten ein und aus"
+  },
+  {
+    nr: '2466', name: "Ein Doppelklick schaltet nicht aus",
+    file: 'public/app.js',
+    search: "      setTimelineActive(!tl.active);\n",
+    replacement: "      setTimelineActive(true);\n",
+    expected: "Zeitleiste: Doppeltipp und Doppelklick schalten ein und aus"
+  },
+  {
+    nr: '2467', name: "Das Abheben nach zwei Fingern zaehlt als Tipp",
+    file: 'public/app.js',
+    search: "        for (const d of downs.values()) d.moved = true;\n",
+    replacement: "",
+    expected: "Zeitleiste: Doppeltipp und Doppelklick schalten ein und aus"
+  },
+  {
+    nr: '2468', name: "Die Zeile nennt nicht, wie man einschaltet",
+    file: 'public/app.js',
+    search: "    <div class=\"tl-below\"><span class=\"tl-how\">${tH(how)}</span>${",
+    replacement: "    <div class=\"tl-below\">${tl.active ? `<span class=\"tl-how\">${tH(how)}</span>` : ''}${",
+    expected: "Zeitleiste: Doppeltipp und Doppelklick schalten ein und aus"
+  },
+  {
+    nr: '2469', name: "Ein Tipp auf einen Punkt schaltet die Leiste ein",
+    file: 'public/app.js',
+    search: "    tl.tapped = dot.dataset.key;\n    showHint(box, dot, p);\n",
+    replacement: "    setTimelineActive(true);\n    tl.tapped = dot.dataset.key;\n    showHint(box, dot, p);\n",
+    expected: "Zeitleiste: Tipp auf einen Punkt zeigt den Hinweis, ohne die Leiste einzuschalten"
+  },
+  {
+    nr: '2470', name: "Der Finger muss den Punkt genau treffen",
+    file: 'public/app.js',
+    search: "pointerType === 'mouse' ? 0 : TL_TAP_REACH)",
+    replacement: "0)",
+    expected: "Zeitleiste: Tipp auf einen Punkt zeigt den Hinweis, ohne die Leiste einzuschalten"
+  },
+  {
+    nr: '2471', name: "Die Maus trifft auch neben dem Punkt",
+    file: 'public/app.js',
+    search: "pointerType === 'mouse' ? 0 : TL_TAP_REACH)",
+    replacement: "TL_TAP_REACH)",
+    expected: "Zeitleiste: Tipp auf einen Punkt zeigt den Hinweis, ohne die Leiste einzuschalten"
+  },
+  {
+    nr: '2472', name: "Die Tastatur oeffnet keinen Punkt",
+    file: 'public/app.js',
+    search: "    d.onclick = (e) => { if (!e.detail) location.hash = `#/item/${p.itemId}`; };",
+    replacement: "    d.onclick = () => {};",
+    expected: "Zeitleiste: Tipp auf einen Punkt zeigt den Hinweis, ohne die Leiste einzuschalten"
+  },
+  {
+    nr: '2473', name: "Ziehen beginnt nicht auf einem Punkt",
+    file: 'public/app.js',
+    search: "    if (!tl.active) return;\n    drag = { x: e.clientX,",
+    replacement: "    if (!tl.active || e.target.closest('.timeline-dot')) return;\n    drag = { x: e.clientX,",
+    expected: "Zeitleiste: Ziehen beginnt auch auf einem Punkt"
+  },
+  {
+    nr: '2474', name: "Kurzes Ziehen gilt danach als Tipp",
+    file: 'public/app.js',
+    search: "    drag.moved = true;\n    if (down) down.moved = true;\n",
+    replacement: "    drag.moved = true;\n",
+    expected: "Zeitleiste: Ziehen beginnt auch auf einem Punkt"
+  },
+  {
+    nr: '2475', name: "Die Hinweiszeile bricht um",
+    file: 'public/style.css',
+    search: ".tl-below { display: flex; justify-content: flex-end; align-items: center; gap: 14px; margin: 12px 0 18px;\n  font-size: .8rem; color: var(--muted); white-space: nowrap; }",
+    replacement: ".tl-below { display: flex; justify-content: flex-end; align-items: center; gap: 14px; margin: 12px 0 18px;\n  font-size: .8rem; color: var(--muted); }",
+    expected: "Zeitleiste: der Hinweis steht immer in einer Zeile"
+  },
+  {
+    nr: '2476', name: "„Alles zeigen“ aendert die Hoehe der Legende",
+    file: 'public/style.css',
+    search: ".tl-all { flex-shrink: 0; }",
+    replacement: ".tl-all { min-width: 0; overflow: hidden; }",
+    expected: "Zeitleiste: der Hinweis steht immer in einer Zeile"
+  },
+  {
+    nr: '2477', name: "Ein Doppelklick markiert die Jahreszahlen",
+    file: 'public/style.css',
+    search: "  user-select: none;\n}\n.timeline.active",
+    replacement: "}\n.timeline.active",
+    expected: "Zeitleiste: der Hinweis steht immer in einer Zeile"
+  },
+  {
+    nr: '2478', name: "Der Satz nennt den Wert nicht",
+    file: 'public/app.js',
+    search: "tMarks('card.partialSeeRating', { word: `<span id=\"pot-share\">${Number(PARTIAL_SHARE)}</span>` },",
+    replacement: "tMarks('card.partialSeeRating', { word: '<span id=\"pot-share\"></span>' },",
+    expected: "„Potenzial: Kriterien“: „Teilweise“ verweist auf die Schwelle unter „Bewertung“"
+  },
+  {
+    nr: '2479', name: "Der Satz folgt der Schwelle nicht",
+    file: 'public/app.js',
+    search: "    atElement('pot-share', el => { el.textContent = String(PARTIAL_SHARE); });\n",
+    replacement: "",
+    expected: "„Potenzial: Kriterien“: „Teilweise“ verweist auf die Schwelle unter „Bewertung“"
+  },
+  {
+    nr: '2480', name: "„Teilweise“ fehlt als Abschnitt in „Potenzial: Kriterien“",
+    file: 'public/app.js',
+    search: "${setting(tH('card.setPartial'), tMarks('card.partialSeeRating',",
+    replacement: "${setting('', tMarks('card.partialSeeRating',",
+    expected: "„Potenzial: Kriterien“: „Teilweise“ verweist auf die Schwelle unter „Bewertung“"
+  },
+  {
+    nr: '2481', name: "Der Export schreibt nur das erste Stueck einer Datei",
+    file: 'server.js',
+    search: "for (let k = 0; bytes && k < bytes.length; k += EXPORT_PIECE)",
+    replacement: "for (let k = 0; bytes && k < Math.min(bytes.length, EXPORT_PIECE); k += EXPORT_PIECE)",
+    expected: "Export: jede Datei in Stuecken, die Datei bleibt dieselbe"
+  },
+  {
+    nr: '2482', name: "Die Stuecke sind kein Vielfaches von 3 Bytes",
+    file: 'server.js',
+    search: "const EXPORT_PIECE = 3 * 1024 * 1024;",
+    replacement: "const EXPORT_PIECE = 3 * 1024 * 1024 + 1;",
+    expected: "Export: jede Datei in Stuecken, die Datei bleibt dieselbe"
+  },
+  {
+    nr: '2483', name: "Der Platzhalter bleibt hinter der Datei stehen",
+    file: 'server.js',
+    search: "      at = m.index + m[0].length - 1;",
+    replacement: "      at = m.index + 1;",
+    expected: "Export: jede Datei in Stuecken, die Datei bleibt dieselbe"
+  },
+  {
+    nr: '2484', name: "Eine Datei auf der Platte fehlt im Export",
+    file: 'server.js',
+    search: "  if (funnel.stream) return { ['data' + extension]: funnel.take(null, ['disk', a2.id]) };",
+    replacement: "  if (funnel.stream) return {};",
+    expected: "Export: jede Datei in Stuecken, die Datei bleibt dieselbe"
+  },
+  {
+    nr: '2485', name: "Der Export liest Fotos aus der falschen Spalte",
+    file: 'server.js',
+    search: "  photo: db.prepare('SELECT data FROM photos WHERE id = ?'),",
+    replacement: "  photo: db.prepare('SELECT thumb AS data FROM photos WHERE id = ?'),",
+    expected: "Export: jede Datei in Stuecken, die Datei bleibt dieselbe"
+  },
+  {
+    nr: '2486', name: "Der Import lagert nie aus",
+    file: 'server.js',
+    search: "        if (kept.length < SPILL_FROM) continue;",
+    replacement: "        if (kept.length >= 0) continue;",
+    expected: "Import: lange Base64-Strings gehen in Dateien, die Bytes kommen gleich an"
+  },
+  {
+    nr: '2487', name: "Die ausgelagerten Dateien bleiben liegen",
+    file: 'server.js',
+    search: "    if (spillDir) fs.rmSync(spillDir, { recursive: true, force: true });\n",
+    replacement: "",
+    expected: "Import: lange Base64-Strings gehen in Dateien, die Bytes kommen gleich an"
+  },
+  {
+    nr: '2488', name: "Die Transaktion haelt die Bytes im Speicher",
+    file: 'server.js',
+    search: "                    buf: laterOf(p, 'data', spilled) || buf,",
+    replacement: "                    buf,",
+    expected: "Import: lange Base64-Strings gehen in Dateien, die Bytes kommen gleich an"
+  },
+  {
+    nr: '2489', name: "Ein Rest von weniger als vier Zeichen geht verloren",
+    file: 'server.js',
+    search: "      const cut = last ? all.length : all.length - all.length % 4;",
+    replacement: "      const cut = all.length - all.length % 4;",
+    expected: "Import: lange Base64-Strings gehen in Dateien, die Bytes kommen gleich an"
+  },
+  {
+    nr: '2490', name: "Escapes im Base64-String werden nicht gelesen",
+    file: 'server.js',
+    search: "        else piece = JSON_ESCAPES[e] ?? e;",
+    replacement: "        else piece = '';",
+    expected: "Import: lange Base64-Strings gehen in Dateien, die Bytes kommen gleich an"
+  },
+  {
+    nr: '2491', name: "Der Import dekodiert auch Strings ohne `_base64` im Schluessel",
+    file: 'server.js',
+    search: "      if (z === '\"' && inObject && key.endsWith('_base64\"')) {",
+    replacement: "      if (z === '\"' && inObject && !wantKey) {",
+    expected: "Import: lange Base64-Strings gehen in Dateien, die Bytes kommen gleich an"
+  },
+  {
+    nr: '2492', name: "Die Upload-Pruefung je Eintrag kommt zurueck",
+    file: 'server.js',
+    search: "  if (size > most * MB) return res.status(413).json({ error: t(locale, 'server.uploadSize', { mb: most }) });\n",
+    replacement: "  if (size > most * MB) return res.status(413).json({ error: t(locale, 'server.uploadSize', { mb: most }) });\n  if (!large && size > 1024 * 1024) return res.status(413).json({ error: 'voll' });\n",
+    expected: "Keine Grenze je Eintrag: Hochladen, Plan und Meldungen"
+  },
+  {
+    nr: '2493', name: "Der Plan nennt wieder eine Grenze",
+    file: 'server.js',
+    search: "           targetSize, fallback: EXCHANGE_WARN, smallest: EXCHANGE_PART_MIN };",
+    replacement: "           targetSize, fallback: EXCHANGE_WARN, smallest: EXCHANGE_PART_MIN, tooBig: [] };",
+    expected: "Keine Grenze je Eintrag: Hochladen, Plan und Meldungen"
+  },
+  {
+    nr: '2494', name: "Der Dialog zaehlt Eintraege auch in tieferen Ebenen",
+    file: 'public/app.js',
+    search: "      if (stack.length === 2 && f.key === 'items' && t === '{') info.count++;",
+    replacement: "      if (f.key === 'items' && t === '{') info.count++;",
+    expected: "Dialog beim Import: die Datei wird stueckweise gelesen"
+  },
+  {
+    nr: '2495', name: "Der Dialog zaehlt ein Video als Foto",
+    file: 'public/app.js',
+    search: "      if (f.kind !== 'video') info.withPhotos = true;",
+    replacement: "      info.withPhotos = true;",
+    expected: "Dialog beim Import: die Datei wird stueckweise gelesen"
+  },
+  {
+    nr: '2496', name: "Der Dialog liest Escapes im Titel nicht",
+    file: 'public/app.js',
+    search: "          str.text += ({ n: '\\n', t: '\\t', r: '\\r', b: '\\b', f: '\\f' })[c] ?? c;",
+    replacement: "          str.text += '';",
+    expected: "Dialog beim Import: die Datei wird stueckweise gelesen"
+  },
+  {
+    nr: '2497', name: "Der Dialog nimmt eine abgebrochene Datei an",
+    file: 'public/app.js',
+    search: "  return started && !stack.length && !str ? info : null;",
+    replacement: "  return started ? info : null;",
+    expected: "Dialog beim Import: die Datei wird stueckweise gelesen"
+  },
+  {
+    nr: '2498', name: "Der Dialog liest die ganze Datei als Text",
+    file: 'public/app.js',
+    search: "  scanExport(file).catch(() => null).then(found => { info = found; show(); });",
+    replacement: "  const reader = new FileReader();\n  reader.onload = () => { try { info = JSON.parse(reader.result); } catch { info = null; } show(); };\n  reader.readAsText(file);",
+    expected: "Dialog beim Import: die Datei wird stueckweise gelesen"
+  },
+  {
+    nr: '2499', name: "Leerraum zaehlt bei den Vierergruppen mit",
+    file: 'server.js',
+    search: "      piece = piece.replace(/\\s+/g, '');\n",
+    replacement: "",
+    expected: "Import: lange Base64-Strings gehen in Dateien, die Bytes kommen gleich an"
+  },
+  {
+    nr: '2500', name: "Der Import navigiert wieder ueber location.hash",
+    file: 'public/app.js',
+    search: "        await dialogSettled();\n        history.replaceState(null, '', '#/');\n        route();\n        // Ergebnis und Hinweise",
+    replacement: "        location.hash = '#/';\n        if (location.hash === '#/') renderList();\n        // Ergebnis und Hinweise",
+    expected: "Was Export, Import und Backup enthalten"
+  },
+  {
+    nr: '2501', name: "Die Pause-Taste hat wieder duenne Striche",
+    file: 'public/app.js',
+    search: "const ICON_PAUSE = char('<path d=\"M8.5 7v10\"/><path d=\"M15.5 7v10\"/>', 3);",
+    replacement: "const ICON_PAUSE = char('<path d=\"M8.5 7v10\"/><path d=\"M15.5 7v10\"/>', 1.7);",
+    expected: "Audio: die Pause-Taste mit kurzen, kraeftigen Strichen"
+  },
+  {
+    nr: '2502', name: "Ein Punkt im CHANGELOG ist wieder ein Absatz",
+    file: 'CHANGELOG.md',
+    search: "- The pause button of the audio player has shorter, thicker bars.\n",
+    replacement: "- The pause button of the audio player has shorter, thicker bars: they are 10 instead of 14 units long and 3 instead of 1.7 wide, so the button no longer looks stretched next to the play button.\n",
+    expected: "Das CHANGELOG ist englisch und kurz"
+  },
+  {
+    nr: '2503', name: "0.41.0 steht wieder als eigener Abschnitt im CHANGELOG",
+    file: 'CHANGELOG.md',
+    search: "\n- 0.41.0: Comments take videos;",
+    replacement: "\n## [0.41.0] - 2026-09-24\n\n- Comments take videos;",
+    expected: "Das CHANGELOG ist englisch und kurz"
+  },
+  {
+    nr: '2504', name: "MediaInfo liest Audio bei den Fotos wieder je Stueck mit substr()",
+    file: 'server.js',
+    search: "    const data = qPhotoData.get(id)?.data;\n    if (!data) throw unreadable('gone');\n    const { cover, ...read } = await attachments.mediaFacts(data.length,\n      (length, offset) => data.subarray(offset, offset + length), { audio: p.kind === 'audio' });\n",
+    replacement: "    const { cover, ...read } = await attachments.mediaFacts(p.size, (length, offset) => {\n      const bytes = qPhotoPart.get(offset + 1, length, id)?.part;\n      if (!bytes || bytes.length < Math.min(length, p.size - offset)) throw unreadable('gone');\n      return bytes;\n    }, { audio: p.kind === 'audio' });\n",
+    expected: "Audio bei den Fotos: MediaInfo liest die Datei einmal ganz"
+  },
+  {
+    nr: '2505', name: "makePhotoMedia() gibt auf, obwohl die Bytes da sind",
+    file: 'server.js',
+    search: "    if (!data) throw unreadable('gone');\n    const { cover, ...read }",
+    replacement: "    if (data) throw unreadable('gone');\n    const { cover, ...read }",
+    expected: "Audio bei den Fotos: MediaInfo liest die Datei einmal ganz"
+  },
+  {
+    nr: '2506', name: "Ohne fremde Eintraege steht trotzdem eine Legende ueber der Leiste",
+    file: 'public/app.js',
+    search: "  box.innerHTML = `${foreign ? `<div class=\"timeline-legend\">",
+    replacement: "  box.innerHTML = `${true ? `<div class=\"timeline-legend\">",
+    expected: "Zeitleiste: Hinweis und „Alles zeigen“ unter der Leiste, darueber nur eigene und andere"
+  },
+  {
+    nr: '2507', name: "Die aktive Leiste bekommt eine Zeile darueber",
+    file: 'public/app.js',
+    search: "  box.innerHTML = `${foreign ? `<div class=\"timeline-legend\">",
+    replacement: "  box.innerHTML = `${foreign || tl.active ? `<div class=\"timeline-legend\">",
+    expected: "Zeitleiste: ueber der Leiste aendert sich beim Bedienen nichts"
+  },
+  {
+    nr: '2508', name: "Die Zeile unter der Leiste steht links",
+    file: 'public/style.css',
+    search: ".tl-below { display: flex; justify-content: flex-end;",
+    replacement: ".tl-below { display: flex;",
+    expected: "Zeitleiste: eine Zeile, rechtsbuendig, der aktive Hinweis am Telefon kurz"
+  },
+  {
+    nr: '2509', name: "Der aktive Hinweis am Telefon nennt wieder das Wischen",
+    file: 'public/languages/de.json',
+    search: "\"list.timelineZoomTouch\": \"Zwei Finger zoomen · Doppeltipp beendet\"",
+    replacement: "\"list.timelineZoomTouch\": \"Zwei Finger zoomen · Wischen verschiebt · Doppeltipp beendet\"",
+    expected: "Zeitleiste: eine Zeile, rechtsbuendig, der aktive Hinweis am Telefon kurz"
+  },
+  {
+    nr: '2510', name: "Die Liste am Telefon nennt keine Dauer",
+    file: 'public/app.js',
+    search: "    li.querySelector('.adur').textContent = shown || '';\n",
+    replacement: "",
+    expected: "„Dateien“ am Telefon: die Dauer zwischen Groesse und Datum"
+  },
+  {
+    nr: '2511', name: "Die Dauer steht hinter dem Datum",
+    file: 'public/style.css',
+    search: "  .alist .adur { display: block; grid-column: 3; grid-row: 2;",
+    replacement: "  .alist .adur { display: block; grid-column: 5; grid-row: 2;",
+    expected: "„Dateien“ am Telefon: die Dauer zwischen Groesse und Datum"
+  },
+  {
+    nr: '2512', name: "Zwischen Groesse und Dauer fehlt der Punkt",
+    file: 'public/style.css',
+    search: "  .alist .asize:not(:empty) + .adur:not(:empty)::before,\n",
+    replacement: "",
+    expected: "„Dateien“ am Telefon: die Dauer zwischen Groesse und Datum"
+  },
+  {
+    nr: '2513', name: "Ab einer Stunde wieder nur Minuten",
+    file: 'public/app.js',
+    search: "  return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;",
+    replacement: "  return `${h * 60 + m}:${s}`;",
+    expected: "„Dateien“ am Telefon: die Dauer zwischen Groesse und Datum"
+  },
+  {
+    nr: '2514', name: "Am Desktop steht die Dauer zweimal",
+    file: 'public/style.css',
+    search: ".akind, .asize, .adur, .adate, .afrom, .anote, .aadd .aname { display: none; }",
+    replacement: ".akind, .asize, .adate, .afrom, .anote, .aadd .aname { display: none; }",
+    expected: "„Dateien“ am Telefon: die Dauer zwischen Groesse und Datum"
+  },
+  {
+    nr: '2515', name: "Die Infos speichern die Abtastart nicht",
+    file: 'attachments.js',
+    search: "      scanType: mediaText(tr.ScanType),\n",
+    replacement: "",
+    expected: "Videos: die Abtastart steht in den Infos, alte Zeilen werden einmal neu gelesen"
+  },
+  {
+    nr: '2516', name: "Eine Zeile ohne Abtastart wird beim Abruf nicht neu gelesen",
+    file: 'server.js',
+    search: "  if (known && !(kind === 'image' && a.stale) && !a.soundless && !a.unscanned) return known;",
+    replacement: "  if (known && !(kind === 'image' && a.stale) && !a.soundless) return known;",
+    expected: "Videos: die Abtastart steht in den Infos, alte Zeilen werden einmal neu gelesen"
+  },
+  {
+    nr: '2517', name: "Beim Start sucht der Server Zeilen ohne Abtastart nicht",
+    file: 'server.js',
+    search: " OR (${SOUND_STALE}) OR (${SCAN_STALE})\n  ORDER BY a.id DESC`);",
+    replacement: " OR (${SOUND_STALE})\n  ORDER BY a.id DESC`);",
+    expected: "Videos: die Abtastart steht in den Infos, alte Zeilen werden einmal neu gelesen"
+  },
+  {
+    nr: '2518', name: "Zeilen ohne Abtastart kommen nicht in die Reihe",
+    file: 'server.js',
+    search: "|| r.soundless || r.unscanned) &&",
+    replacement: "|| r.soundless) &&",
+    expected: "Videos: die Abtastart steht in den Infos, alte Zeilen werden einmal neu gelesen"
+  },
+  {
+    nr: '2519', name: "Die Liste nennt Breite und Hoehe eines Videos nicht",
+    file: 'server.js',
+    search: "{ codec: a2.codec, width: a2.video_width, height: a2.video_height, frameRate: a2.frame_rate,",
+    replacement: "{ codec: a2.codec, frameRate: a2.frame_rate,",
+    expected: "Videos: die Abtastart steht in den Infos, alte Zeilen werden einmal neu gelesen"
+  },
+  {
+    nr: '2520', name: "Halbbilder zaehlen als Vollbilder",
+    file: 'public/app.js',
+    search: "Math.round((Number(a.frameRate) || 0) * (fields ? 2 : 1)) || '';",
+    replacement: "Math.round(Number(a.frameRate) || 0) || '';",
+    expected: "Spalte „Art“: Aufloesung und Bildrate, etwa „H.264 · 1080p30 · 2:41“"
+  },
+  {
+    nr: '2521', name: "4K heisst 2160p",
+    file: 'public/app.js',
+    search: "lines >= 4320 ? '8K' : lines >= 2160 ? '4K' : ",
+    replacement: "lines >= 4320 ? '8K' : ",
+    expected: "Spalte „Art“: Aufloesung und Bildrate, etwa „H.264 · 1080p30 · 2:41“"
+  },
+  {
+    nr: '2522', name: "Hochformat zaehlt die laengere Seite",
+    file: 'public/app.js',
+    search: "const lines = Math.min(Number(a.width) || 0, Number(a.height) || 0);",
+    replacement: "const lines = Math.max(Number(a.width) || 0, Number(a.height) || 0);",
+    expected: "Spalte „Art“: Aufloesung und Bildrate, etwa „H.264 · 1080p30 · 2:41“"
+  },
+  {
+    nr: '2523', name: "Die Spalte „Art“ bleibt 150 px breit",
+    file: 'public/style.css',
+    search: ".alist { --acols: 32px minmax(0, 1fr) 10.7rem 4.6rem 5.8rem; }",
+    replacement: ".alist { --acols: 32px minmax(0, 1fr) 10rem 4.6rem 5.8rem; }",
+    expected: "Spalte „Art“: Aufloesung und Bildrate, etwa „H.264 · 1080p30 · 2:41“"
+  },
+  {
+    nr: '2524', name: "Screenreader hoeren die Aufloesung nicht",
+    file: 'public/app.js',
+    search: "video ? videoFormat(a) : '', length,",
+    replacement: "length,",
+    expected: "Spalte „Art“: Aufloesung und Bildrate, etwa „H.264 · 1080p30 · 2:41“"
+  },
+  {
+    nr: '2525', name: "Audio bekommt eine Aufloesung",
+    file: 'public/app.js',
+    search: "kind === 'video' ? videoFormat(a) : ''",
+    replacement: "videoFormat(a)",
+    expected: "Spalte „Art“: Aufloesung und Bildrate, etwa „H.264 · 1080p30 · 2:41“"
+  },
+  {
+    nr: '2526', name: "Eine Bildrate unter 0,5 wird „1080p0“",
+    file: 'public/app.js',
+    search: "  const rate = Math.round((Number(a.frameRate) || 0) * (fields ? 2 : 1)) || '';",
+    replacement: "  const rate = Number(a.frameRate) > 0 ? Math.round(a.frameRate * (fields ? 2 : 1)) : '';",
+    expected: "Spalte „Art“: Aufloesung und Bildrate, etwa „H.264 · 1080p30 · 2:41“"
+  }
 ];
 
 /* ---- Spuren und Versatz ---- */

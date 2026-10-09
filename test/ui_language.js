@@ -56,7 +56,8 @@ async function run() {
     const withoutComment = (q) => q
       .replace(/(^|[^A-Za-z0-9_"'`])\/\*[\s\S]*?\*\//g, '$1 ')
       .replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
-    const spSources = ['public/app.js', 'server.js', 'auth.js', 'mail.js'];
+    const spSources = ['public/app.js', 'server.js', 'auth.js', 'mail.js', 'docserver.js', 'backup.js',
+                       'backuptool.js'];
     const called = new Set();
     for (const file of spSources) {
       const q = withoutComment(fs.readFileSync(path.join(__dirname, file), 'utf8'));
@@ -215,22 +216,30 @@ async function run() {
     const REST_EXPECTED = [
       // HTTP-Methoden und Header
       'GET', 'POST', 'PUT', 'DELETE', 'Content-Type', 'application/json',
+      'Upload-Offset', 'application/octet-stream',
       // Tasten und Knotennamen
-      'Enter', 'Escape', 'ArrowLeft', 'ArrowRight', 'INPUT', 'TEXTAREA', 'SELECT',
+      'Enter', 'Escape', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'INPUT', 'TEXTAREA', 'SELECT',
       // Formen, Typen und Ziele
       'image/', 'image/*', 'image/jpeg', 'PNG', 'JPEG', 'GIF', '_blank', 'https://',
-      // Die Auswahl im Kommentar nimmt auch Videos.
-      'image/*,video/*', 'video/',
+      // Namen von Formaten wie in Datenblaettern und die Zeitzone der Kamerazeit
+      'AVIF', 'BMP', 'UTC', 'MPEG Audio',
+      // Der Wert von `transform` beim Spreizen im Vollbild
+      'translate(', 'px) scale(',
+      // Die Auswahl im Kommentar nimmt auch Videos, die Bildleiste auch Audio.
+      'image/*,video/*', 'image/*,video/*,audio/*', 'video/',
+      // Die Art im DataTransfer, wenn Dateien auf den Block gezogen werden
+      'Files',
       'SSL/TLS', 'STARTTLS',
       // Der Name des Programms, bevor /api/config antwortet
       'Kriterion',
       // Der Ort der Sprachdateien und die Lage, wenn eine fehlt
       'languages/', 'Die Sprachdatei fehlt.',
-      // Auswahl im Stilblatt und drei Medienabfragen
+      // Auswahl im Stilblatt und fuenf Medienabfragen
       'button, input, select, a, .bgrip',
       '(prefers-color-scheme: light)',
       '(prefers-reduced-motion: reduce)',
       '(max-width: 700px), (max-height: 500px) and (max-width: 960px)',
+      '(pointer: coarse)', '(hover: hover) and (pointer: fine)',
       // Stuecke einer Adresse
       '?entries=', '&posts=', '?group=', '&days=', '&target=',
       '&files=1', '&videos=1', 'photos=1', '?size=thumb',
@@ -238,8 +247,8 @@ async function run() {
       'noopener,noreferrer', 'docker-compose.yml',
       // Endungen des gespeicherten Sortierwerts
       '_asc', '_desc',
-      // Name eines HTTP-Headers
-      'Accept-Language',
+      // Namen von HTTP-Headern
+      'Accept-Language', 'Content-Length',
       // Vorsatz der Vokabelschluessel
       'vocabulary.',
       // Serverbefehle, in jeder Sprache gleich
@@ -250,22 +259,20 @@ async function run() {
       '<code>data/</code>', '<code>http://</code>', '<code>public/languages/</code>',
       '</p>\n              <code class="keyline" id="keyline">ENCRYPTION_KEY=',
       '<code>https://</code>',
-      '<code>https://www.google.com/search?q=site%3Aforum.beispiel.de+%s</code>',
-      'https://forum.beispiel.de/suche?q=%s',
+      '<code>https://www.google.com/search?q=site%3Aforum.example.com+%s</code>',
+      'https://forum.example.com/search?q=%s',
       // Merkmal der abgelaufenen Sitzung
       'kriterion:session-gone',
       // Name des CSRF-Cookies
       '__Host-kriterion_csrf',
       // SVG-Namensraum fuer createElementNS
-      'http://www.w3.org/2000/svg',
-      // Der zweite Abfrageparameter an GET /api/comment-refs.
-      '&items='
+      'http://www.w3.org/2000/svg'
     ].sort();
     const tooMany = rest.filter(t => !REST_EXPECTED.includes(t));
     const missing = REST_EXPECTED.filter(t => !rest.includes(t));
-    check('Restprobe: weniger als siebzig lesbare Texte in app.js',
-      rest.length < 70, `${rest.length} verschiedene, ${restPlaces.length} Stellen`);
-    check('Und es sind genau die sechzig benannten',
+    check('Restprobe: weniger als achtzig lesbare Texte in app.js',
+      rest.length < 80, `${rest.length} verschiedene, ${restPlaces.length} Stellen`);
+    check('Und es sind genau die neunundsiebzig benannten',
       tooMany.length === 0 && missing.length === 0,
       `zu viel: ${tooMany.slice(0, 8).map(t => JSON.stringify(t.slice(0, 40))).join(' · ')} · fehlt: ${missing.slice(0, 8).map(t => JSON.stringify(t.slice(0, 40))).join(' · ')}`);
     check('Und der Filter laesst einen deutschen Satz stehen',
@@ -291,8 +298,8 @@ async function run() {
       'docker compose exec kriterion node usertool.js password <name>',
       'docker compose exec kriterion node usertool.js twofactor <name>',
       // Zwei Beispieladressen
-      '<code>https://www.google.com/search?q=site%3Aforum.beispiel.de+%s</code>',
-      'https://forum.beispiel.de/suche?q=%s'
+      '<code>https://www.google.com/search?q=site%3Aforum.example.com+%s</code>',
+      'https://forum.example.com/search?q=%s'
     ];
     const restLeft = rest
       .filter(t => !REST_GERMAN_NAMED.includes(t))
@@ -334,7 +341,7 @@ async function run() {
                           'logLine', 'logWarn', 'logFail',
                           'db\\.prepare', 'd\\.prepare'];
     const serverRest = [];
-    for (const file of ['server.js', 'auth.js', 'mail.js']) {
+    for (const file of ['server.js', 'auth.js', 'mail.js', 'backup.js']) {
       const raw = fs.readFileSync(path.join(__dirname, file), 'utf8');
       for (const piece of screenTextsFrom(serverCalls(raw, SERVER_QUIET)))
         if (restGerman(piece.text).length) serverRest.push(piece.text.trim());
@@ -355,7 +362,7 @@ async function run() {
       // Bildschirm des Wirts
       'Eigener Server',
       // Gespeicherte Werte und Bezeichner
-      'Ohne Titel', 'Model Bewertungen', 'standbild',
+      'Ohne Titel', 'standbild', 'fehlt',
       'aus', 'eigen', 'unbekannt', 'wieder', 'wirt', 'note',
       'beschreibung', 'bewertung', 'datei', 'dateien', 'einstellung',
       'kategorie', 'kommentare', 'potenzial', 'testtage'
@@ -365,7 +372,7 @@ async function run() {
     check('Restprobe server.js: kein fester deutscher Satz erreicht mehr den Bildschirm — 0.32.0',
       serverTooMany.length === 0,
       serverTooMany.slice(0, 6).map(t => JSON.stringify(t.slice(0, 50))).join(' · '));
-    check('Und jeder der benannten Reste steht wirklich in einer der drei Dateien',
+    check('Und jeder der benannten Reste steht wirklich in einer der vier Dateien',
       serverMissing.length === 0,
       serverMissing.slice(0, 6).map(t => JSON.stringify(t.slice(0, 50))).join(' · '));
     const SERVER_REST_GONE = [
@@ -388,7 +395,7 @@ async function run() {
 
     /* ---- 5d. Restprobe Containerprotokoll ---- */
     const CONSOLE_FILES = ['server.js', 'db.js', 'auth.js', 'keys.js',
-                           'batchrun.js', 'images.js', 'log.js'];
+                           'batchrun.js', 'images.js', 'log.js', 'schema.js', 'backup.js'];
     /* Befehlswoerter, keine Saetze; wie die Serverbefehle in REST_GERMAN_NAMED. */
     const CONSOLE_COMMAND_WORDS = ['rand'];
     /* Liest den ganzen Aufruf bis zur passenden Klammer; eine Meldung kann ueber
@@ -550,8 +557,9 @@ async function run() {
     const cfgCore = ((fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8')
       .match(/app\.get\('\/api\/config'[\s\S]*?res\.json\(\{([\s\S]*?)\}\);/) || ['', ''])[1]);
     const cfgFields = (cfgCore.match(/(?:^|[,{\n])\s*(\w+):/g) || []).length;
-    check('Die Zahlen dieser Runde: drei Sprachdateien, sechs Felder in /api/config',
-      spNames.length === 3 && cfgFields === 6,
+    // Das siebte, `languages`, steht nur vor der Einrichtung in der Antwort.
+    check('Die Zahlen dieser Runde: drei Sprachdateien, sieben Felder in /api/config',
+      spNames.length === 3 && cfgFields === 7,
       `${spNames.length} Datei(en) · ${cfgFields} Felder`);
   }
 
@@ -670,11 +678,13 @@ async function run() {
     for (const [choice, property, variable] of [
       ['.timeline-line', 'background', '--timeline-line'],
       ['.timeline-line.center', 'background', '--timeline-mid'],
-      ['.timeline-years', 'border-top', '--timeline-line'],
       ['.timeline-year', 'color', '--timeline-year']])
       check(`${choice} liest ${variable}`,
         new RegExp(`${property}:[^;}]*var\\(${variable}\\)`).test(regel123(choice)),
         regel123(choice) || '(keine Regel)');
+    // Die Linie fuer einen Stern traegt die Jahre; eine zweite Linie darunter gibt es nicht.
+    check('.timeline-years zieht keine eigene Linie',
+      !/border/.test(regel123('.timeline-years')), regel123('.timeline-years') || '(keine Regel)');
     // Voraussetzung dafuer, dass oben gegen --bg und nicht gegen --surface gemessen wird.
     check('Und die Zeitleiste liegt weiter ohne Kasten auf dem Grund',
       !/background|border:/.test(regel123('.timeline')), regel123('.timeline') || '(keine Regel)');
@@ -807,10 +817,10 @@ async function run() {
     /* jsdom rechnet kein Layout: geprueft werden der Quelltext und der Fall ohne Hoehe. */
     check('`more()` baut genau eine Gestalt — den Aufklapper',
       /const more = \(html\) =>\s*\n\s*`<details class="more">/.test(appRaw),
-      (appRaw.match(/const more = \(html\)[\s\S]{0,80}/) || ['(nicht gefunden)'])[0]);
-    check('Und die Messung laeuft NACH dem Zeichnen und faellt am Telefon aus',
-      /function trimMore\(root\) \{\s*\n\s*if \(!root \|\| isNarrow\(\)\) return;/.test(appRaw) &&
-      /\n  trimMore\(app\);\n\}/.test(appRaw),
+      (appRaw.match(/const more = \(html[\s\S]{0,100}/) || ['(nicht gefunden)'])[0]);
+    check('Und die Messung laeuft NACH dem Zeichnen, auf jedem Geraet, und wieder bei neuer Breite oder Schrift',
+      /function trimMore\(root\) \{\s*\n\s*if \(!root\) return;/.test(appRaw) &&
+      /\n  trimMore\(app\);\n  watchMore\(app\);\n\}/.test(appRaw),
       (appRaw.match(/function trimMore[\s\S]{0,120}/) || ['(nicht gefunden)'])[0]);
     check('Und die Schranke ist die Zeilenhoehe des Inhalts, keine Zahl',
       /parseFloat\(getComputedStyle\(text\)\.lineHeight\)/.test(appRaw) &&
@@ -838,11 +848,11 @@ async function run() {
       const d = buildDom(JSDOM, { settings: { filters: null, userCount: 4, ...roles } });
       await until(d.w, listReady, 2000, 'die Uebersicht');
       await d.w.renderSystem();
-      await until(d.w, (x) => x.document.querySelector('.sys-tab') && sysReady(x), 2000,
+      await until(d.w, (x) => x.document.querySelector('.sys-grid') && sysReady(x), 2000,
         'die Abschnitte des Systembereichs');
       const dg = await sysPass(d);
       let boxes = 0, complete = true;
-      for (const address of dg.tab) {
+      for (const address of dg.tab.length ? dg.tab : [d.w.location.hash]) {
         d.w.history.replaceState(null, '', address);
         await d.w.renderSystem();
         await until(d.w, sysReady, 2000, `die Karten unter ${address}`);
@@ -863,7 +873,7 @@ async function run() {
       skUser.boxes === 0 && !/docker compose|usertool\.js/.test(skUser.text), String(skUser.boxes));
     check('Ein Admin ebenso wenig',
       skAdm.boxes === 0 && !/docker compose|usertool\.js/.test(skAdm.text), String(skAdm.boxes));
-    check('Die Eigentuemerin sieht drei: Mein Konto, Benutzer und Kennzahlen',
+    check('Die Eigentuemerin sieht drei: Mein Account, Benutzer und Version und Verschlüsselung',
       skEig.boxes === 3 && /Auf dem Server/.test(skEig.text), String(skEig.boxes));
     check('Und jeder Kasten traegt Ueberschrift, Befehl und Kopierknopf',
       skEig.complete && /\.server-row code \{/.test(css123) && /\.server-head \{/.test(css123),
@@ -958,7 +968,8 @@ async function run() {
       JSON.stringify(stBack));
     check('Und die Meldung ist danach fort', !stDoc.querySelector('.toast'), '');
     check('Eine Meldung mit Knopf steht sechs Sekunden',
-      /const duration = action \? 6000 : 2600;/.test(fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8')),
+      /const duration = action \? TOAST_MS\.withButton/.test(fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8')) &&
+      /const TOAST_MS = \{ min: 2600, max: 8000, perSign: 60, withButton: 6000 \};/.test(fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8')),
       'die Dauer steht nicht so im Quelltext');
     const stTest = [...stDoc.querySelectorAll('#tstars .stars, .ttag .stars, .tdrow .stars')];
     check('Eine Sternreihe ohne Ruecksetzer traegt keinen Knopf',
@@ -1100,59 +1111,44 @@ async function run() {
       await until(d.w, sysReady, 2000, `die Karten des Abschnitts ${section}`);
       return d;
     };
-    const rwEigK = await rwSystem({ isAdmin: true, isOwner: true }, 'database');
-    const rwAdmK = await rwSystem({ isAdmin: true, isOwner: false }, 'database');
+    const rwEigK = await rwSystem({ isAdmin: true, isOwner: true }, 'installation');
+    const rwAdmK = await rwSystem({ isAdmin: true, isOwner: false }, 'installation');
     check('Die Eigentuemerin sieht den Schluessel im Klartext und den Kasten „Auf dem Server"',
       !!rwEigK.w.document.getElementById('keyline') &&
       /ENCRYPTION_KEY=abab/.test(rwEigK.w.document.getElementById('keyline')?.textContent || '') &&
       !!rwEigK.w.document.querySelector('.server-box') &&
       /docker compose up -d/.test(rwEigK.w.document.querySelector('.server-box')?.textContent || ''),
       rwEigK.w.document.querySelector('.server-box')?.textContent.slice(0, 120) || '(kein Kasten)');
-    check('Der Admin sieht statt des Schluessels einen Satz an den Eigentuemer',
+    check('Der Admin sieht weder den Schluessel noch den Hinweis, dass er neben der Datenbank liegt',
       !rwAdmK.w.document.getElementById('keyline') &&
-      !/ENCRYPTION_KEY=abab/.test(rwAdmK.w.document.getElementById('app')?.textContent || '') &&
-      D.shows(rwAdmK.w.document.getElementById('app')?.textContent, 'card.keyStillBeside') &&
-      !rwAdmK.w.document.querySelector('.server-box'),
+      !/ENCRYPTION_KEY=abab|encryption\.key/.test(rwAdmK.w.document.getElementById('app')?.textContent || '') &&
+      ![...rwAdmK.w.document.querySelectorAll('.sys-card')].some(k => k.querySelector('h3')?.textContent.trim() ===
+        'Version und Verschlüsselung' && k.querySelector('.warn-box')) && !rwAdmK.w.document.querySelector('.server-box'),
       (rwAdmK.w.document.querySelector('.warn-box')?.textContent || '').slice(0, 160));
     rwEigK.w.close(); rwAdmK.w.close();
     const rwUserB = await rwSystem({ isAdmin: false, isOwner: false }, 'inventory');
     const rwAdmB = await rwSystem({ isAdmin: true, isOwner: false }, 'inventory');
     const cardText = (d, name) => [...d.w.document.querySelectorAll('.sys-card')]
       .find(k => k.querySelector('h3')?.textContent.trim() === name);
-    const kUserCategory = cardText(rwUserB, 'Kategorien'), kUserTag = cardText(rwUserB, 'Tags');
     const kAdmCategory = cardText(rwAdmB, 'Kategorien'), kAdmTag = cardText(rwAdmB, 'Tags');
-    check('Der Benutzer liest an „Kategorien" einen Satz: „Alle Kategorien. Ändern kann sie der Admin."',
-      kUserCategory?.querySelector('.desc')?.textContent.trim() === 'Alle Kategorien. Ändern kann sie der Admin.' &&
-      !kUserCategory?.querySelector('#cat-free') && !/Umbenennen|Häkchen/.test(kUserCategory?.textContent || ''),
-      JSON.stringify(kUserCategory?.querySelector('.desc')?.textContent.trim()));
-    check('Und an „Tags" ebenso',
-      kUserTag?.querySelector('.desc')?.textContent.trim() === 'Alle Tags. Ändern kann sie der Admin.' &&
-      !kUserTag?.querySelector('#tag-free') && !/Umbenennen|Häkchen/.test(kUserTag?.textContent || ''),
-      JSON.stringify(kUserTag?.querySelector('.desc')?.textContent.trim()));
+    check('Ein Benutzer sieht „Bestand“ nicht; die Adresse fuehrt zu „Persönlich“',
+      rwUserB.w.location.hash === '#/system/personal' && !cardText(rwUserB, 'Kategorien') &&
+      !cardText(rwUserB, 'Tags') && !rwUserB.w.document.getElementById('mcats'),
+      `${rwUserB.w.location.hash} ${!!cardText(rwUserB, 'Kategorien')}`);
     check('Der Admin sieht die Werkzeuge: „Umbenennen oder löschen" und den Schalter',
       /Umbenennen oder löschen/.test(kAdmCategory?.querySelector('.desc')?.textContent || '') && !!kAdmCategory?.querySelector('#cat-free') &&
       /Umbenennen oder löschen/.test(kAdmTag?.querySelector('.desc')?.textContent || '') && !!kAdmTag?.querySelector('#tag-free'),
       JSON.stringify([kAdmCategory?.querySelector('.desc')?.textContent.trim(), !!kAdmCategory?.querySelector('#cat-free')]));
-    check('Die Liste der Kategorien steht auch beim Benutzer',
-      !!kUserCategory?.querySelector('#mcats') && !!kUserTag?.querySelector('#mtags'), '');
     /* ---- Der Gewichtssatz ---- */
-    const kUserWeight = cardText(rwUserB, 'Bewertung: Kriterien');
     const kAdmWeight = cardText(rwAdmB, 'Bewertung: Kriterien');
     const kFlat = (el) => (el?.textContent || '').replace(/\s+/g, ' ');
-    check('Der Benutzer liest weiter, was das Gewicht tut',
-      /bestimmt, wie stark ein Kriterium in den Durchschnitt eingeht/.test(kFlat(kUserWeight)),
-      kFlat(kUserWeight).slice(-200));
-    check('Und dazu, dass die Gewichte eine Systemvorgabe sind',
-      /Die Gewichte sind eine Systemvorgabe\./.test(kFlat(kUserWeight)),
-      kFlat(kUserWeight).slice(-200));
-    check('Der Bereich 0,2 bis 2 steht nur beim Admin',
-      /Möglich ist 0,2 bis 2/.test(kFlat(kAdmWeight)) &&
-      !/Möglich ist 0,2 bis 2/.test(kFlat(kUserWeight)),
-      kFlat(kUserWeight).slice(-200));
-    check('Und „Eingestellt wird es vom Admin" steht bei keiner Rolle mehr',
-      !/Eingestellt wird es vom Admin/.test(kFlat(kUserWeight)) &&
+    check('Der Admin liest, was das Gewicht tut, und den Bereich 0,2 bis 2',
+      /bestimmt, wie stark ein Kriterium in den Durchschnitt eingeht/.test(kFlat(kAdmWeight)) &&
+      /Möglich ist 0,2 bis 2/.test(kFlat(kAdmWeight)),
+      kFlat(kAdmWeight).slice(-200));
+    check('Und „Eingestellt wird es vom Admin" steht nicht mehr da',
       !/Eingestellt wird es vom Admin/.test(kFlat(kAdmWeight)),
-      kFlat(kUserWeight).slice(-200));
+      kFlat(kAdmWeight).slice(-200));
     check('Die Seite heisst „Einstellungen", und ihr Satz nennt die Installation nur dem Admin',
       rwUserB.w.document.querySelector('.page-title')?.textContent === 'Einstellungen' &&
       rwAdmB.w.document.querySelector('.page-title')?.textContent === 'Einstellungen' &&

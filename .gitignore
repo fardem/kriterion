@@ -1,8 +1,10 @@
 node_modules/
 data/
 .env
+.env.before-key-change-*
 docker-compose.yml
 *.log
 .DS_Store
 kriterion-backup*/
 kriterion-sicherung*/
+tools/ux/work/

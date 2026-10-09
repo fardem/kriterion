@@ -181,8 +181,8 @@ async function run() {
     check('Und ?size=thumb liefert ein Bild',
       tile.status === 200 && /^image\//.test(tile.headers.get('content-type') || ''),
       `${tile.status} ${tile.headers.get('content-type')}`);
-    check('Der Dateiname nennt das Video und seine Nummer',
-      /filename="video-\d+\.mp4"/.test(whole.headers.get('content-disposition') || ''),
+    check('Der Dateiname ist der vom Hochladen',
+      /filename="clip\.mp4"/.test(whole.headers.get('content-disposition') || ''),
       whole.headers.get('content-disposition'));
   }
 
@@ -227,7 +227,7 @@ async function run() {
     try { rtFile = JSON.parse(await a.text()); } catch { rtFile = null; }
     const item = rtFile?.items?.find(i => i.title === 'Kommentarvideos');
     const c = item?.comments?.find(z => z.text === 'Mit Video');
-    check('Die Exportdatei traegt Format 19', rtFile?.version === 19, JSON.stringify(rtFile?.version));
+    check('Die Exportdatei traegt Format 23', rtFile?.version === 23, JSON.stringify(rtFile?.version));
     check('Der Kommentar traegt sein Video samt Standbild',
       c?.videos?.length === 1 && Buffer.from(c.videos[0].data_base64 || '', 'base64').equals(cvVideo) &&
       !!c.videos[0].still_base64 && c.videos[0].duration === 7,
@@ -364,7 +364,7 @@ async function run() {
     const linkOf = () => {
       const a = w.document.querySelector('.lightbox .lb-tools .download');
       const out = a ? { href: a.getAttribute('href'), download: a.hasAttribute('download'),
-        title: a.title, text: a.textContent } : null;
+        title: a.title, text: a.textContent, icon: !!a.querySelector('svg.icon') } : null;
       w.document.querySelector('.lightbox .close')?.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
       return out;
     };
@@ -383,8 +383,8 @@ async function run() {
     check('Das Video am Eintrag ebenso', good(video, '/api/photos/6/raw'), JSON.stringify(video));
     check('Das Kommentarbild', good(image, '/api/comment-images/71/raw'), JSON.stringify(image));
     check('Das Kommentarvideo', good(cvideo, '/api/comment-videos/91/raw'), JSON.stringify(cvideo));
-    check('Zeichen und Titel wie am Anhang',
-      photo?.text === '↓' && photo?.title === DE['entry.download'], JSON.stringify(photo));
+    check('Ein gezeichneter Pfeil wie ⓘ und Link, der Titel wie am Anhang',
+      photo?.icon === true && photo?.text === '' && photo?.title === DE['entry.download'], JSON.stringify(photo));
     w.close();
   }
 
@@ -533,11 +533,14 @@ async function run() {
       'card.onlyBackupComplete': 'Nur das Backup ist eine vollständige Sicherung der Datenbank.',
       'card.exportOnlyEntries': 'Export und Import enthalten nur die {entryMany} — keine Benutzer und keine Einstellungen von Kriterion.',
       'card.wayBackupHint': 'der Notfall. Die vollständige, verschlüsselte Sicherung der Datenbank — auch mit Benutzern und Einstellungen.',
-      'card.exportPurposeHint': '**Export:** für Umzug, Archiv und Weitergabe — unverschlüsselt, auch mit späteren Versionen lesbar. Er enthält nur die {entryMany}, keine Benutzer und keine Einstellungen. Für den Notfall: Karte **Backup**.',
-      'card.backupWhatHint': '**Backup:** die vollständige, verschlüsselte Sicherung der Datenbank — auch mit Benutzern und Einstellungen, die der Export nicht enthält. Lässt sich nur in dieselbe Programmversion zurückspielen.'
+      'card.exportPurposeHint': '**Export:** für Umzug, Archiv und Weitergabe — unverschlüsselt, auch mit späteren Versionen lesbar.',
+      'card.exportPurposeMore': 'Er enthält nur die {entryMany}, keine Benutzer und keine Einstellungen. Für den Notfall: Karte **Backup**.',
+      'card.backupWhatHint': '**Backup:** die vollständige, verschlüsselte Sicherung der Datenbank — auch mit Benutzern und Einstellungen, die der Export nicht enthält.',
+      'card.backupWhatMore': 'Zurückgespielt wird auf dem Server mit ./backuptool.sh.'
     };
     const off = Object.keys(WANT).filter(k => DE[k] !== WANT[k]);
-    check('Die fuenf Saetze stehen im verlangten Wortlaut', off.length === 0, off.join(' ') || 'alle');
+    check('Die Saetze stehen im verlangten Wortlaut; was in der Karte unter „Mehr“ steht, in einem eigenen Schluessel',
+      off.length === 0, off.join(' ') || 'alle');
     const read = (code) => JSON.parse(fs.readFileSync(path.join(__dirname, 'public', 'languages', `${code}.json`), 'utf8'));
     const missing = ['en', 'tr'].flatMap(c => Object.keys(WANT).filter(k => !read(c)[k]).map(k => `${c}/${k}`));
     check('Englisch und Tuerkisch tragen dieselben Schluessel', missing.length === 0, missing.join(' ') || 'alle');
@@ -545,7 +548,7 @@ async function run() {
       const dm = buildDom(JSDOM, {});
       const w = dm.w;
       await until(w, (x) => x.document.getElementById('count') && openRequests(x) === 0, 2000, 'die Uebersicht');
-      await sysSection(w, 'database');
+      await sysSection(w, 'backup');
       const cards = w.document.querySelector('.sys-grid')?.textContent.replace(/\s+/g, ' ') || '';
       check('Die Karte „Export und Import" nennt, was fehlt',
         cards.includes('Er enthält nur die Einträge, keine Benutzer und keine Einstellungen.'), cards.slice(0, 160));
@@ -556,8 +559,8 @@ async function run() {
         cards.includes('die vollständige, verschlüsselte Sicherung der Datenbank — auch mit Benutzern und Einstellungen, die der Export nicht enthält.'),
         cards.slice(0, 160));
       w.document.getElementById('ex-yes')?.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
-      await until(w, (x) => x.document.querySelector('.backdrop .warn-box'), 2000, 'der Hinweis vor dem Export');
-      const notice = w.document.querySelector('.backdrop .warn-box')?.textContent.replace(/\s+/g, ' ') || '';
+      await until(w, (x) => x.document.querySelector('.backdrop .plain-box'), 2000, 'der Hinweis vor dem Export');
+      const notice = w.document.querySelector('.backdrop .plain-box')?.textContent.replace(/\s+/g, ' ') || '';
       check('Der Dialog nennt das Backup als einzige vollstaendige Sicherung',
         notice.includes('Nur das Backup ist eine vollständige Sicherung der Datenbank.'), notice.slice(-220));
       check('Und dass Export und Import nur die Eintraege tragen',
@@ -581,11 +584,11 @@ async function run() {
       runNotice(w).querySelector('[data-yes]').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
       await until(w, (x) => x.document.getElementById('confirm-pass'), 2000, 'die zweite Bestaetigung');
       await confirmImDom(dm);
-      await until(w, (x) => /zugeordnet/.test(x.document.querySelector('.toast')?.textContent || ''),
-        2000, 'die Meldung nach dem Import').catch(() => {});
-      const toast = w.document.querySelector('.toast')?.textContent || '';
-      check('Nach dem Dateiimport nennt die Meldung die zugefallenen Verfasser',
-        toast.includes(deText('card.postsAssignedHint', { names: 'anna, bernd' })), toast);
+      await until(w, (x) => /zugeordnet/.test(x.document.querySelector('.import-result')?.textContent || ''),
+        2000, 'das Ergebnis des Imports').catch(() => {});
+      const result = w.document.querySelector('.import-result')?.textContent || '';
+      check('Nach dem Dateiimport nennt das Ergebnis die zugefallenen Verfasser',
+        result.includes(deText('card.postsAssignedHint', { names: 'anna, bernd' })), result);
       w.close();
     }
   }
@@ -610,13 +613,15 @@ async function run() {
     check('Kein Wert in de.json sagt „Sicherung" ausser „Sicherung der Datenbank"',
       deHits.length === 0, deHits.join(' ') || 'keiner');
     const sources = [
-      ['README.md', readText('README.md').split('\n')],
+      ['README-de.md', readText('README-de.md').split('\n')],
       ['manual-de.md', readText('manual-de.md').split('\n')],
       ['.env.example', hashComments(readText('.env.example'))],
       ['docker-compose.example.yml', hashComments(readText('docker-compose.example.yml'))],
       ['keytool.js', jsOutput(readText('keytool.js'))],
       ['keys.js', jsOutput(readText('keys.js'))],
-      ['keytool.sh', shOutput(readText('keytool.sh'))]];
+      ['keytool.sh', shOutput(readText('keytool.sh'))],
+      ['backuptool.js', jsOutput(readText('backuptool.js'))],
+      ['backuptool.sh', shOutput(readText('backuptool.sh'))]];
     const hits = sources.flatMap(([f, lines]) => lines
       .filter(z => OLD_WORD.test(z))
       .map(z => `${f}: ${z.trim().slice(0, 70)}`));
@@ -640,7 +645,7 @@ async function run() {
     const unset = sections.filter((b, i) => !names[i] || !new RegExp(`^#? ?${names[i]}=`, 'm').test(b))
       .map(b => b.trim().split('\n')[0]);
     check('Jeder Abschnitt der .env.example gehoert zu einer Einstellung darin',
-      sections.length === 3 && unset.length === 0,
+      sections.length === 7 && unset.length === 0,
       `${sections.length} Abschnitte; ohne Einstellung: ${unset.join(' · ') || 'keiner'}`);
     const longBlocks = sections.map(b => b.split('\n').filter(z => /^#/.test(z) && !/^# ?[A-Z_]+=/.test(z)))
       .filter(b => b.length > 4).map(b => b[0]);
@@ -657,14 +662,15 @@ async function run() {
       'services:', '  kriterion:', '    build: .', '    container_name: kriterion',
       '    restart: unless-stopped', '    env_file: .env', '    ports:', '      - "3100:3000"',
       '    volumes:', '      - ./data:/app/data', '      - ./kriterion-backup:/app/backup',
-      '    environment:', '      - PORT=3000', '      - TZ=Europe/Berlin', '      - BACKUP_DIR=/app/backup']),
+      '    environment:', '      - PORT=3000', '      - TZ=Europe/Berlin', '      - BACKUP_DIR=/app/backup',
+      '    tmpfs:', '      - /tmp:size=2g']),
       lines.join(' | ').slice(0, 200));
   }
 
   group('Englische Bezeichnungen in neuen Installationen');
   {
     const GERMAN = /kriterion-sicherung|\/app\/sicherung|\/sicherung\b|kriterion-alt\b|sicherung-data-|kriterion-probe|vor-schluesselwechsel|usertool\.js (liste|passwort|entfernen|eigentuemer|zweifaktor)\b|--eintraege|--beitraege|keytool\.(sh|js) (zeigen|wechseln)\b|--wer\b|--ja\b/;
-    const readme = readText('README.md');
+    const readme = readText('README-de.md');
     const bashBlocks = [...readme.matchAll(/```(?:bash|sh|yaml)?\n([\s\S]*?)```/g)].flatMap(m => m[1].split('\n'));
     const places = [
       ['.env.example', readText('.env.example').split('\n')],
@@ -705,21 +711,23 @@ async function run() {
       /lauf change "\$\{ENV_ARGUMENTE\[@\]\}" --by "\$WER" --yes/.test(sh), 'Faelle oder Aufruf weichen ab');
     const app = readText('public/app.js');
     const keys = [...app.matchAll(/^  \{ key: '([a-z]+)',\s+section: '/gm)].map(m => m[1]);
-    check('Die Kartenschluessel im Systembereich sind englisch', equal(keys, ['myaccount', 'sessions',
-      'appearance', 'categories', 'tags', 'criteria', 'potentialcriteria', 'vocabulary', 'links',
-      'searchengines', 'trash', 'accounts', 'requests', 'log', 'mail', 'stats', 'imagestore', 'limits', 'backup',
-      'cleanup', 'export', 'titles', 'languages']), keys.join(' '));
+    check('Die Kartenschluessel im Systembereich sind englisch', equal(keys, ['myaccount', 'password', 'sessions',
+      'appearance', 'detailview', 'mydocuments', 'categories', 'tags', 'criteria', 'potentialcriteria', 'trash', 'accounts',
+      'requests', 'log', 'mail', 'stats', 'storage', 'imagestore', 'limits', 'backup', 'cleanup', 'export', 'titles',
+      'languages', 'vocabulary', 'searchengines', 'documents', 'proxy', 'version']), keys.join(' '));
     fs.rmSync(toolDir, { recursive: true, force: true });
   }
 
   group('Die Grenzen beim Hochladen');
   {
     const limits = (await call('GET', '/api/settings')).content;
-    check('GET /api/settings nennt die fuenf Grenzen und ihre Obergrenzen',
-      equal(limits.uploadLimits, { photo: 30, commentImage: 20, video: 20, commentVideo: 20, attachment: 50 }) &&
+    check('GET /api/settings nennt die sieben Grenzen und ihre Obergrenzen',
+      equal(limits.uploadLimits, { photo: 30, commentImage: 20, video: 20, commentVideo: 20, audio: 50, attachment: 50, file: 2048 }) &&
       limits.uploadLimitRanges?.photo?.max === 50 && limits.uploadLimitRanges?.commentImage?.max === 50 &&
       limits.uploadLimitRanges?.video?.max === 100 && limits.uploadLimitRanges?.commentVideo?.max === 100 &&
-      limits.uploadLimitRanges?.attachment?.max === 100, JSON.stringify([limits.uploadLimits, limits.uploadLimitRanges]));
+      limits.uploadLimitRanges?.audio?.max === 100 &&
+      limits.uploadLimitRanges?.attachment?.max === 100 && limits.uploadLimitRanges?.file?.max === 4096,
+      JSON.stringify([limits.uploadLimits, limits.uploadLimitRanges]));
     const zero = await call('PUT', '/api/settings', { uploadLimits: { video: 0 } });
     const over = await call('PUT', '/api/settings', { uploadLimits: { video: 101 } });
     const photoOver = await call('PUT', '/api/settings', { uploadLimits: { photo: 51 } });
@@ -749,74 +757,12 @@ async function run() {
     const stored = JSON.parse(d.prepare("SELECT value FROM settings WHERE key = 'uploadLimits'").get()?.value || '{}');
     d.close();
     check('Gespeichert in settings unter uploadLimits', equal(stored,
-      { photo: 30, commentImage: 20, video: 20, commentVideo: 20, attachment: 50 }), JSON.stringify(stored));
+      { photo: 30, commentImage: 20, video: 20, commentVideo: 20, audio: 50, attachment: 50, file: 2048 }), JSON.stringify(stored));
     const serverCode = readText('server.js');
     check('uploadLimits steht in OWNER_KEYS',
       /const OWNER_KEYS = \[[^\]]*'uploadLimits'[^\]]*\]/.test(serverCode), 'fehlt');
     check('In public/app.js stehen PHOTO_MAX und ATTACHMENT_MAX nicht mehr',
       !/PHOTO_MAX|ATTACHMENT_MAX/.test(readText('public/app.js')), 'noch da');
-  }
-
-  group('Die Grenze je Eintrag');
-  {
-    // 2.800.000 Zeichen sind 2 MB an Dateien; KRITERION_EXCHANGE_MAX setzt nur der Pruefstand.
-    const eDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kriterion-je-eintrag-'));
-    const B = H.startFurtherServer(eDir, { KRITERION_EXCHANGE_MAX: '2800000' }, 7340);
-    await B.ready;
-    await B.call('POST', '/api/setup', { user: 'eigen', password: 'eigen-langes-wort-41' });
-    const sendB = async (url, files) => {
-      const fd = new FormData();
-      for (const f of files) fd.append(f.field, new Blob([f.content], { type: f.type }), f.name);
-      const a = await fetch(B.base + url, { method: 'POST', body: fd, headers: withCsrf(B.cookieValue()) });
-      return { status: a.status, content: await a.json().catch(() => null) };
-    };
-    const file = (n) => ({ field: 'files', name: 'daten.bin', type: 'application/octet-stream', content: crypto.randomBytes(n) });
-    const eItem = (await B.call('POST', '/api/items', { title: 'Voll' })).content.id;
-    const first = await sendB(`/api/items/${eItem}/attachments`, [file(1536 * 1024)]);
-    check('Unter der Grenze je Eintrag geht ein Anhang durch', first.status === 201, `${first.status} ${first.content?.error}`);
-    const second = await sendB(`/api/items/${eItem}/attachments`, [file(1024 * 1024)]);
-    check('Ein Hochladen darueber wird abgesagt und nennt die Grenze in MB',
-      second.status === 413 && /Höchstens 2 MB je Eintrag/.test(second.content?.error || ''),
-      `${second.status} ${second.content?.error}`);
-    const cItem = (await B.call('POST', '/api/items', { title: 'Mit Kommentarvideo' })).content.id;
-    await sendB(`/api/items/${cItem}/attachments`, [file(1536 * 1024)]);
-    const fd = new FormData();
-    fd.append('text', 'Zu viel');
-    for (const f of videoFiles(mp4(1024 * 1024))) fd.append(f.field, new Blob([f.content], { type: f.type }), f.name);
-    const cv = await fetch(B.base + `/api/items/${cItem}/comments`, { method: 'POST', body: fd, headers: withCsrf(B.cookieValue()) });
-    check('Ein Kommentarvideo ueber der Grenze je Eintrag wird ebenso abgesagt', cv.status === 413, String(cv.status));
-    // Ein Eintrag, der schon vorher zu gross war, am Hochladen vorbei in die Datenbank.
-    const big = (await B.call('POST', '/api/items', { title: 'Altbestand' })).content.id;
-    const e = open(path.join(eDir, 'katalog.sqlite'));
-    e.prepare(`INSERT INTO attachments (item_id, filename, mime_type, size, data, sort_order, user_id)
-               VALUES (?, 'gross.bin', 'application/octet-stream', ?, ?, 0, 1)`)
-      .run(big, 2500 * 1024, crypto.randomBytes(2500 * 1024));
-    e.close();
-    const plan = (await B.call('GET', '/api/export/plan?files=1')).content;
-    check('Der Schnittplan nennt ihn als zu gross', (plan?.tooBig || []).some(z => z.title === 'Altbestand'),
-      JSON.stringify(plan?.tooBig));
-    await B.call('POST', '/api/confirm', { password: 'eigen-langes-wort-41', purpose: 'export' });
-    const whole = await fetch(B.base + '/api/export?photos=1&files=1', { headers: withCsrf(B.cookieValue()) });
-    const wholeBody = await whole.json().catch(() => null);
-    check('Der Export in einer Datei sagt vor dem ersten Byte mit 413 ab und nennt den Eintrag',
-      whole.status === 413 && /Altbestand/.test(wholeBody?.error || '') && /2 MB/.test(wholeBody?.error || ''),
-      `${whole.status} ${wholeBody?.error}`);
-    await B.call('POST', '/api/confirm', { password: 'eigen-langes-wort-41', purpose: 'export', target: '1' });
-    const part = await fetch(B.base + `/api/export?photos=1&files=1&from=1&to=${big}&part=1&parts=1`,
-      { headers: withCsrf(B.cookieValue()) });
-    const partBody = await part.json().catch(() => null);
-    const titles = (partBody?.items || []).map(i => i.title);
-    check('Der Teilexport laesst ihn aus und traegt die uebrigen',
-      part.status === 200 && !titles.includes('Altbestand') && titles.includes('Voll'), `${part.status} ${titles.join(' · ')}`);
-    const withoutFiles = await (async () => {
-      await B.call('POST', '/api/confirm', { password: 'eigen-langes-wort-41', purpose: 'export' });
-      const a = await fetch(B.base + '/api/export?photos=1', { headers: withCsrf(B.cookieValue()) });
-      await a.arrayBuffer();
-      return a.status;
-    })();
-    check('Ohne Dateien passt er und der Export laeuft', withoutFiles === 200, String(withoutFiles));
-    await B.stop();
-    fs.rmSync(eDir, { recursive: true, force: true });
   }
 
   group('Die Antwort 413 vom Reverse Proxy');
@@ -861,7 +807,10 @@ async function run() {
     await until(adminView.w, (x) => x.document.getElementById('count') && openRequests(x) === 0, 2000, 'die Uebersicht');
     await sysSection(adminView.w, 'database');
     const adminField = adminView.w.document.getElementById('limit-photo');
-    check('Der Admin sieht die Grenzen, aendern kann er sie nicht', !!adminField && adminField.disabled, adminField ? 'bedienbar' : 'keine Karte');
+    const adminCard = [...adminView.w.document.querySelectorAll('.sys-card')]
+      .find(c => c.querySelector('h3')?.textContent.trim() === DE['card.uploadLimits']);
+    check('Der Admin sieht die Grenzen als Text, aendern kann er sie nicht',
+      !adminField && /20 MB/.test(adminCard?.textContent || ''), adminField ? 'bedienbar' : 'kein Feld');
     adminView.w.close();
   }
 }

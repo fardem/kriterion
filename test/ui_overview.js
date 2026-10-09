@@ -127,7 +127,7 @@ async function run() {
     equal(rows, ['Zuerst', 'Dann', 'Zuletzt']), JSON.stringify(rows));
   const bewRows = [...w.document.querySelectorAll('#ratings .rrow')];
   check('Keine Bewertungszeile trägt einen Löschknopf',
-    bewRows.length === 3 && bewRows.every(z => !z.querySelector('.xdel')),
+    bewRows.length === 3 && bewRows.every(z => !z.querySelector('.mact.rm')),
     bewRows.map(z => z.querySelector('.racts')?.innerHTML || '').join(' | '));
   check('Die Sterne stehen weiterhin dort',
     bewRows.every(z => !!z.querySelector('.racts')?.children.length));
@@ -143,9 +143,9 @@ async function run() {
   check('Kategorien behalten ihre Zeilen ohne Griff',
     !w.document.querySelector('#mcats .grip') && !w.document.querySelector('#mtags .grip'));
   const mZelle = rowList[0].querySelector('.mcount');
-  check('Zaehler zeigt nur noch die Zahl', mZelle.textContent.trim() === '2');
-  check('Und das Wort steht im Titel derselben Zelle',
-    mZelle.getAttribute('title') === '2 Einträge', mZelle.getAttribute('title'));
+  check('Zaehler zeigt Zahl und Wort', mZelle.textContent.trim() === '2 bewertet', mZelle.textContent);
+  check('Und der Titel derselben Zelle wiederholt sie',
+    mZelle.getAttribute('title') === '2 bewertet', mZelle.getAttribute('title'));
 
   /* ---- Ziehen mit Zeigerereignissen ---- */
   w.document.elementFromPoint = () => rowList[2];      // jsdom hat kein elementFromPoint
@@ -176,7 +176,7 @@ async function run() {
     `${sent.filter(s => s.url === '/api/criteria/order').length} Aufrufe`);
 
   /* ---- Persoenliche Schalter, mit zugestelltem Klick ---- */
-  // „Darstellung" steht im Abschnitt „Persoenlich", die Linkzeilen in „Bestand".
+  // „Darstellung" mit den Linkzeilen steht im Abschnitt „Persoenlich".
   await sysSection(w, 'personal');
   const fontButtons = [...w.document.querySelectorAll('#fsize .pill')];
   const targetFont = fontButtons.find(b => b.textContent === '120 %');
@@ -198,9 +198,9 @@ async function run() {
     parseFloat(w.document.documentElement.style.fontSize) === 18,
     w.document.documentElement.style.fontSize);
 
-  await sysSection(w, 'inventory');
+  await sysSection(w, 'personal');
   const rowsButtons = [...w.document.querySelectorAll('#lrows .pill')];
-  rowsButtons.find(b => b.textContent === '12 Zeilen')
+  rowsButtons.find(b => b.textContent === '12')
     ?.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
   await until(w, (x) => sent.some(s => s.method === 'PUT' && s.url === '/api/settings' &&
     s.body && s.body.linkRows !== undefined) && openRequests(x) === 0, 2000, 'die gespeicherten Linkzeilen');
@@ -210,7 +210,7 @@ async function run() {
     putRows?.body.linkRows === 12, JSON.stringify(putRows?.body));
   check('Und auch dieser Knopf zeichnet sich neu',
     [...w.document.querySelectorAll('#lrows .pill')]
-      .find(b => b.classList.contains('on'))?.textContent === '12 Zeilen',
+      .find(b => b.classList.contains('on'))?.textContent === '12',
     [...w.document.querySelectorAll('#lrows .pill')]
       .map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(' '));
 
@@ -357,7 +357,7 @@ async function run() {
   const three = buildDom(JSDOM, { settings: own });
   const w3 = three.w;
   await until(w3, overviewReady, 2000, 'die Uebersicht');
-  await sysSection(w3, 'inventory');
+  await sysSection(w3, 'installation');
 
   const fields = ['v1','v2','v3','v4','v5','v6','v7','v8','v9','v10','v11','v12','v13','v14','v15']
     .map(id => w3.document.getElementById(id));
@@ -426,13 +426,15 @@ async function run() {
     const usPills = (boxId) => [...((w4.document.getElementById(boxId) || {})
       .querySelectorAll ? w4.document.getElementById(boxId).querySelectorAll('.pill') : [])]
       .map(b => pillName(b) + (b.className.includes('on') ? '*' : ''));
-    const US_BOXES = ['vlang', 'ncatlang', 'mcrits-lang', 'mpcrits-lang'];
+    const usRows = Object.fromEntries(['ncatlang', 'mcrits-lang', 'mpcrits-lang'].map(id => [id, usPills(id)]));
+    await sysSection(w4, 'installation');
+    usRows.vlang = usPills('vlang');
     check('Umschalterprobe: alle vier Kacheln tragen ihre Sprachzeile',
-      US_BOXES.every(id => usPills(id).length === 3),
-      US_BOXES.map(id => `${id}=${usPills(id).length}`).join(' '));
+      Object.values(usRows).every(p => p.length === 3),
+      Object.entries(usRows).map(([id, p]) => `${id}=${p.length}`).join(' '));
     check('Und jede steht auf der Sprache des Lesers',
-      US_BOXES.every(id => usPills(id)[0] === 'Deutsch*'),
-      US_BOXES.map(id => usPills(id).join('|')).join(' · '));
+      Object.values(usRows).every(p => p[0] === 'Deutsch*'),
+      Object.values(usRows).map(p => p.join('|')).join(' · '));
     const usField = (n) => (w4.document.getElementById(`v${n}`) || {}).value;
     const usHint = (n) => ((w4.document.querySelector(`label[for=v${n}] .hint`) || {}).textContent || '').trim();
     check('Und die deutsche Kachel zeigt in den Feldern NICHT das englische Wort',
@@ -491,8 +493,9 @@ async function run() {
       await until(wSp, redrawn('lang', spPill.parentElement), 2000, 'die Karte in der neuen Sprache');
       check('Sprachprobe: der Wechsel nimmt die Oberflaeche mit',
         /blocks/i.test(spHint()), spHint());
+      // Mitten im Satz setzt Englisch das Vokabelwort klein ein.
       check('Und die fuenfzehn Vokabelwoerter gehen mit — 0.24.4 (B9)',
-        /Entries/.test(spHint()) && !/Einträge/.test(spHint()), spHint());
+        /\bentries\b/.test(spHint()) && !/Einträge/.test(spHint()), spHint());
     }
     wSp.close();
   }
@@ -504,7 +507,7 @@ async function run() {
                   { code: 'en', name: 'English', isDefault: false, active: true }] } });
     const wSt = stDom.w;
     await until(wSt, overviewReady, 2000, 'die Uebersicht');
-    await sysSection(wSt, 'inventory');
+    await sysSection(wSt, 'installation');
     const stSide = wSt.document.scrollingElement || wSt.document.documentElement;
     stSide.scrollTop = 640;
     check('Der Aufbau steht: die Seite ist heruntergerollt',
@@ -600,7 +603,16 @@ async function run() {
             equal(npRows(wNp, box), npWant[pill][box]),
             `steht: ${JSON.stringify(npRows(wNp, box))} — soll: ${JSON.stringify(npWant[pill][box])}`);
         }
-        /* Vergleich: die Kachel „Vokabular" im selben Abschnitt hat dieselbe Bauform. */
+      }
+      const npHeads = { de: 'Kategorien', en: 'Categories', tr: 'Kategoriler' };
+      check(`Und der Kopf der Karte bleibt beim Leser (${readerName})`,
+        [...wNp.document.querySelectorAll('.sys-card h3')]
+          .some(z => z.textContent.trim() === npHeads[reader]),
+        [...wNp.document.querySelectorAll('.sys-card h3')].map(z => z.textContent.trim()).join(' | '));
+      /* Vergleich: die Kachel „Vokabular" unter „Installation" hat dieselbe Bauform. */
+      await sysSection(wNp, 'installation');
+      for (const pill of ['de', 'en', 'tr']) {
+        const pillLabel = npLanguages.find(a => a.code === pill).name;
         await npPress(wNp, 'vlang', pillLabel);
         npComparisons++;
         check(`Vergleichszelle: Leser ${readerName}, Pille ${pillLabel}, Kachel „Vokabular"`,
@@ -608,11 +620,6 @@ async function run() {
           `steht: ${JSON.stringify((wNp.document.getElementById('v1') || {}).value)} — ` +
           `soll: ${JSON.stringify(npVocabularyOwn[pill].entryOne)}`);
       }
-      const npHeads = { de: 'Kategorien', en: 'Categories', tr: 'Kategoriler' };
-      check(`Und der Kopf der Karte bleibt beim Leser (${readerName})`,
-        [...wNp.document.querySelectorAll('.sys-card h3')]
-          .some(z => z.textContent.trim() === npHeads[reader]),
-        [...wNp.document.querySelectorAll('.sys-card h3')].map(z => z.textContent.trim()).join(' | '));
       wNp.close();
     }
     check('Die Tafel hat wirklich 27 Zellen — drei Sprachen, drei Pillen, drei Karten',
@@ -757,14 +764,14 @@ async function run() {
       const wRo = roDom.w;
       await until(wRo, overviewReady, 2000, 'die Uebersicht');
       await sysSection(wRo, 'inventory');
-      check('Rollenprobe: der gewoehnliche Benutzer sieht keine Sprachzeile',
-        ['ncatlang', 'mcrits-lang', 'mpcrits-lang', 'vlang']
+      check('Rollenprobe: der gewoehnliche Benutzer sieht weder Sprachzeile noch Liste',
+        ['ncatlang', 'mcrits-lang', 'mpcrits-lang', 'vlang', 'mcats']
           .every(id => !wRo.document.getElementById(id)),
-        ['ncatlang', 'mcrits-lang', 'mpcrits-lang', 'vlang']
+        ['ncatlang', 'mcrits-lang', 'mpcrits-lang', 'vlang', 'mcats']
           .filter(id => wRo.document.getElementById(id)).join(' '));
-      /* Gegenprobe: sonst bestuende die Pruefung darueber auch ohne die Karte. */
-      check('Und er sieht die Liste trotzdem — in seiner eigenen Sprache',
-        equal(npRows(wRo, 'mcats'), npWant.tr.mcats), JSON.stringify(npRows(wRo, 'mcats')));
+      /* Gegenprobe: sonst bestuende die Pruefung darueber auch ohne gezeichnete Seite. */
+      check('Und er landet unter „Persönlich", mit seiner eigenen Sprachzeile',
+        !!wRo.document.getElementById('lang'), 'keine Sprachzeile in der Karte „Darstellung"');
       wRo.close();
     }
   }
@@ -804,9 +811,11 @@ async function run() {
   await until(w4, detailReady, 2000, 'die Detailansicht');
   check('Detailansicht macht aus dem Vokabular kein HTML',
     !w4.document.getElementById('boese') && !w4.document.getElementById('boese3'));
-  await sysSection(w4, 'inventory');
-  check('Systembereich macht aus dem Vokabular kein HTML',
-    !w4.document.getElementById('boese2') && !w4.document.getElementById('boese3'));
+  for (const key of ['inventory', 'installation']) {
+    await sysSection(w4, key);
+    check(`Systembereich macht aus dem Vokabular kein HTML (${key})`,
+      !w4.document.getElementById('boese2') && !w4.document.getElementById('boese3'));
+  }
   w4.close();
 
   /* ---- Rueckfallprobe: Liste, Eintrag und Anmeldung ---- */
@@ -1093,7 +1102,7 @@ async function run() {
       });
       const wVg = vgDom.w;
       await until(wVg, overviewReady, 2000, 'die Uebersicht');
-      await sysSection(wVg, 'inventory');
+      await sysSection(wVg, 'installation');
       /* Fuenfzehn Woerter, eines eingetragen: Deutsch fehlen vierzehn, den beiden
          anderen alle fuenfzehn. */
       check('Vokabelprobe: Punkt und Zahl stehen auch an der Kachel „Vokabular"',
@@ -1122,7 +1131,7 @@ async function run() {
       });
       const wVf = vfDom.w;
       await until(wVf, overviewReady, 2000, 'die Uebersicht');
-      await sysSection(wVf, 'inventory');
+      await sysSection(wVf, 'installation');
       check('Und eine vollstaendige Kachel „Vokabular" traegt Punkte und keinen Rahmen',
         axMarks(wVf, 'vlang') === 'Deutsch:● English:● Türkçe:●' && !axFramed(wVf, 'vlang'),
         `${axMarks(wVf, 'vlang')} · Rahmen=${axFramed(wVf, 'vlang')}`);
@@ -1145,13 +1154,17 @@ async function run() {
         const hint = box && box.querySelector('.langnote');
         return hint ? (hint.textContent || '').trim() : '';
       };
-      check('Ansageprobe: mit der deutschen Vorgabe steht schon eine Ansage da',
-        anHint().includes('Deutsch') && /14/.test(anHint()), JSON.stringify(anHint()));
+      // Vokabelwoerter mit Vorgabe der Sprachdatei fehlen nicht.
+      check('Ansageprobe: mit der deutschen Vorgabe fehlt nichts, es steht keine Ansage da',
+        anHint() === '', JSON.stringify(anHint()));
       await axSetDefault(wAn, 'tr');
-      /* Tuerkisch fehlen vier Namen (drei Kriterien und Kategorie 21) und alle
-         fuenfzehn Vokabelwoerter. */
-      check('Und nach dem Wechsel nennt sie die neue Vorgabesprache und beide Zahlen',
-        anHint().includes('Türkçe') && /4/.test(anHint()) && /15/.test(anHint()),
+      /* Tuerkisch fehlen vier Namen: drei Kriterien und Kategorie 21. */
+      check('Nach dem Wechsel: „ist jetzt", die Namen mit Ort, keine Vokabelwoerter',
+        anHint() === 'Türkçe ist jetzt Vorgabesprache — es fehlen 1 Name in Kategorien und 3 Namen in Kriterien.',
+        JSON.stringify(anHint()));
+      await sysSection(wAn, 'installation');
+      check('Beim naechsten Besuch fehlt „ist jetzt"',
+        anHint() === 'Für Türkçe, die Vorgabesprache, fehlen 1 Name in Kategorien und 3 Namen in Kriterien.',
         JSON.stringify(anHint()));
       /* `engine-name` wie in den beiden anderen Listen mit derselben Zeilenform. */
       {
@@ -1392,7 +1405,7 @@ async function run() {
       /* Die eingeschaltete Pille einer Reihe. */
       const alRow = (boxId) => axPills(wAl, boxId)
         .filter(b => b.classList.contains('on')).map(b => pillName(b)).join(',');
-      const alAll = () => ['ncatlang', 'mcrits-lang', 'mpcrits-lang', 'vlang']
+      const alAll = () => ['ncatlang', 'mcrits-lang', 'mpcrits-lang']
         .map(id => `${id}=${alRow(id)}`).join(' ');
       /* Nur wenn der Leser anders liest, als die Zeilen angelegt sind, setzt der
          Server Vermerke; sonst belegte die Gruppe nichts. */
@@ -1435,13 +1448,18 @@ async function run() {
       /* ---- Die vier Umschalter laufen synchron ---- */
       /* Geschaltet wird auf eine Sprache, die nicht die des Lesers ist. */
       await axPress(wAl, 'ncatlang', 'Deutsch');
+      const alThree = alAll();
+      await sysSection(wAl, 'installation');
       check('Gleichlaufprobe: ein Klick an der Kategorienkachel zieht alle vier Reihen mit',
-        ['ncatlang', 'mcrits-lang', 'mpcrits-lang', 'vlang']
-          .every(id => alRow(id) === 'Deutsch'), alAll());
+        alThree === 'ncatlang=Deutsch mcrits-lang=Deutsch mpcrits-lang=Deutsch' &&
+        alRow('vlang') === 'Deutsch', `${alThree} vlang=${alRow('vlang')}`);
       await axPress(wAl, 'vlang', 'English');
+      const alVocabulary = alRow('vlang');
+      await sysSection(wAl, 'inventory');
       check('Und andersherum: ein Klick an der Vokabelkachel zieht die drei Namenskarten mit',
-        ['ncatlang', 'mcrits-lang', 'mpcrits-lang', 'vlang']
-          .every(id => alRow(id) === 'English'), alAll());
+        alVocabulary === 'English' &&
+        alAll() === 'ncatlang=English mcrits-lang=English mpcrits-lang=English',
+        `vlang=${alVocabulary} ${alAll()}`);
       wAl.close();
 
       const alSource = fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8');
@@ -1600,9 +1618,9 @@ async function run() {
   check('Anteil bei nur einem Datum landet in der Mitte',
     wz.timeShare('2020-01-01', '2020-01-01', '2020-01-01') === 0.5);
   check('Jahresmarken decken die Spanne ab',
-    equal(wz.yearMarks('2023-07-01', '2025-01-01').map(m => m.year), [2023, 2024, 2025]));
+    equal(wz.timeMarks('2022-07-01', '2025-01-01').map(m => m.text), ['2022', '2023', '2024', '2025']));
   check('Erste Jahresmarke sitzt am Anfang, nicht davor',
-    wz.yearMarks('2023-07-01', '2025-01-01')[0].share === 0);
+    wz.timeMarks('2022-07-01', '2025-01-01')[0].share === 0);
 
   // Eintraege in der Form der Uebersicht.
   const buildItems = (n, proEntry = 1) => Array.from({ length: n }, (_, i) => ({
@@ -1651,7 +1669,7 @@ async function run() {
     const h = zlBox().querySelector('.timeline-hint');
     return h && /Stück/.test(h.textContent) && /Note \d/.test(h.textContent);
   })());
-  firstItem.onpointerleave();
+  firstItem.onpointerleave({ pointerType: 'mouse' });
   check('Hinweis verschwindet wieder', !zlBox().querySelector('.timeline-hint'));
   firstItem.onpointerenter({ pointerType: 'touch' });
   check('Auf dem Finger erscheint kein Hinweis', !zlBox().querySelector('.timeline-hint'));
@@ -1671,7 +1689,7 @@ async function run() {
     `${zlBox().querySelectorAll('.timeline-dot').length} Punkte`);
 
   const targetId = points[0].dataset.item;
-  zlBox().querySelector('.timeline-dot').onclick();
+  zlBox().querySelector('.timeline-dot').click();
   check('Klick öffnet den Eintrag', wviel.location.hash.startsWith('#/item/'), wviel.location.hash);
   wviel.close();
 
@@ -1694,15 +1712,18 @@ async function run() {
     equal(ww.sortCloud(pool, new Set([1])).map(t => t.name),
            ['Selten', 'Oft', 'Mittel', 'Nurtesttag']));
 
-  // jsdom rechnet keine Geometrie; die Hoehen sind gesetzt.
+  // jsdom rechnet keine Geometrie; Hoehe und Lage der Marken sind gesetzt, 6 px Abstand.
   const cloudBox = ww.document.createElement('div');
-  const cloudChild = ww.document.createElement('span');
-  cloudBox.appendChild(cloudChild);
   ww.document.body.appendChild(cloudBox);
-  Object.defineProperty(cloudChild, 'offsetHeight', { get: () => 26 });
-  Object.defineProperty(cloudBox, 'clientHeight', { get: () => parseInt(cloudBox.style.maxHeight) || 0 });
-  let inhaltshoehe2 = 90;
-  Object.defineProperty(cloudBox, 'scrollHeight', { get: () => inhaltshoehe2 });
+  const placeCloud = (tops) => {
+    cloudBox.replaceChildren(...tops.map(top => {
+      const pill = ww.document.createElement('span');
+      Object.defineProperty(pill, 'offsetHeight', { get: () => 26 });
+      Object.defineProperty(pill, 'offsetTop', { get: () => top });
+      return pill;
+    }));
+  };
+  placeCloud([0, 0, 32, 32, 64, 96]);
   check('Eine Zeile ist so hoch wie eine Marke', (ww.limitCloud(cloudBox, 1), cloudBox.style.maxHeight === '26px'),
     cloudBox.style.maxHeight);
   check('Drei Zeilen zählen die Lücken mit', (ww.limitCloud(cloudBox, 3), cloudBox.style.maxHeight === '90px'),
@@ -1712,7 +1733,10 @@ async function run() {
     (ww.limitCloud(cloudBox, 1),
      cloudBox.style.maxHeight !== '' && cloudBox.style.overflow === 'hidden'),
     JSON.stringify([cloudBox.style.maxHeight, cloudBox.style.overflow]));
-  inhaltshoehe2 = 20;
+  placeCloud([0, 1, 0]);
+  check('Eine Marke, die nur um eine Rundung tiefer steht, beginnt keine zweite Zeile',
+    ww.limitCloud(cloudBox, 1) === false && ww.cloudRows(cloudBox) === 1, String(ww.cloudRows(cloudBox)));
+  placeCloud([0, 0, 32]);
   check('Passt alles hinein, meldet nichts', ww.limitCloud(cloudBox, 3) === false);
   check('Null Zeilen heben die Begrenzung auf',
     (ww.limitCloud(cloudBox, 0), cloudBox.style.maxHeight === ''));
@@ -1965,15 +1989,15 @@ async function run() {
     equal(favVorClickable,
       ['Alpha mit Wertung', 'Gamma mit Wertung', 'Beta mit Wertung', 'Zeta ohne Wertung']),
     JSON.stringify(favVorClickable));
-  // Die erste Pille „Alle" ist die der Statusreihe; die der Ablehnung steht
-  // dahinter im Aufklapper.
-  const favEverything = [...favValue.w.document.querySelectorAll('#filters .pill')]
-    .find(b => b.textContent.trim() === 'Alle');
-  favEverything?.dispatchEvent(new favValue.w.MouseEvent('click', { bubbles: true }));
-  await until(favValue.w, (x) => {
-    const all = [...x.document.querySelectorAll('#filters .pill')].find(b => b.textContent.trim() === 'Alle');
-    return !!all && all !== favEverything && openRequests(x) === 0;
-  }, 2000, 'die neu gezeichnete Filterzeile');
+  // Zweimal „Getestet“: der Filter steht danach wie vorher, die Liste ist neu gezeichnet.
+  for (let k = 0; k < 2; k++) {
+    const favPill = favValue.w.document.querySelector('#f-tested .pill');
+    favPill?.dispatchEvent(new favValue.w.MouseEvent('click', { bubbles: true }));
+    await until(favValue.w, (x) => {
+      const now = x.document.querySelector('#f-tested .pill');
+      return !!now && now !== favPill && openRequests(x) === 0;
+    }, 2000, 'die neu gezeichnete Filterzeile');
+  }
   const favValueT = favTitleFrom(favValue);
   check('Ein Favorit ohne Wertung steht bei Bewertungssortierung am Ende',
     favValueT[favValueT.length - 1] === 'Zeta ohne Wertung', JSON.stringify(favValueT));
@@ -2041,8 +2065,9 @@ async function run() {
   check('Und er ist groesser als die Fotozahl daneben',
     parseFloat((ruleFav.match(/font-size: *([\d.]+)rem/) || [0, 0])[1]) >= 1,
     ruleFav);
-  check('Er bleibt dabei gold -- keine neue Farbe',
-    /color: *var\(--gold\)/.test(ruleFav), ruleFav);
+  check('Er bleibt dabei gold; auf dem Foto in beiden Schemata #ffc531',
+    /color: *var\(--badge-gold\)/.test(ruleFav) && /--badge-gold: #ffc531;/.test(cssFav) &&
+    (cssFav.match(/--badge-gold:/g) || []).length === 1, ruleFav);
   // Gold steht fuer Bewertung und Favorit, Orange fuer Bedienung.
   check('Der Filterknopf faerbt sich nicht gold',
     !/\.pill-sep\.on \{[^}]*var\(--gold\)/.test(cssFav),
@@ -2106,10 +2131,10 @@ async function run() {
   check('Und die zweite Gruppe traegt ihre beiden Zeilen',
     offGroups(offAll)[1]?.querySelectorAll('.open-row').length === 2,
     `${offGroups(offAll)[1]?.querySelectorAll('.open-row').length}`);
-  check('Ein Klick fuehrt in den Eintrag -- am Titel wie an der Zeile',
+  check('Ein Klick fuehrt in den Eintrag -- am Titel, an der Zeile zum Kommentar',
     offGroups(offAll)[1]?.querySelector('.open-title')?.getAttribute('href') === '#/item/2' &&
-    offGroups(offAll)[1]?.querySelector('.open-text')?.getAttribute('href') === '#/item/2',
-    offGroups(offAll)[1]?.querySelector('.open-title')?.getAttribute('href'));
+    /^#\/item\/2\?c=\d+$/.test(offGroups(offAll)[1]?.querySelector('.open-text')?.getAttribute('href')),
+    offGroups(offAll)[1]?.querySelector('.open-text')?.getAttribute('href'));
 
   const offWhen = (d) => offRows(d).map(z => z.querySelector('.open-when')?.textContent);
   check('Jede Zeile nennt ihren Verfasser',
@@ -2353,11 +2378,10 @@ async function run() {
   const nsStatus = [...nsWithout.w.document.querySelectorAll('#filters .frow')][0];
   const nsPills = [...(nsStatus?.querySelectorAll('.pill') || [])]
     .map(b => b.textContent.replace(/\s+/g, ' ').trim());
-  check('Die Statuszeile traegt sieben Pillen statt acht',
-    nsPills.length === 7, JSON.stringify(nsPills));
-  check('Und alle sieben namentlich',
-    equal(nsPills, ['Alle', 'Getestet', 'Ungetestet', '★ Favoriten',
-                      'Alle', 'Abgelehnt', 'Nicht abgelehnt']),
+  check('Die Statuszeile traegt fuenf Pillen, ohne „Alle“',
+    nsPills.length === 5, JSON.stringify(nsPills));
+  check('Und alle fuenf namentlich',
+    equal(nsPills, ['Getestet', 'Ungetestet', 'Abgelehnt', 'Nicht abgelehnt', '★ Favoriten']),
     JSON.stringify(nsPills));
   nsWithout.w.close();
 
@@ -2365,7 +2389,7 @@ async function run() {
   check('Eine gespeicherte Stellung mit „neu" bleibt lesbar',
     nsTitle(nsOld).length === 4, JSON.stringify(nsTitle(nsOld)));
   check('Und der Schluessel faellt aus der zurechtgerueckten Stellung heraus',
-    !('neu' in nsOld.w.filterNormal({ ...nsDefault, fresh: true })),
+    !('fresh' in nsOld.w.filterNormal({ ...nsDefault, fresh: true })),
     JSON.stringify(nsOld.w.filterNormal({ ...nsDefault, fresh: true })));
   check('Und der Schalter zaehlt ihn nicht als greifenden Filter',
     !/aktiv/.test(nsOld.w.document.querySelector('#filter-toggle .fcount')?.textContent || ''),

@@ -1,56 +1,12 @@
-# Der Pruefstand laeuft bei jedem Push -- auf jeden Zweig -- und ausserdem auf
-# Knopfdruck.
-#
-# Die Schluesselwoerter sind englisch, weil GitHub sie so liest; alles andere
-# steht auf Deutsch.
+# Pruefstand bei jedem Push auf jeden Zweig und auf Knopfdruck (Actions -> Pruefstand -> „Run workflow“).
 name: Pruefstand
 
-# ZWEI EREIGNISSE, UND SIE STEHEN BEIDE NAMENTLICH DA -- entschieden vom
-# Betreiber am 10. September 2026, am selben Abend, an dem der Lauf auf
-# `push: main` eingeengt worden war.
-#
-# WARUM ES WIEDER JEDER ZWEIG IST, UND DIESMAL AUS EINEM ANDEREN GRUND ALS
-# FRUEHER. Das Repository ist nicht mehr dauerhaft oeffentlich: der Betreiber
-# haelt es privat und setzt es NUR UM EINEN PUSH HERUM auf oeffentlich, weil
-# die Standardlaeufer dann nichts kosten. Sein Ablauf ist:
-#
-#   1. gebaut und oertlich geprueft wird, OHNE zu pushen -- GitHub weiss nichts
-#   2. Repository auf oeffentlich
-#   3. „jetzt push alles"  ->  der Push loest den Lauf aus
-#   4. gruen -> zusammenfuehren (der Merge loest den zweiten Lauf aus, auf main)
-#   5. Repository wieder auf privat
-#
-# DARAUS FOLGT DIE FORM: der Ausloeser muss am PUSH haengen und nicht an
-# `main` allein, sonst prueft Schritt 3 gar nichts. Und es darf KEIN
-# `pull_request` daneben stehen -- das gaebe zwei Laeufe auf denselben Stand
-# und braeuchte die Bedingung wieder, die am 10. September gefallen ist
-# (Weg B, 0.25.0).
-#
-# DER KNOPF IST DIE ZWEITE HAELFTE. `workflow_dispatch` haengt an keinem
-# Ereignis, sondern am Menschen: Actions -> Pruefstand -> „Run workflow",
-# Zweig waehlen. Er ist der Weg, einen Stand ZWEIMAL zu pruefen, ohne einen
-# leeren Commit zu erfinden -- und der Rettungsanker, wenn ein Lauf haengt.
-#
-# WAS DAMIT WIEDERKOMMT: der Lauf auf einem Zweig, bevor er in main steht.
-# WAS WEITER FEHLT: der Lauf fuer eine Anfrage aus einem fremden Abzug. Dort
-# gibt es keinen Push in dieses Repository, und `pull_request` steht
-# ausdruecklich nicht in der Liste. Das ist der Preis, und er steht hier,
-# damit ihn spaeter niemand fuer ein Versehen haelt.
+# Kein `pull_request` daneben: das gaebe zwei Laeufe auf denselben Stand.
 on:
   push:
   workflow_dispatch:
 
-# Ein neuer Push auf denselben Zweig loest den vorigen Lauf ab. Zwei Laeufe auf
-# einen ueberholten Stand sagen nichts, was der neuere nicht besser saegte.
-#
-# UM DIE MINUTEN GEHT ES DABEI WIEDER, und zwar seit dem 10. September 2026:
-# das Repository ist nur noch um einen Push herum oeffentlich (siehe oben).
-# Bleibt ein ueberholter Lauf stehen, laeuft er unter Umstaenden noch, wenn das
-# Repository schon wieder privat ist. Die Ordnung war der erste Grund; jetzt
-# gibt es einen zweiten.
-#
-# `github.ref` UND NICHT `main`: der Schluessel nennt den ZWEIG, sonst
-# loeschten sich Laeufe auf verschiedenen Zweigen gegenseitig ab.
+# Ein neuer Push auf denselben Zweig bricht den vorigen Lauf ab; der Schluessel nennt den Zweig.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -61,42 +17,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # DIE VERSION AUS DEM ABBILD, nicht die zufaellig neueste. Laeuft der
-      # Prueflauf gegen eine andere als der Container, prueft er etwas, das so
-      # nirgends betrieben wird. Der Pruefstand haelt beide Zahlen gegeneinander
-      # -- wer hier eine aendert, wird namentlich rot.
+      # Dieselbe Version wie im Dockerfile; der Pruefstand vergleicht beide.
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
 
-      # npm ci und nicht npm install: derselbe Grund wie im Dockerfile -- nur so
-      # wird das Lockfile gelesen, und ein Auseinanderlaufen von package.json
-      # und Lockfile ist hier ein Fehler und kein stiller Ausweg.
+      # npm ci liest das Lockfile; weicht es von package.json ab, scheitert der Lauf.
       - name: Abhaengigkeiten
         run: npm ci
 
-      # DER NOTNAGEL IST MIT 0.34.0 GEFALLEN. Hier stand vom 11. September bis
-      # zum 15. September 2026 `NODE_OPTIONS: --max-old-space-size=6144`, weil
-      # der Lauf auf dem Standardlaeufer an seiner Heap-Grenze starb: der
-      # Laeufer gibt Node rund 2081 MB, der Pruefstand brauchte ueber 2100.
-      #
-      # WAS SICH GEAENDERT HAT: der Pruefstand liegt seit 0.34.0 in test/, ein
-      # Modul je Sachgebiet, und jedes Modul faehrt als eigener Prozess. Ein
-      # Prozess gibt seinen Speicher beim Ende an das Betriebssystem zurueck;
-      # eine einzige Datei kann das nicht.
-      #
-      # GEMESSEN AM 15. SEPTEMBER 2026, nach dem Umzug: der Treiber liegt bei
-      # 85 MB, der groesste einzelne Modulprozess bei 1024 MB. Ein voller Lauf
-      # MIT der Grenze des Standardlaeufers (2081 MB) ist gruen durchgelaufen
-      # -- 6865 von 6865 Pruefungen. Deshalb faellt die Zeile hier, und nicht
-      # auf Verdacht.
       - name: Pruefstand
         run: npm test
 
-      # UEBER ALLE Abhaengigkeiten, auch die zum Entwickeln. Sich hier auf
-      # --omit=dev zurueckzuziehen waere ein Herabsetzen der Schwelle durch die
-      # Hintertuer -- und genau das soll nicht passieren. Bleibt etwas uebrig,
-      # gehoert es gemeldet und angesehen.
+      # Ueber alle Abhaengigkeiten, auch die zum Entwickeln.
       - name: Bekannte Luecken
         run: npm audit --audit-level=high

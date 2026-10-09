@@ -246,8 +246,8 @@ async function check0290() {
     const csWords = ['de', 'en', 'tr'].map(code =>
       JSON.parse(fs.readFileSync(path.join(__dirname, 'public', 'languages', `${code}.json`), 'utf8'))
         ['entry.newCategoryHint']);
-    check('Der Platzhalter ist in allen drei Sprachen kurz',
-      equal(csWords, ['Name', 'Name', 'Ad']), JSON.stringify(csWords));
+    check('Der Platzhalter nennt in allen drei Sprachen, was angelegt wird',
+      equal(csWords, ['Neue Kategorie', 'New category', 'Yeni kategori']), JSON.stringify(csWords));
   }
 
   group('„Titel" kehrt um — 0.29.0');

@@ -17,9 +17,10 @@ const { segment, COMMENT } = require('./segments.js');
 const ROOT = path.join(__dirname, '..');
 const SHIPPED = ['server.js', 'auth.js', 'db.js', 'mail.js', 'keys.js', 'attachments.js',
   'images.js', 'batchrun.js', 'log.js', 'usertool.js', 'twofactor.js', 'keytool.js',
+  'docserver.js', 'schema.js', 'backup.js', 'backuptool.js', 'videoproxy.js',
   'public/app.js', 'public/theme.js', 'public/style.css'];
 
-// Der Treiber, die Module in test/, counterproof.js und die fuenfzehn
+// Der Treiber, die Module in test/, counterproof.js und die zwanzig
 // ausgelieferten Dateien. Das Verzeichnis wird gelesen: ein neues Modul ist
 // damit von selbst dabei. tools/segments.js zerlegt das Stilblatt wie eine
 // JS-Datei -- es kennt beide Formen.
@@ -49,7 +50,7 @@ function measure(file) {
 // Abkuerzungen, die gross geschrieben werden und keine Betonung sind.
 const ABBREVIATIONS = new Set(('HTTP HTTPS JSON HTML UTF8 NULL TRUE FALSE CSRF TOTP SMTP UUID ASCII MIME ' +
   'HMAC HEIC WEBP JPEG AVIF ARIA WCAG EXIF SQLITE SQLCIPHER AGPL DKIM DMARC STARTTLS RGBA HSLA ' +
-  'OKLCH XLSX DOCX CRLF EBML FTYP IETF IPV4 IPV6 LGPL').split(' '));
+  'OKLCH XLSX DOCX CRLF EBML FTYP IETF IPV4 IPV6 LGPL HEVC FLAC MPEG ADTS STREAMINFO').split(' '));
 
 /* Kommentarbloecke einer Datei. Aufeinanderfolgende Zeilenkommentare zaehlen
    als ein Block. `emphasis`: ein Wort aus vier oder mehr Grossbuchstaben,

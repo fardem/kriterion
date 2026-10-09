@@ -9,13 +9,18 @@ services:
       - "3100:3000"
     volumes:
       - ./data:/app/data
-      # Backup-Ordner. Besser ausserhalb des Projekts, dann beide Zeilen so:
-      #   - ../kriterion-backup:/backup
-      #   - BACKUP_DIR=/backup
+      # Backup-Ordner. Besser ausserhalb des Projekts: ../kriterion-backup:/app/backup
       - ./kriterion-backup:/app/backup
     environment:
       - PORT=3000
-      # Zeitzone des Containerprotokolls. Gespeicherte Zeiten bleiben UTC.
+      # Zeitzone des Protokolls und der Namen neuer Backups. Gespeicherte Zeiten bleiben UTC.
       - TZ=Europe/Berlin
       # Ohne diese Zeile keine Karte "Backup". Pfad wie in der Einhaengung oben.
       - BACKUP_DIR=/app/backup
+    # /tmp im RAM; dort entsteht ein Proxy vor dem Verschluesseln. Ohne tmpfs keine Proxys.
+    # 2g reichen bei 7,5 Mbit/s fuer rund 35 Minuten Video.
+    tmpfs:
+      - /tmp:size=2g
+    # Quick Sync fuer die Proxys (README, "Proxys fuer Videos"). Auskommentiert: die CPU wandelt um.
+    # devices:
+    #   - /dev/dri:/dev/dri

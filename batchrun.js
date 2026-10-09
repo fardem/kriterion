@@ -51,13 +51,13 @@ async function convertInventory(rows, store) {
     `to do, ${status.freed} bytes saved.`);
 }
 
-// Bei Videos steht das Standbild in `medium`, in `data` das Video.
-const isVideoRow = (z) => z && z.kind === 'video';
-const sourceFrom = (z) => (isVideoRow(z) ? z.medium : z.data);
+// Bei Video und Audio steht das Standbild oder Cover in `medium`, in `data` die Datei.
+const isPlayedRow = (z) => z && (z.kind === 'video' || z.kind === 'audio');
+const sourceFrom = (z) => (isPlayedRow(z) ? z.medium : z.data);
 const cropFrom = (z) => ({ fx: Number(z.focus_x), fy: Number(z.focus_y),
                                zoom: Number(z.zoom) });
 
-// `rows` enthaelt nur Bilder; bei Videos stuende in `data` das Video.
+// `rows` enthaelt nur Bilder; bei Video und Audio stuende in `data` die Datei.
 async function backfillThumbnails(rows) {
   logLine(`Creating thumbnails for ${rows.length} photo(s) ...`);
   const get = db.prepare(
@@ -119,7 +119,7 @@ async function refreshRow(id, z) {
   if (!source) return null;
   const v = await makeVariants(source, cropFrom(z));
   if (!v.thumb) return null;
-  if (isVideoRow(z)) writeTile.run(v.thumb, id);
+  if (isPlayedRow(z)) writeTile.run(v.thumb, id);
   else writeBoth.run(v.thumb, v.medium || null, id);
   return v.thumb.length - (z.thumb ? z.thumb.length : 0);
 }
@@ -138,6 +138,18 @@ async function refreshOneTile(rows) {
   parentPort.postMessage({ kind: 'refreshed', id, ok });
 }
 
+// Aufgabe `check`: liest nur; quick_check nennt hoechstens 20 Fehler.
+function checkDatabase() {
+  const quick = db.pragma('quick_check(20)').map(z => z.quick_check);
+  const keys = [];
+  for (const z of db.pragma('foreign_key_check')) {
+    const same = keys.find(k => k.table === z.table && k.parent === z.parent);
+    if (same) same.count++;
+    else keys.push({ table: z.table, parent: z.parent, count: 1 });
+  }
+  parentPort.postMessage({ kind: 'check', result: { quick, keys } });
+}
+
 // Gibt freie Seiten an das Dateisystem zurueck.
 function reclaim() {
   try { db.pragma('incremental_vacuum'); db.pragma('wal_checkpoint(TRUNCATE)'); } catch {}
@@ -148,6 +160,7 @@ function reclaim() {
   else if (workerData.task === 'thumbnails') await backfillThumbnails(workerData.rows);
   else if (workerData.task === 'geometry') await refreshTiles(workerData.rows);
   else if (workerData.task === 'crop') await refreshOneTile(workerData.rows);
+  else if (workerData.task === 'check') checkDatabase();
   else throw new Error(`Unbekannte Aufgabe: ${workerData.task}`);
   db.close();
   parentPort.close();

@@ -1,5 +1,6 @@
 const crypto = require('crypto');
-const { db, assignInventory, lateStatement } = require('./db');
+const net = require('net');
+const { db, lateStatement } = require('./db');
 const { logLine, logWarn, logFail } = require('./log');
 const keys = require('./keys');
 // Fuer mail.isAddress: ein Adressmuster fuer Anlegen, eigenen Zugang und Versand.
@@ -170,8 +171,6 @@ async function createFirstUser(name, password) {
     "SELECT ?, ?, 'owner' WHERE NOT EXISTS (SELECT 1 FROM users)"
   ).run(String(name).trim(), hash);
   if (r.changes === 0) throw new Message('server.setupDone');
-  // Beim Start einer leeren Instanz hatte assignInventory() noch keinen Benutzer.
-  assignInventory();
   // actor ist der neue Eigentuemer selbst; einen anderen Handelnden gibt es nicht.
   log('user.new', { actor: r.lastInsertRowid, target: r.lastInsertRowid, detail: 'owner' });
   return { id: r.lastInsertRowid, username: String(name).trim() };
@@ -278,8 +277,8 @@ function setRole(userId, role, actor) {
   if (!u) throw new Message('server.userUnknown');
   if (u.status === 'deleted') throw new Message('server.userDeleted');
   if (!ROLES.includes(role)) throw new Message('login.roleUnknown');
-  // Dieselbe Sperre in setStatus() und removeUser(): der letzte Eigentuemer bleibt.
-  if (u.role === 'owner' && role !== 'owner' && ownerCount() <= 1)
+  // Dieselbe Sperre in setStatus() und removeUser(): der letzte aktive Eigentuemer bleibt.
+  if (u.role === 'owner' && u.status === 'active' && role !== 'owner' && ownerCount() <= 1)
     throw new Message('login.lastOwner');
   db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, u.id);
   log('user.role', { actor: acting, target: u.id, detail: role });
@@ -293,7 +292,7 @@ function setStatus(userId, status, actor) {
   if (u.status === 'deleted') throw new Message('server.userDeleted');
   if (status !== 'active' && status !== 'locked')
     throw new Message('login.statusNotSettable');
-  if (u.role === 'owner' && status !== 'active' && ownerCount() <= 1)
+  if (u.role === 'owner' && u.status === 'active' && status !== 'active' && ownerCount() <= 1)
     throw new Message('login.lastOwner');
   db.prepare('UPDATE users SET status = ? WHERE id = ?').run(status, u.id);
   /* requireAuth() weist gesperrte Zugaenge zusaetzlich ab; der zweite Faktor
@@ -319,12 +318,14 @@ function countInventory(userId) {
     foreignTestDays: one(`SELECT COUNT(*) n FROM test_days WHERE user_id IS NOT ? AND item_id IN (${ownItems})`, id, id),
     foreignLinks: one(`SELECT COUNT(*) n FROM links WHERE user_id IS NOT ? AND item_id IN (${ownItems})`, id, id),
     foreignFiles: one(`SELECT COUNT(*) n FROM attachments WHERE user_id IS NOT ? AND item_id IN (${ownItems})`, id, id),
+    foreignFolders: one(`SELECT COUNT(*) n FROM folders WHERE user_id IS NOT ? AND item_id IN (${ownItems})`, id, id),
     // Seine Beitraege an fremden Eintraegen, geloescht mit options.posts.
     comments: one(`SELECT COUNT(*) n FROM comments WHERE user_id = ? AND item_id NOT IN (${ownItems})`, id, id),
     ratings: one(`SELECT COUNT(*) n FROM ratings WHERE user_id = ? AND item_id NOT IN (${ownItems})`, id, id),
     testDays: one(`SELECT COUNT(*) n FROM test_days WHERE user_id = ? AND item_id NOT IN (${ownItems})`, id, id),
     links: one(`SELECT COUNT(*) n FROM links WHERE user_id = ? AND item_id NOT IN (${ownItems})`, id, id),
-    files: one(`SELECT COUNT(*) n FROM attachments WHERE user_id = ? AND item_id NOT IN (${ownItems})`, id, id)
+    files: one(`SELECT COUNT(*) n FROM attachments WHERE user_id = ? AND item_id NOT IN (${ownItems})`, id, id),
+    folders: one(`SELECT COUNT(*) n FROM folders WHERE user_id = ? AND item_id NOT IN (${ownItems})`, id, id)
   };
 }
 
@@ -335,7 +336,7 @@ function removeUser(userId, options = {}, actor) {
   const u = getUser2(userId);
   if (!u) throw new Message('server.userUnknown');
   if (u.status === 'deleted') throw new Message('login.userDeleted');
-  if (u.role === 'owner' && ownerCount() <= 1)
+  if (u.role === 'owner' && u.status === 'active' && ownerCount() <= 1)
     throw new Message('login.lastOwner');
   const counts = countInventory(u.id);
   db.transaction(() => {
@@ -345,13 +346,15 @@ function removeUser(userId, options = {}, actor) {
       db.prepare('DELETE FROM comments WHERE user_id = ?').run(u.id);
       db.prepare('DELETE FROM ratings WHERE user_id = ?').run(u.id);
       db.prepare('DELETE FROM test_days WHERE user_id = ?').run(u.id);
-      // Muss zu links und files in countInventory() passen.
+      // Muss zu links, files und folders in countInventory() passen.
       db.prepare('DELETE FROM links WHERE user_id = ?').run(u.id);
       db.prepare('DELETE FROM attachments WHERE user_id = ?').run(u.id);
+      db.prepare('DELETE FROM folders WHERE user_id = ?').run(u.id);
     }
     // Von Hand: die Zeile in users bleibt, also greift keine Kaskade.
     db.prepare('DELETE FROM sessions WHERE user_id = ?').run(u.id);
     db.prepare('DELETE FROM tokens WHERE user_id = ?').run(u.id);
+    db.prepare('DELETE FROM uploads WHERE user_id = ?').run(u.id);
     db.prepare('DELETE FROM item_pins WHERE user_id = ?').run(u.id);
     db.prepare('DELETE FROM user_settings WHERE user_id = ?').run(u.id);
     db.prepare('DELETE FROM two_factor WHERE user_id = ?').run(u.id);
@@ -372,7 +375,17 @@ const BLOCK_SECONDS = 5 * 60;
 // Wie lange eine Zeile ohne neuen Versuch stehen bleibt.
 const ATTEMPT_KEEP_MINUTES = 60;
 
-const keyIp = (ip) => `ip:${ip}`;
+// IPv6 je /64, ein Anschluss bekommt meist das ganze Netz; mit IPv4-Teil (`::ffff:a.b.c.d`) die volle Adresse.
+function addressBlock(ip) {
+  const address = String(ip || '');
+  if (!net.isIPv6(address) || address.includes('.')) return address;
+  const [head, tail] = address.toLowerCase().split('::');
+  const front = head ? head.split(':') : [];
+  const back = tail ? tail.split(':') : [];
+  const groups = tail === undefined ? front : [...front, ...Array(8 - front.length - back.length).fill('0'), ...back];
+  return `${groups.slice(0, 4).map(g => parseInt(g, 16).toString(16)).join(':')}::/64`;
+}
+const keyIp = (ip) => `ip:${addressBlock(ip)}`;
 const keyName = (name) =>
   `name:${String(name || '').trim().toLocaleLowerCase(comparisonLocale())}`;
 
@@ -406,14 +419,17 @@ function cleanupAttempts() {
   return n;
 }
 
-// Letzter Eintrag von X-Forwarded-For: den setzt der eigene Proxy, davor der Client.
+// Nur vom eigenen Netz gilt X-Forwarded-For, davon der letzte Eintrag: den setzt der eigene Proxy.
+const PRIVATE_PEER =
+  /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|::1$|f[cd]|fe[89ab])/i;
 function clientIp(req) {
-  if (BEHIND_PROXY) {
+  const peer = req.socket.remoteAddress || 'unbekannt';
+  if (BEHIND_PROXY && PRIVATE_PEER.test(peer.replace(/^::ffff:/i, ''))) {
     const chain = String(req.headers['x-forwarded-for'] || '')
       .split(',').map(s => s.trim()).filter(Boolean);
     if (chain.length) return chain[chain.length - 1];
   }
-  return req.socket.remoteAddress || 'unbekannt';
+  return peer;
 }
 
 function checkThrottle(ip, name) {
@@ -718,13 +734,13 @@ const EVENTS = [
   // twofactor.reset: ein Wiederherstellungscode wurde verbraucht.
   'twofactor.on', 'twofactor.off', 'twofactor.reset',
   /* key: Wechsel des Datenbankschluessels ueber keytool.js, immer ohne actor.
-     backup.delete: eine Zeile je entferntes Backup. */
-  'export', 'import', 'backup', 'backup.delete', 'key'
+     backup.delete und backup.fetch: eine Zeile je Backup oder zurueckgeholte Datei. */
+  'export', 'import', 'backup', 'backup.delete', 'backup.fetch', 'key'
 ];
 // Erlaubte Werte fuer detail.
 const DETAILS = ['user', 'admin', 'owner', 'active', 'locked',
                   'invite', 'reset', 'merge', 'replace',
-                  'name', 'password', 'address', 'both', 'part'];
+                  'name', 'password', 'address', 'both', 'part', 'daily'];
 
 // Tage; laenger als die 30 von Papierkorb und TOKEN_TRACE_DAYS, weil Vorfaelle
 // oft spaet auffallen.
@@ -778,7 +794,7 @@ const LOG_GROUPS = {
           'user.delete', 'user.self', 'link.new', 'link.use',
           'request.approve', 'request.reject'],
   twofactor: ['twofactor.on', 'twofactor.off', 'twofactor.reset'],
-  inventory: ['export', 'import', 'backup', 'backup.delete', 'key']
+  inventory: ['export', 'import', 'backup', 'backup.delete', 'backup.fetch', 'key']
 };
 
 const LOG_COLUMNS =
@@ -885,7 +901,7 @@ function twoFactorState(userId) {
   };
 }
 
-// Eine Meldung fuer jeden Fehlschlag, damit sie nichts ueber den Grund verraet.
+// Eine Meldung fuer jeden Fehlschlag; nur ein schon verbrauchter App-Code bekommt eine eigene (twoFactorDenial()).
 const TWO_FACTOR_DENIAL = 'login.codeWrong';
 
 // Schritt 1 der Einrichtung; das Geheimnis verlaesst den Server nur in dieser Antwort.
@@ -963,6 +979,16 @@ function checkTwoFactor(userId, input, now = Date.now()) {
     return 'wieder';
   }
   return null;
+}
+
+/* Nach einem Fehlschlag von checkTwoFactor(): der Schluessel der Meldung. Ein App-Code, der
+   noch gilt, aber schon verbraucht ist, heisst „schon verwendet“. */
+function twoFactorDenial(userId, input, now = Date.now()) {
+  const z = getTwoFactor(Number(userId) || 0);
+  if (!z || !zf.isCodeForm(input)) return TWO_FACTOR_DENIAL;
+  const counter = zf.checkCode(z.secret, input, now);
+  return counter !== null && z.last_counter != null && counter <= z.last_counter
+    ? 'login.codeUsed' : TWO_FACTOR_DENIAL;
 }
 
 // Passwort und gueltigen Code prueft die Route in server.js.
@@ -1092,7 +1118,7 @@ module.exports = {
   BEHIND_PROXY, PASSWORD_MIN, SESSION_DAYS, fromEnv,
   PUBLIC_ADDRESS, checkPublicAddress, parseCookies, checkLogin, createSession, destroySession,
   sessionUser, pruneSessions, sessionCookie, clearCookie, requireAuth,
-  clientIp, checkThrottle, noteFailure, noteSuccess, cleanupAttempts,
+  clientIp, PRIVATE_PEER, addressBlock, checkThrottle, noteFailure, noteSuccess, cleanupAttempts,
   delay, SCRYPT_COST: SCRYPT.N, SCRYPT_SHIPPED,
   sessionIdOf, sessionsOf, endSession, endOtherSessions,
   TOKEN_DAYS, TOKEN_DEADLINE_MINUTES, tokenHash,
@@ -1103,7 +1129,7 @@ module.exports = {
   EVENTS, DETAILS, LOG_LIMIT, LOG_GROUPS, FROM_HOST,
   log, cleanupLog, readLog,
   CONFIRM_PURPOSES, RELEASE_MS, createRelease, useRelease,
-  TWO_FACTOR_DENIAL, LOGIN_TICKET_MS,
+  TWO_FACTOR_DENIAL, twoFactorDenial, LOGIN_TICKET_MS,
   twoFactorOn, twoFactorState, startTwoFactor, turnTwoFactorOn,
   checkTwoFactor, refreshRecoveryCodes, turnTwoFactorOff,
   createLoginTicket, useLoginTicket,

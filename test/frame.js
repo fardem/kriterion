@@ -20,6 +20,16 @@ const attachments = require('./attachments');
 const sharp = require('sharp');
 const { segment, CODE, TEXT, COMMENT, REGEX } = require('./tools/segments.js');
 
+// Ruhende Verbindungen schliesst der Server nach 5 s (keepAliveTimeout); war der Socket zu, einmal neu.
+const plainFetch = globalThis.fetch;
+globalThis.fetch = async (...args) => {
+  try { return await plainFetch(...args); }
+  catch (e) {
+    if (e?.cause?.code !== 'UND_ERR_SOCKET') throw e;
+    return plainFetch(...args);
+  }
+};
+
 /* Die Fristen, mit denen die Server unter dem Pruefschalter rechnen. */
 const MAIL_TIMES = require('./mail');
 
@@ -35,7 +45,7 @@ const SCRYPT_SHIPPED = Number((fs.readFileSync(path.join(__dirname, 'auth.js'), 
   .match(/^const SCRYPT_SHIPPED = (\d+);$/m) || [])[1]);
 const RUN_SCRYPT = RUN_KEYS.scryptCost(SCRYPT_SHIPPED);
 
-const readmeFlat = fs.readFileSync(path.join(__dirname, 'README.md'), 'utf8')
+const readmeFlat = fs.readFileSync(path.join(__dirname, 'README-de.md'), 'utf8')
   .replace(/\s+/g, ' ');
 const handbookFlat = fs.readFileSync(path.join(__dirname, 'manual-de.md'), 'utf8')
   .replace(/\s+/g, ' ');
@@ -47,6 +57,9 @@ let passedCount = 0, failed = 0, skipped = 0;
 let stillPassed = 0, stillFailed = 0;
 let groupsShown = 0, groupsStill = 0;
 let silent = false;
+// Wiederholt am Ende: von einem langen Log auf GitHub liest das Werkzeug nur die letzten Zeilen.
+const RED = [];
+let groupName = '(vor der ersten Gruppe)';
 
 /* ---- Zeitmessung ---- */
 const TIMES = [];
@@ -78,7 +91,7 @@ function timeTable(rows, wholeMs, top = 10) {
 
 const group = (name) => {
   closeTime();
-  timeName = name; timeStart = Date.now();
+  timeName = groupName = name; timeStart = Date.now();
   silent = FILTER !== '' && !name.toLowerCase().includes(FILTER.toLowerCase());
   timeSilent = silent;
   if (silent) { groupsStill++; return; }
@@ -90,7 +103,11 @@ function check(name, condition, hint = '') {
   // Zeile weg, nicht die Arbeit.
   if (silent) { if (condition) stillPassed++; else stillFailed++; return; }
   if (condition) { passedCount++; console.log(`  ✓ ${name}`); }
-  else { failed++; console.log(`  ✗ ${name}${hint ? `\n      ${hint}` : ''}`); }
+  else {
+    failed++;
+    RED.push({ group: groupName, name });
+    console.log(`  ✗ ${name}${hint ? `\n      ${hint}` : ''}`);
+  }
 }
 // Gefilterter und voller Lauf enden hier gleich.
 function endBlock() {
@@ -103,6 +120,10 @@ function endBlock() {
   else console.log(`  ${passedCount} von ${sum} Pruefungen bestanden` +
               (skipped ? `, ${skipped} uebersprungen` : '') +
               (failed ? `  —  ${failed} GESCHEITERT` : '  —  alles in Ordnung'));
+  if (RED.length) {
+    console.log('\n  ROT:');
+    for (const r of RED) console.log(`    ${r.group} › ${r.name}`);
+  }
   if (FILTER) {
     console.log(`\n  GEFILTERTER LAUF nach "${FILTER}" — KEIN VOLLSTAENDIGER BELEG.`);
     if (!groupsShown)
@@ -317,6 +338,12 @@ const readyFailure = (portBase, port, dataDirectory, log = '') =>
   `Zweitserver nicht erreichbar: Portbasis ${portBase}, Port ${port}, ` +
   `Verzeichnis ${dataDirectory} -- ${READY_TRIES * READY_STEP / 1000} s gewartet\n${log}`;
 
+// Die Ausgabe eines Servers kommt ueber eine Pipe und kann seiner Antwort hinterherlaufen.
+async function logUntil(log, wanted, ms = 5000, stepMs = 25) {
+  const hit = typeof wanted === 'function' ? wanted : (text) => wanted.test(text);
+  for (const end = Date.now() + ms; !hit(log()) && Date.now() < end;) await new Promise(r => setTimeout(r, stepMs));
+}
+
 function startFurtherServer(dataDirectory, extraEnv, portBase) {
   const port = portBase + PORT_OFFSET + Math.floor(Math.random() * PORT_WIDTH);
   const base = `http://127.0.0.1:${port}`;
@@ -325,7 +352,7 @@ function startFurtherServer(dataDirectory, extraEnv, portBase) {
   delete environment.AUTH_RESET;
   Object.assign(environment, extraEnv);
   const kindB = spawn(process.execPath, ['server.js'], { cwd: __dirname, env: environment });
-  const state = { base: portBase, port, kind: kindB, directory: dataDirectory };
+  const state = { base: portBase, port, kind: kindB, directory: dataDirectory, log: () => log };
   CASES.push(state);
   kindB.stdout.on('data', d => { log += d; });
   kindB.stderr.on('data', d => { log += d; });
@@ -391,6 +418,70 @@ const withCsrf = (cookieLine, headers = {}) => {
                : { ...headers, cookie: cookieLine };
 };
 
+// Wie die Oberflaeche: Beginn, dann die Stuecke; nach der letzten Datei steht der Eintrag in der Antwort.
+const UPLOAD_PIECE = 8 * 1024 * 1024;
+async function sendFiles(base, cookieLine, itemId, files, folderId = null) {
+  let last = null;
+  for (const f of files) {
+    const content = Buffer.isBuffer(f.content) ? f.content : Buffer.from(f.content, 'utf8');
+    const begin = await fetch(`${base}/api/items/${itemId}/uploads`, {
+      method: 'POST', headers: withCsrf(cookieLine, { 'content-type': 'application/json' }),
+      body: JSON.stringify({ filename: f.name, size: content.length, modified: f.modified ?? 1, folderId })
+    });
+    last = { status: begin.status, content: await begin.json().catch(() => null) };
+    if (!begin.ok) return last;
+    const id = last.content.id;
+    let at = last.content.received;
+    do {
+      const piece = content.subarray(at, at + UPLOAD_PIECE);
+      const r = await fetch(`${base}/api/uploads/${id}`, {
+        method: 'PUT', body: piece,
+        headers: withCsrf(cookieLine, { 'content-type': 'application/octet-stream', 'upload-offset': String(at) })
+      });
+      last = { status: r.status, content: await r.json().catch(() => null) };
+      if (!r.ok) return last;
+      at += piece.length;
+    } while (at < content.length);
+  }
+  return last;
+}
+
+/* ---- Ein MP4 aus Kaesten ---- */
+/* MediaInfo liest daraus Codec, Pixel, Dauer 10 s, Datum 30.09.2026 und je Tonspur Sprache und
+   Abtastrate; Bilder enthaelt es keine. `sample` 'hvc1' meldet HEVC, 'avc1' H.264. */
+const mp4Box = (name, ...parts) => {
+  const body = Buffer.concat(parts), head = Buffer.alloc(8);
+  head.writeUInt32BE(8 + body.length);
+  head.write(name, 4, 'latin1');
+  return Buffer.concat([head, body]);
+};
+const mp4Full = (name, flags, ...parts) => { const vf = Buffer.alloc(4); vf.writeUInt32BE(flags); return mp4Box(name, vf, ...parts); };
+const mp4U32 = (...n) => { const b = Buffer.alloc(4 * n.length); n.forEach((x, i) => b.writeUInt32BE(x >>> 0, 4 * i)); return b; };
+const mp4U16 = (...n) => { const b = Buffer.alloc(2 * n.length); n.forEach((x, i) => b.writeUInt16BE(x, 2 * i)); return b; };
+const mp4Language = (s) => ((s.charCodeAt(0) - 0x60) << 10) | ((s.charCodeAt(1) - 0x60) << 5) | (s.charCodeAt(2) - 0x60);
+function testMp4({ pad = 0, sample = 'hvc1', width = 3840, height = 2160, sounds = ['deu', 'eng'] } = {}) {
+  const box = mp4Box, full = mp4Full, u32 = mp4U32, u16 = mp4U16;
+  const created = 3873571200, scale = 1000, length = 10 * scale;
+  const matrix = u32(0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x40000000);
+  const mvhd = full('mvhd', 0, u32(created, created, scale, length, 0x10000), u16(0x100, 0), Buffer.alloc(8),
+    matrix, Buffer.alloc(24), u32(2 + sounds.length));
+  const tkhd = (id, w, h, volume) => full('tkhd', 7, u32(created, created, id, 0, length), Buffer.alloc(8),
+    u16(0, 0, volume, 0), matrix, u32(w << 16, h << 16));
+  const mdhd = (l) => full('mdhd', 0, u32(created, created, scale, length), u16(mp4Language(l), 0));
+  const hdlr = (type) => full('hdlr', 0, u32(0), Buffer.from(type), Buffer.alloc(12), Buffer.from('\0'));
+  const tables = (entry) => box('stbl', full('stsd', 0, u32(1), entry), full('stts', 0, u32(1, 1, length)),
+    full('stsc', 0, u32(1, 1, 1, 1)), full('stsz', 0, u32(0, 1, 100)), full('stco', 0, u32(1, 48)));
+  const dinf = box('dinf', full('dref', 0, u32(1), full('url ', 1)));
+  const picture = box(sample, Buffer.alloc(6), u16(1), Buffer.alloc(16), u16(width, height), u32(0x480000, 0x480000, 0),
+    u16(1), Buffer.alloc(32), u16(0x18, 0xffff));
+  const sound = box('mp4a', Buffer.alloc(6), u16(1), Buffer.alloc(8), u16(2, 16, 0, 0), u32(48000 << 16));
+  const track = (id, l, type, head, entry, w, h, volume) => box('trak', tkhd(id, w, h, volume),
+    box('mdia', mdhd(l), hdlr(type), box('minf', head, dinf, tables(entry))));
+  return Buffer.concat([box('ftyp', Buffer.from('mp42'), u32(0), Buffer.from('isommp42')), box('mdat', Buffer.alloc(100 + pad)),
+    box('moov', mvhd, track(1, 'und', 'vide', full('vmhd', 1, Buffer.alloc(8)), picture, width, height, 0),
+      ...sounds.map((l, n) => track(2 + n, l, 'soun', full('smhd', 0, Buffer.alloc(4)), sound, 0, 0, 0x100)))]);
+}
+
 /* Schreibende Routen; hier, weil die Pruefung ueber den Quelltext und die ueber die
    laufende Instanz sie lesen. */
 const F_ROUTES = [
@@ -427,6 +518,9 @@ const F_ROUTES = [
   ['POST',   '/api/requests/:id/approve',         'adminOnly'],
   ['DELETE', '/api/requests/:id',              'adminOnly'],
   ['PUT',    '/api/titles',                    'adminOnly'],
+  ['POST',   '/api/document-server/check',     'adminOnly'],
+  // Der Document Server ruft ohne Cookie; docserver.readCallback() prueft sein JWT.
+  ['POST',   '/api/document-server/callback/:id', 'offen'],
   ['PUT',    '/api/settings',                  'im Rumpf'],
   ['POST',   '/api/criteria',                  'adminOnly'],
   ['PUT',    '/api/criteria/order',            'adminOnly'],
@@ -448,10 +542,27 @@ const F_ROUTES = [
   ['POST',   '/api/items/:id/photos',          'entryAuthorOnly'],
   // Eigene Route: den fileFilter der Fotoroute auf ^image\/ zu lockern schwaechte den Fotoweg.
   ['POST',   '/api/items/:id/videos',          'entryAuthorOnly'],
+  ['POST',   '/api/items/:id/audio',           'entryAuthorOnly'],
   ['PUT',    '/api/photos/:id/focus',          'im Rumpf'],
-  // Hochladen darf jeder: eine Datei erscheint nur dort, wo man sie hinsetzt.
-  ['POST',   '/api/items/:id/attachments',     'offen'],
+  ['PUT',    '/api/photos/:id/waveform',       'im Rumpf'],
+  // Hochladen darf jeder, in einen Ordner nur, wer ihn angelegt hat; fortsetzen, wer begonnen hat.
+  ['POST',   '/api/items/:id/uploads',         'im Rumpf'],
+  ['PUT',    '/api/uploads/:id',               'im Rumpf'],
+  ['DELETE', '/api/uploads/:id',               'im Rumpf'],
   ['DELETE', '/api/attachments/:id',           'im Rumpf'],
+  // Name, Haken, Standbild und Wellenform setzt nur, wer hochgeladen hat; die vorige Fassung, wer bearbeiten darf.
+  ['PUT',    '/api/attachments/:id',           'im Rumpf'],
+  ['PUT',    '/api/attachments/:id/editing',   'im Rumpf'],
+  ['PUT',    '/api/attachments/:id/still',     'im Rumpf'],
+  ['PUT',    '/api/attachments/:id/waveform',  'im Rumpf'],
+  ['POST',   '/api/attachments/:id/previous',  'im Rumpf'],
+  // Anlegen darf jeder, wie Dateien ohne Ordner; umbenennen, loeschen und hineinlegen im Rumpf.
+  ['POST',   '/api/items/:id/folders',         'offen'],
+  ['PUT',    '/api/folders/:id',               'im Rumpf'],
+  ['DELETE', '/api/folders/:id',               'im Rumpf'],
+  ['PUT',    '/api/attachments/:id/folder',    'im Rumpf'],
+  ['PUT',    '/api/folders/:id/open',          'offen'],
+  ['PUT',    '/api/video-positions',           'offen'],
   ['PUT',    '/api/items/:id/photo-order',     'entryAuthorOnly'],
   ['DELETE', '/api/photos/:id',                'im Rumpf'],
   // Offen wie Kommentar und Testtag: ein Link erscheint nur dort, wo man ihn hinsetzt.
@@ -480,11 +591,14 @@ const F_ROUTES = [
   ['POST',   '/api/trash/:id/restore', 'ownerOnly'],
   ['DELETE', '/api/trash/:id',            'ownerOnly'],
   /* ownerOnly wie Export und Import: betrifft die Instanz als Ganzes. */
-  ['PUT',    '/api/backup/dir',             'ownerOnly'],
   ['POST',   '/api/backup',                 'ownerOnly'],
   ['POST',   '/api/images/convert',          'ownerOnly, zweitbestaetigt'],
   ['POST',   '/api/backup/cleanup',      'ownerOnly, zweitbestaetigt'],
-  ['POST',   '/api/backup/check',            'ownerOnly']
+  ['POST',   '/api/backup/check',            'ownerOnly'],
+  ['POST',   '/api/items/:id/deleted-files',   'ownerOnly'],
+  // Geloescht wird nur, was der Abgleich freigibt.
+  ['DELETE', '/api/files/unknown',           'ownerOnly'],
+  ['POST',   '/api/files/missing',           'ownerOnly']
 ];
 
 function writingRoutes(text) {
@@ -516,6 +630,10 @@ const F_READ_ROUTES = [
     'Der Browser holt sie fuer das Symbol am Bildschirm, bevor jemand angemeldet ist.'],
   ['/api/session',                 'offen',
     'Sie sagt nur, ob eine Anmeldung steht -- und muss das auch sagen koennen, wenn keine steht.'],
+  ['/api/document-server/attachments/:id', 'offen',
+    'Der Document Server holt die Datei ohne Cookie; docserver.checkFetch() prueft sein JWT.'],
+  ['/api/document-server/probe',   'offen',
+    'Die Probe der Karte "Dokumente"; derselbe Weg und dieselbe Pruefung wie der Abruf einer Datei.'],
   ['/api/account',                 'selbstbezug',
     'Der eigene Name, die eigene Adresse und der zweite Faktor; alles kommt aus req.user.'],
   ['/api/sessions',                'selbstbezug',
@@ -545,7 +663,7 @@ const F_READ_ROUTES = [
   ['/api/items/:id',               'angemeldet',
     'Der einzelne Eintrag, dieselbe Schranke wie die Uebersicht.'],
   ['/api/comment-refs',            'angemeldet',
-    'Titel und Stellung fuer die Marke am Verweis; dieselbe Schranke wie am Eintrag.'],
+    'Titel, Stellung und Dateiname fuer die Marke am Verweis; dieselbe Schranke wie am Eintrag.'],
   ['/api/items/:id/inventory',     'entryAuthorOnly',
     'Was an einem Eintrag haengt -- die Frage steht vor dem Loeschen.'],
   ['/api/photos/:id/raw',          'angemeldet',
@@ -554,6 +672,16 @@ const F_READ_ROUTES = [
     'Die Datei selbst, dieselbe Ueberlegung wie beim Bild.'],
   ['/api/attachments/:id/preview', 'angemeldet',
     'Der Textauszug derselben Datei; er wird gelesen und nie als Datei ausgeliefert.'],
+  ['/api/attachments/:id/office',  'angemeldet',
+    'Die signierte Konfiguration des Betrachters; wer die Datei laden darf, darf sie auch ansehen.'],
+  ['/api/attachments/:id/info',    'angemeldet',
+    'Die Erweiterten Infos zu einem Bild oder Video; sie stehen in der Datei, die jeder Angemeldete laden darf.'],
+  ['/api/photos/:id/info',         'angemeldet',
+    'Dasselbe fuer ein Foto oder Video des Eintrags, das jeder Angemeldete laden darf.'],
+  ['/api/items/:id/deleted-files', 'ownerOnly',
+    'Geloeschte Dateien eines Eintrags aus Papierkorb und Backups; zurueckholen darf nur der Eigentuemer.'],
+  ['/api/document-server',         'adminOnly',
+    'Adressen und Zustand des Document Servers fuer die Karte; das Secret steht nicht darin.'],
   ['/api/items/:id/votes',         'adminOnly',
     'Wer wie bewertet hat, namentlich. Die Sterne selbst stehen ohne Namen am Eintrag.'],
   ['/api/comment-images/:id/raw',  'angemeldet',
@@ -564,6 +692,8 @@ const F_READ_ROUTES = [
     'Die offenen Aufgaben ueber alle Eintraege; jede einzelne steht ohnehin am Eintrag.'],
   ['/api/stats',                   'adminOnly',
     'Die Kennzahlen der Installation -- Groesse des Bestands und Belegung der Ablage.'],
+  ['/api/maintenance',             'ownerOnly',
+    'Der Abgleich nennt Dateinamen, Eintraege und Ordner der ganzen Instanz und prueft die Datenbank.'],
   ['/api/export/plan',             'ownerOnly',
     'Was ein Export umfassen wuerde. Dieselbe Zeile wie der Export selbst.'],
   ['/api/export',                  'ownerOnly, zweitbestaetigt',
@@ -746,7 +876,7 @@ function counters() {
      benutzten. */
   return {
     passedCount, failed, skipped, stillPassed, stillFailed, groupsShown, groupsStill,
-    times: TIMES,
+    times: TIMES, red: RED,
     cases: CASES.map(l => ({ base: l.base, port: l.port, pid: l.kind.pid,
       open: l.kind.exitCode === null && l.kind.signalCode === null })),
     smtp: SMTP_CASES.map(l => ({ base: l.base, port: l.port, kind: l.kind,
@@ -759,6 +889,7 @@ function addCounters(z) {
   stillPassed += z.stillPassed; stillFailed += z.stillFailed;
   groupsShown += z.groupsShown; groupsStill += z.groupsStill;
   for (const r of z.times || []) TIMES.push(r);
+  for (const r of z.red || []) RED.push(r);
 }
 
 /* Ein Teillauf startet nur die Module, die er zeigt; die Gruppen der uebrigen
@@ -784,10 +915,34 @@ async function nextSecond(limitMs = 1500) {
   await new Promise(r => setTimeout(r, SECOND_MARGIN));
 }
 
+function processState(pid) {
+  try { return fs.readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ').pop().split(' ')[0]; }
+  catch { return ''; }
+}
+
+async function serversAtAbort() {
+  const all = [...(kind ? [{ base: MAIN_BASE, port: PORT, kind, log: () => output }] : []),
+               ...CASES.filter(l => l.log)];
+  const reaped = (l) => l.kind.exitCode !== null || l.kind.signalCode !== null;
+  await Promise.all(all.filter(l => !reaped(l) && processState(l.kind.pid) === 'Z')
+    .map(l => new Promise(done => l.kind.once('exit', done))));
+  const room = fs.statfsSync(os.tmpdir());
+  console.error(`  Speicher frei ${Math.round(os.freemem() / 1048576)} von ${Math.round(os.totalmem() / 1048576)} MB, ` +
+    `Platz in ${os.tmpdir()} ${Math.round(room.bavail * room.bsize / 1048576)} MB`);
+  for (const l of all) {
+    const now = processState(l.kind.pid);
+    const state = reaped(l) ? `beendet, Code ${l.kind.exitCode}, Signal ${l.kind.signalCode}`
+      : now ? `laeuft (${now})` : 'Zustand unbekannt';
+    console.error(`  Server Basis ${l.base}, Port ${l.port}, PID ${l.kind.pid}: ${state}`);
+    for (const z of l.log().split('\n').filter(Boolean).slice(-8)) console.error(`    ${z}`);
+  }
+}
+
 async function moduleRun(run, name) {
   let abort = '';
   try {
     await run();
+    if (process.env.TESTBENCH_ABORT_IN === name) throw new Error('Probeabbruch');
   } catch (e) {
     const chain = [];
     for (let z = e, step = 0; z && step < 5; z = z.cause, step++)
@@ -795,6 +950,7 @@ async function moduleRun(run, name) {
     abort = chain.join('  <-  ');
     console.error(`\nModul ${name} abgebrochen:`, abort);
     if (e && e.stack) console.error(e.stack.split('\n').slice(1, 4).join('\n'));
+    try { await serversAtAbort(); } catch {}
   }
   closeTime();
   const report = counters();
@@ -841,7 +997,7 @@ return {
   SMTP_CASES,
   smtpEmpfaenger, READY_TRIES, READY_STEP, readyFailure, startFurtherServer,
   call, names, confirmNeeded, includingShare, callF, shareMain,
-  csrfFor, withCsrf, jar, F_ROUTES, writingRoutes, F_READ_ROUTES, readingRoutes,
+  csrfFor, withCsrf, jar, sendFiles, testMp4, F_ROUTES, writingRoutes, F_READ_ROUTES, readingRoutes,
   leftovers, sweepLeftovers, parentOf, ourOwn, benchFiles,
   /* was sich waehrend des Laufs aendert und deshalb nicht zerlegt werden darf */
   get cookie() { return cookie; },
@@ -858,6 +1014,6 @@ return {
   get stillFailed() { return stillFailed; },
   /* der Weg der Module */
   counters, addCounters, addSkippedGroups, skippedModules, moduleRun, standalone,
-  mainServerReady
+  mainServerReady, logUntil
 };
 })(ROOT, createRequire(nodePath.join(ROOT, 'package.json')));

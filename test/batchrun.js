@@ -318,7 +318,7 @@ async function checkBatchRun() {
     check('Die beiden Schleifen stehen nur noch in batchrun.js',
       /for \(const \{ id \} of rows\)/.test(blRun) &&
       !/for \(const \{ id \} of zeilen\)/.test(blServer) &&
-      !/UPDATE photos SET thumb = \?, medium = \? WHERE id = \?/.test(blServer),
+      !/UPDATE photos SET thumb = \?, medium = \? WHERE id = \?['"`]/.test(blServer),
       (blServer.match(/UPDATE photos SET thumb[^\n]*/) || ['(nicht mehr im Server — richtig)'])[0]);
     check('Und der Server startet fuer alle vier Aufgaben einen Thread',
       oneLine(blServer).includes("startBatchThread('conversion', rows, null, imageStore())") &&
@@ -384,13 +384,15 @@ async function checkBatchRun() {
       /db\.exec\('VACUUM'\);/.test(blServer) && !/db\.exec\('VACUUM'\)/.test(blRun) &&
       /startBatchThread\('geometry', rows, maintainStorage\);/.test(blServer),
       (blRun.match(/db\.exec\('VACUUM'\)/) || ['(kein VACUUM im Thread — richtig)'])[0]);
-    // Der Thread laedt db.js ein zweites Mal; das Oeffnen muss wiederholbar sein.
-    const blWithoutWhen = (blDb.match(/CREATE TABLE (?!IF NOT EXISTS)/g) || []).length;
-    check('db.js legt keine Tabelle ohne IF NOT EXISTS an',
-      blWithoutWhen === 0 && !/db\.exec\('VACUUM'\)/.test(blDb), `${blWithoutWhen} Stellen`);
-    check('Und der Nachweis der Wiederholbarkeit steht dort geschrieben',
-      /muss wiederholbar sein/.test(blDb),
-      'die Begruendung fehlt');
+    // usertool.js oeffnet db.js neben dem Server; die Startschritte muessen wiederholbar sein.
+    const blSchema = fs.readFileSync(path.join(__dirname, 'schema.js'), 'utf8');
+    const blWithoutWhen = ((blDb + blSchema).match(/CREATE TABLE (?!IF NOT EXISTS)/g) || []).length;
+    check('db.js und schema.js legen keine Tabelle ohne IF NOT EXISTS an',
+      blWithoutWhen === 0 && /CREATE TABLE IF NOT EXISTS/.test(blSchema)
+      && !/db\.exec\('VACUUM'\)/.test(blDb), `${blWithoutWhen} Stellen`);
+    check('Die Startschritte laufen nur im Haupt-Thread; der Grund steht dort geschrieben',
+      /Die Startschritte laufen nur im Haupt-Thread; batchrun\.js braucht nur die Verbindung/.test(blDb) &&
+      /Wiederholbar fuer usertool\.js/.test(blDb), 'die Begruendung fehlt');
     const blKeys = fs.readFileSync(path.join(__dirname, 'keys.js'), 'utf8');
     check('Der Schluesselhinweis wird im Neben-Thread nicht wiederholt',
       /const \{ isMainThread \} = require\('worker_threads'\);/.test(blKeys) &&

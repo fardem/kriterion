@@ -42,13 +42,14 @@ function cropRectOf(size, cropSpec) {
            width: edge, height: edge };
 }
 
-async function makeVariants(buf, cropSpec) {
+// `names`: nur diese Varianten; die Kachel einer Bilddatei braucht keine mittlere.
+async function makeVariants(buf, cropSpec, names = Object.keys(VARIANTS)) {
   const out = {};
   let size = null;
   try { size = await sharp(buf, { failOn: 'none' }).metadata(); } catch {}
   const landscape = size ? isLandscape(size) : true;
   const cropRect = cropRectOf(size, cropSpec);
-  for (const [name, v] of Object.entries(VARIANTS)) {
+  for (const [name, v] of Object.entries(VARIANTS).filter(([n]) => names.includes(n))) {
     try {
       // Zugeschnitten ist quadratisch, daher zweimal die kurze Kante.
       const raw = sharp(buf, { failOn: 'none' }).rotate();

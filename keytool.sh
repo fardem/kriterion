@@ -28,7 +28,7 @@ fi
 lauf() {
   docker compose run --rm --no-deps \
     ${ENV_EINHAENGUNG:+-v "$PWD:/app/wirt:rw"} \
-    ${NEW_KEY:+-e "NEW_KEY=$NEW_KEY"} \
+    ${NEW_KEY:+-e NEW_KEY} \
     kriterion node keytool.js "$@"
 }
 
@@ -69,14 +69,28 @@ case "$BEFEHL" in
     NEW_KEY="$(openssl rand -hex 32)"
     export NEW_KEY
 
+    # Ohne root ist data/encryption.key (0600) nicht lesbar; das Backup waere unvollstaendig.
+    if [ -e data/encryption.key ] && [ ! -r data/encryption.key ]; then
+      rot "  data/encryption.key ist fuer $WER nicht lesbar. Mit sudo aufrufen."
+      exit 1
+    fi
+
     # 3. Die Instanz anhalten.
     echo "  Instanz anhalten …"
     docker compose stop
 
-    # 4. Backup des Datenverzeichnisses. Pflicht.
+    # 4. Backup des Datenverzeichnisses. Pflicht. Ohne data/files/: die Dateien
+    #    behalten ihren Schluessel und aendern sich beim Wechsel nicht.
     ZIEL="../kriterion-data-before-key-change-$MARKE"
     echo "  Backup des Datenverzeichnisses nach $ZIEL …"
-    cp -a data "$ZIEL"
+    mkdir "$ZIEL"
+    # `{} +` statt `\;`: nur so gibt find ein gescheitertes cp als Fehler weiter.
+    if ! find data -mindepth 1 -maxdepth 1 ! -name files -exec sh -c 'cp -a "$@" "$0"/' "$ZIEL" {} +; then
+      rot "  Das Backup nach $ZIEL ist unvollstaendig. Der Schluessel ist nicht gewechselt."
+      echo "  Instanz starten …"
+      docker compose up -d
+      exit 1
+    fi
 
     # 5. Der Wechsel selbst.
     if lauf change "${ENV_ARGUMENTE[@]}" --by "$WER" --yes; then
@@ -86,7 +100,7 @@ case "$BEFEHL" in
       echo
       fett "  Fertig. Jetzt das Protokoll ansehen:"
       echo "      docker compose logs --tail 30 kriterion"
-      echo "  Erwartet wird die Zeile „Schluessel aus ENCRYPTION_KEY geladen.“"
+      echo "  Erwartet wird die Zeile „Key loaded from ENCRYPTION_KEY.“"
       echo "  bzw. die Warnung, dass der Schluessel neben der Datenbank liegt."
       echo
       echo "  Die Backups von VOR dem Wechsel oeffnen sich nur mit dem ALTEN"
@@ -97,7 +111,7 @@ case "$BEFEHL" in
       rot "  Der Wechsel ist nicht durchgelaufen. Die Instanz bleibt ANGEHALTEN."
       rot "  Lies die Meldung darueber, bevor du irgendetwas startest."
       echo "  Zurueck geht es so:"
-      echo "      rm -rf data && cp -a $ZIEL data"
+      echo "      find data -mindepth 1 -maxdepth 1 ! -name files -exec rm -rf {} + && cp -a $ZIEL/. data/"
       echo "      cp .env.before-key-change-$MARKE .env"
       echo "      docker compose up -d"
       exit 1

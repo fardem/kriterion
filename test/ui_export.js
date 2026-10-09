@@ -56,10 +56,7 @@ async function run() {
       await fetch(`${tlA.base}/api/items/${it.id}/comments`,
         { method: 'POST', headers: H.withCsrf(tlA.cookieValue()), body: fk });
     }
-    const fa = new FormData();
-    fa.append('files', new Blob([tlAttachment], { type: 'text/plain' }), `gross-${i}.txt`);
-    await fetch(`${tlA.base}/api/items/${it.id}/attachments`,
-      { method: 'POST', headers: H.withCsrf(tlA.cookieValue()), body: fa });
+    await H.sendFiles(tlA.base, tlA.cookieValue(), it.id, [{ name: `gross-${i}.txt`, content: tlAttachment }]);
   }
 
   /* --- Der Plan --- */
@@ -139,9 +136,9 @@ async function run() {
     tlPackages.every(p => p?.version === tlPackages[0]?.version && p?.title === tlPackages[0]?.title
       && Array.isArray(p?.criteria) && p.criteria.length === tlPackages[0]?.criteria?.length),
     JSON.stringify(tlPackages.map(p => [p?.version, p?.criteria?.length])));
-  // 19: EXCHANGE_FORMAT in server.js.
+  // 23: EXCHANGE_FORMAT in server.js.
   check('Und jeder Teil traegt die Formatnummer des vollen Exports',
-    tlPackages.every(p => p?.version === 19), JSON.stringify(tlPackages.map(p => p?.version)));
+    tlPackages.every(p => p?.version === 23), JSON.stringify(tlPackages.map(p => p?.version)));
   check('Zusammen tragen die Teile jeden Eintrag genau einmal',
     tlPackages.reduce((n, p) => n + (p?.items?.length || 0), 0) === 6 &&
     new Set(tlPackages.flatMap(p => (p?.items || []).map(i => i.title))).size === 6,
@@ -150,8 +147,6 @@ async function run() {
     tlFiles.every((d, i) => d.text.length <= tlPlan.parts[i].bytes * 1.1
                            && d.text.length >= tlPlan.parts[i].bytes * 0.7),
     tlFiles.map((d, i) => `${d.text.length}/${tlPlan.parts[i].bytes}`).join(' '));
-  check('Und kein Teil reisst die Grenze, an der es kippt',
-    tlFiles.every(d => d.text.length < tlPlan.string), JSON.stringify(tlPlan.string));
 
   /* --- Rundlauf --- */
   /* Erfasst alle exportierten Felder ausser IDs und Zeitstempeln, die der
@@ -197,6 +192,9 @@ async function run() {
 
   /* --- Ein Eintrag, der in keinen Teil passt --- */
   {
+    // Erst nach dem VACUUM des ersten Starts schreiben: ueber 400 MB haelt es den Server Sekunden an.
+    await until(null, () => tlA.log().includes('Automatic storage reclaim set up.'), 60000,
+      'das VACUUM nach dem Start von tlA', 50);
     const d = open(path.join(tlDir, 'katalog.sqlite'));
     d.pragma('busy_timeout = 4000');
     const it = d.prepare("INSERT INTO items (title, description, user_id) VALUES ('Der Riese', '', 1)").run();
@@ -206,15 +204,13 @@ async function run() {
       .run(it.lastInsertRowid, 400 * 1024 * 1024, 400 * 1024 * 1024);
     d.close();
     const p2 = (await tlPlanCall('&target=1048576')).content;
-    check('Ein Eintrag, der fuer sich zu gross ist, steht namentlich da',
-      (p2.tooBig || []).length === 1 && p2.tooBig[0].title === 'Der Riese',
-      JSON.stringify(p2.tooBig));
-    check('Und er steckt in keinem Teil',
-      p2.parts.every(t => t.to < it.lastInsertRowid || t.from > it.lastInsertRowid),
+    const alone = p2.parts.find(t => t.from === it.lastInsertRowid);
+    check('Ein Eintrag ueber der Teilgroesse steht allein in einem Teil',
+      alone?.to === it.lastInsertRowid && alone.count === 1 && alone.bytes > 400 * 1024 * 1024 && !('tooBig' in p2),
       JSON.stringify(p2.parts.map(t => `${t.from}-${t.to}`)) + ` Riese ${it.lastInsertRowid}`);
     const p3 = (await tlA.call('GET', '/api/export/plan?photos=1&target=1048576')).content;
-    check('Ohne die Dateien passt er wieder in einen Teil',
-      (p3.tooBig || []).length === 0, JSON.stringify(p3.tooBig));
+    check('Ohne die Dateien teilt er sich einen Teil mit anderen',
+      p3.parts.some(t => t.from <= it.lastInsertRowid && t.to >= it.lastInsertRowid && t.count > 1), JSON.stringify(p3.parts.map(t => `${t.from}-${t.to}`)));
   }
 
   tlA.stop(); tlB.stop();
@@ -275,10 +271,7 @@ async function run() {
     const tzAttachment = Buffer.alloc(420 * 1024, 'y');
     for (let i = 1; i <= 4; i++) {
       const it = (await tzS.call('POST', '/api/items', { title: `Faktorstueck ${i}` })).content;
-      const fa = new FormData();
-      fa.append('files', new Blob([tzAttachment], { type: 'text/plain' }), `gross-${i}.txt`);
-      await fetch(`${tzS.base}/api/items/${it.id}/attachments`,
-        { method: 'POST', headers: H.withCsrf(tzS.cookieValue()), body: fa });
+      await H.sendFiles(tzS.base, tzS.cookieValue(), it.id, [{ name: `gross-${i}.txt`, content: tzAttachment }]);
     }
     const tzToggle = 'photos=1&files=1&videos=1';
     const tzPlan = (await tzS.call('GET', `/api/export/plan?${tzToggle}&target=1048576`)).content;
@@ -540,9 +533,11 @@ async function run() {
   const flSecond = flRows()[3]?.querySelectorAll('.eyebrow')[1];
   check('Die zweite Beschriftung traegt die Beschriftungsspalte nicht',
     flSecond?.classList.contains('eyebrow-with'), flSecond?.className);
-  check('Und das Stilblatt nimmt ihr die Mindestbreite wieder ab',
-    /min-width: 0/.test(regel123('.frow > .eyebrow-with')),
-    regel123('.frow > .eyebrow-with') || '(keine Regel)');
+  check('Und sie steht in ihrer Gruppe, wo `.frow > .eyebrow` mit der Mindestbreite nicht greift',
+    flSecond?.parentElement?.classList.contains('fgroup') &&
+    /flex-shrink: 0/.test(regel123('.fgroup > .eyebrow-with')) &&
+    !/min-width/.test(regel123('.fgroup > .eyebrow-with')),
+    `${flSecond?.parentElement?.className} · ${regel123('.fgroup > .eyebrow-with') || '(keine Regel)'}`);
   check('Das Auswahlfeld der Sortierung steht in derselben Zeile',
     !!flRows()[3]?.querySelector('#f-sort'), flRows()[3]?.innerHTML.slice(0, 120));
   check('Und die Ansichten ebenso',
@@ -639,8 +634,9 @@ async function run() {
     return b;
   };
   const kmCards = () => kmW.document.querySelectorAll('.card-title').length;
-  check('Ohne Auswahl steht "Alle" auf an und die Liste zeigt alles',
-    kmAn().join() === 'Alle' && kmCards() === 5, `${JSON.stringify(kmAn())} · ${kmCards()}`);
+  check('Ohne Auswahl ist keine Pille an und die Liste zeigt alles',
+    kmAn().length === 0 && !kmNames().includes('Alle') && kmCards() === 5,
+    `${JSON.stringify(kmAn())} · ${kmCards()}`);
 
   kmClickable('Werkzeug');
   await until(kmW, (x) => kmAn().some(n => n.startsWith('Werkzeug')) && openRequests(x) === 0,
@@ -668,11 +664,13 @@ async function run() {
     2000, 'die Pille Werkzeug aus');
   check('Ein zweiter Klick nimmt einen Wert wieder heraus', kmCards() === 3,
     `${kmCards()} Karten`);
-  const kmAll = kmPills().find(b => b.textContent.trim() === 'Alle');
-  kmAll?.dispatchEvent(new kmW.MouseEvent('click', { bubbles: true }));
-  await until(kmW, (x) => kmAn().includes('Alle') && openRequests(x) === 0, 2000, 'die Pille Alle an');
-  check('"Alle" raeumt die ganze Auswahl weg',
-    kmAn().join() === 'Alle' && kmCards() === 5, `${JSON.stringify(kmAn())} · ${kmCards()}`);
+  for (const name of ['Material', 'Ohne']) {
+    kmClickable(name);
+    await until(kmW, (x) => !kmAn().some(n => n.startsWith(name)) && openRequests(x) === 0,
+      2000, `die Pille ${name} aus`);
+  }
+  check('Ist keine Pille mehr an, zeigt die Liste wieder alles',
+    kmAn().length === 0 && kmCards() === 5, `${JSON.stringify(kmAn())} · ${kmCards()}`);
 
   /* --- Gespeicherte Ansicht mit `categoryId` statt `categoryIds` --- */
   const kmOld = kmW.filterNormal({ categoryId: 21, tagIds: [], tagMode: 'and',
@@ -1482,7 +1480,7 @@ async function run() {
     /* --- Die Sortierung --- */
     const zkSort = zkUeb.w.document.getElementById('f-sort');
     const zkValues = [...zkSort.options].map(o => o.value);
-    /* Die Richtung waehlt der Umschalter #f-sort-dir; die Liste hat nur
+    /* Die Richtung waehlt die Leiste #f-sort-dir; die Liste hat nur
        `potential`. */
     check('Das Auswahlfeld traegt den neuen Eintrag',
       zkValues.includes('potential'),
@@ -1495,7 +1493,6 @@ async function run() {
       JSON.stringify([...zkSort.options].find(o => o.value === 'potential')?.textContent));
     const zkTitle = () => [...zkUeb.w.document.querySelectorAll('.card-title')].map(t => t.textContent);
     const zkField = () => zkUeb.w.document.getElementById('f-sort');
-    const zkDir = () => zkUeb.w.document.getElementById('f-sort-dir');
     if (zkField()) { zkField().value = 'potential'; zkField().onchange(); }
     await until(zkUeb.w, (x) => /^potential_/.test(x.eval('state.filters.sort')) && openRequests(x) === 0,
       2000, 'die Sortierung nach Potenzial');
@@ -1504,15 +1501,15 @@ async function run() {
     check('Nach Potenzial absteigend stehen Eintraege ohne Zahl hinten',
       zkTitle()[zkTitle().length - 1] === 'Blanko', JSON.stringify(zkTitle()));
     check('Und der Umschalter daneben nennt die geltende Richtung — 0.28.1',
-      zkDir()?.textContent === 'hoch → niedrig', JSON.stringify(zkDir()?.textContent));
+      D.sortWords(zkUeb.w, 'f-sort-dir') === 'hoch → niedrig', JSON.stringify(D.sortWords(zkUeb.w, 'f-sort-dir')));
     const zkSortVor = zkUeb.w.eval('state.filters.sort');
-    zkDir()?.click();
+    D.flipSort(zkUeb.w, 'f-sort-dir');
     await until(zkUeb.w, (x) => x.eval('state.filters.sort') !== zkSortVor && openRequests(x) === 0,
       2000, 'die umgedrehte Sortierung');
     check('Und aufsteigend ebenfalls',
       zkTitle()[zkTitle().length - 1] === 'Blanko', JSON.stringify(zkTitle()));
     check('Und der Umschalter nennt danach die andere Richtung — 0.28.1',
-      zkDir()?.textContent === 'niedrig → hoch', JSON.stringify(zkDir()?.textContent));
+      D.sortWords(zkUeb.w, 'f-sort-dir') === 'niedrig → hoch', JSON.stringify(D.sortWords(zkUeb.w, 'f-sort-dir')));
     zkUeb.w.close();
   }
 

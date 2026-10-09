@@ -13,7 +13,7 @@ async function run() {
    BRAKE_STEP, RUN_SCRYPT, __dirname, require, group, check, equal, KEY,
    PORT_OFFSET, PORT, BASE, DATA, USER, PASSWORD, open, startServer,
    shortRun, shortRunAll, setPasswordImInventory, endKind, CASES,
-   FINGERPRINT_BASE, smtpEmpfaenger, startFurtherServer, call, names,
+   FINGERPRINT_BASE, smtpEmpfaenger, startFurtherServer, logUntil, call, names,
    includingShare, callF, shareMain, nextSecond
   } = H;
   const fSource = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
@@ -130,8 +130,7 @@ async function sendComment(itemId, fields, images = []) {
   return sendMultipart(`/api/items/${itemId}/comments`, 'images', images, fields);
 }
 
-const sendFiles = (itemId, files) =>
-  sendMultipart(`/api/items/${itemId}/attachments`, 'files', files);
+const sendFiles = (itemId, files) => H.sendFiles(BASE, H.cookie, itemId, files);
 
 // Von Hand, ohne weitere Bibliothek. Buffer nicht ueber Strings fuehren,
 // sonst zerfaellt jedes Byte ueber 127.
@@ -331,8 +330,8 @@ async function sendImport(object, mode, withoutShare = false) {
   /* Parameter wie :id durch eine Zahl ersetzen, sonst passt der Pfad auf keine Route. */
   const csAddress = (filePath) => filePath.replace(/:[A-Za-z]+/g, '7');
   const csGuarded = H.F_ROUTES.filter(([m, p]) => !csFree.has(`${m} ${p}`));
-  check('Siebenundsechzig der fuenfundsiebzig Routen stehen hinter dem Schutz',
-    csGuarded.length === 67 && H.F_ROUTES.length === 75,
+  check('Sechsundachtzig der vierundneunzig Routen stehen hinter dem Schutz',
+    csGuarded.length === 86 && H.F_ROUTES.length === 94,
     `${csGuarded.length} von ${H.F_ROUTES.length}`);
   const csThrough = [];
   for (const [method, filePath] of csGuarded) {
@@ -418,8 +417,8 @@ async function sendImport(object, mode, withoutShare = false) {
     JSON.stringify(titleAfter));
 
   const ALLOWED = ['katalog.sqlite', 'Bewertungskatalog'];
-  const TESTED = ['server.js', 'db.js', 'auth.js', 'keys.js', 'usertool.js', 'attachments.js',
-    'package.json', 'docker-compose.example.yml', 'Dockerfile', '.env.example',
+  const TESTED = ['server.js', 'db.js', 'schema.js', 'backup.js', 'backuptool.js', 'auth.js', 'keys.js',
+    'usertool.js', 'attachments.js', 'package.json', 'docker-compose.example.yml', 'Dockerfile', '.env.example',
     'public/app.js', 'public/index.html', 'public/style.css',
     'public/languages/de.json'];
   const finds = [];
@@ -650,7 +649,7 @@ async function sendImport(object, mode, withoutShare = false) {
     imFingerprint.includes('images.js') && imFingerprint.includes('batchrun.js'),
     imFingerprint.join(' · '));
 
-  const readmeText = fs.readFileSync(path.join(__dirname, 'README.md'), 'utf8');
+  const readmeText = fs.readFileSync(path.join(__dirname, 'README-de.md'), 'utf8');
   const handle = (readmeText.match(/for f in ([^;]*?); do/s) || [, ''])[1]
     .replace(/\\\s*\n\s*/g, ' ').trim().split(/\s+/).filter(Boolean);
   check('Der Handgriff im README steht ueberhaupt da',
@@ -708,11 +707,33 @@ async function sendImport(object, mode, withoutShare = false) {
   check('Und färbt den Rückgabewert trotzdem nicht rot', stillRed.code === 0,
     `Code ${stillRed.code}`);
   check('Er taucht auch in keiner Zeile mit einem Namen auf',
-    !/✗/.test(stillRed.text), stillRed.text.split('\n').filter(z => /✗/.test(z)).join(' | '));
+    !/✗|übergangen und rot/.test(stillRed.text),
+    stillRed.text.split('\n').filter(z => /✗|übergangen und rot/.test(z)).join(' | '));
 
   const shownRed = frameProbe('rot-gezeigt', 'Rechte');
   check('Ein Fehlschlag im Gezeigten macht den Lauf rot',
     shownRed.code === 1 && /1 GESCHEITERT/.test(shownRed.text), `Code ${shownRed.code}`);
+  const shownEnd = shownRed.text.slice(shownRed.text.indexOf('Pruefungen bestanden'));
+  check('Und die Liste nach der Summe nennt ihn mit seiner Gruppe',
+    /\n {2}ROT:\n {4}Rechte am Eintrag › gezeigt und rot\n/.test(shownEnd), JSON.stringify(shownEnd.slice(0, 160)));
+
+  /* Ein Modul meldet seine roten Pruefungen ueber counters(), der Treiber nimmt sie mit addCounters(). */
+  const relay = require('child_process').spawnSync(process.execPath, ['-e', `
+    const H = require('./test/frame.js');
+    H.group('Gestellt'); H.check('rot im Modul', false);
+    const red = JSON.stringify(H.counters().red);
+    H.addCounters({ passedCount: 0, failed: 1, skipped: 0, stillPassed: 0, stillFailed: 0, groupsShown: 0,
+      groupsStill: 0, times: [], red: [{ group: 'Modul gestellt', name: 'aus der Meldung' }] });
+    H.endBlock();
+    require('fs').rmSync(H.DATA, { recursive: true, force: true });
+    console.log(red);`], { cwd: __dirname, encoding: 'utf8', timeout: 30000 });
+  const relayText = relay.stdout || '';
+  check('Die Meldung eines Moduls traegt seine roten Pruefungen',
+    relayText.trim().endsWith('[{"group":"Gestellt","name":"rot im Modul"}]'),
+    JSON.stringify(relayText.trim().split('\n').pop()));
+  check('Und der Treiber setzt die gemeldeten hinter die eigenen',
+    /\n {2}ROT:\n {4}Gestellt › rot im Modul\n {4}Modul gestellt › aus der Meldung\n/.test(relayText),
+    JSON.stringify(relayText.slice(relayText.indexOf('ROT:'), relayText.indexOf('ROT:') + 120)));
 
   const outside = frameProbe('1', 'Gibtesnicht');
   check('Ein Filter ohne Treffer meldet keinen Erfolg',
@@ -735,8 +756,8 @@ async function sendImport(object, mode, withoutShare = false) {
     `Prüflauf ${workNode}, Image ${imageNode}`);
   // Die Bauphase uebersetzt native Module, die Laufzeit fuehrt sie aus.
   const imageRows = [...dockerText.matchAll(/^FROM node:([^\s]+)/mg)].map(t => t[1]);
-  check('Bauphase und Laufzeit stehen auf demselben Image',
-    imageRows.length === 2 && imageRows[0] === imageRows[1],
+  check('Bauphase, ffmpeg und Laufzeit stehen auf demselben Image',
+    imageRows.length === 3 && imageRows.every(r => r === imageRows[0]),
     imageRows.join(' gegen '));
 
   check('Der Lauf holt die Abhängigkeiten mit npm ci',
@@ -1014,7 +1035,7 @@ async function sendImport(object, mode, withoutShare = false) {
   let sxPaper = null;
   try { sxPaper = JSON.parse(sxText); } catch {}
   check('Und das Ganze ist gueltiges JSON mit beiden Eintraegen',
-    !!sxPaper && sxPaper.items?.length === 2 && sxPaper.version === 19,
+    !!sxPaper && sxPaper.items?.length === 2 && sxPaper.version === 23,
     sxPaper ? `${sxPaper.items?.length} Eintraege, Nummer ${sxPaper.version}` : 'nicht lesbar');
   check('Die Bytes der Fotos und Dateien gehen mit',
     !!sxPaper?.items?.[0]?.photos?.[0]?.data_base64 &&
@@ -1053,12 +1074,14 @@ async function sendImport(object, mode, withoutShare = false) {
   await SX.ready;
   check('Der Serverstart leert den Ordner',
     fs.readdirSync(sxImportDir).length === 0, fs.readdirSync(sxImportDir).join(' '));
+  await logUntil(() => SX.log(), /Import: 1 leftover file\(s\) removed at startup\./);
   check('Und er sagt es ins Protokoll',
     /Import: 1 leftover file\(s\) removed at startup\./.test(SX.log()),
     SX.log().split('\n').filter(z => /Import:/.test(z)).join(' · ') || '(keine Zeile)');
 
   /* Ein Tagname von 1 MiB an 500 Eintraegen: envelope zaehlt ihn je
-     Verknuepfung und liegt damit ueber export.limit. */
+     Verknuepfung und liegt damit ueber 90 % der groessten String-Laenge in Node. */
+  const sxOld = Math.floor(require('buffer').constants.MAX_STRING_LENGTH * 0.9);
   {
     const d = open(path.join(sxDir, 'katalog.sqlite'));
     d.pragma('busy_timeout = 8000');
@@ -1073,8 +1096,7 @@ async function sendImport(object, mode, withoutShare = false) {
   }
   const sxStats = (await sxCall('GET', '/api/stats')).content || {};
   check('Die Prueflage liegt ueber der alten Grenze',
-    sxStats.export?.envelope > sxStats.export?.limit,
-    `${sxStats.export?.envelope} gegen ${sxStats.export?.limit}`);
+    sxStats.export?.envelope > sxOld, `${sxStats.export?.envelope} gegen ${sxOld}`);
   const sxHwm = () => {
     try {
       const m = fs.readFileSync(`/proc/${SX.pid}/status`, 'utf8').match(/VmHWM:\s+(\d+) kB/);
@@ -1095,8 +1117,7 @@ async function sendImport(object, mode, withoutShare = false) {
   }
   const sxAfter = sxHwm();
   check('Ein Export ueber der alten Grenze geht durch',
-    sxBig.status === 200 && sxBytes > sxStats.export?.limit,
-    `${sxBig.status}, ${sxBytes} Bytes gegen ${sxStats.export?.limit}`);
+    sxBig.status === 200 && sxBytes > sxOld, `${sxBig.status}, ${sxBytes} Bytes gegen ${sxOld}`);
   check('Und die Datei ist am Ende vollstaendig',
     sxTail.endsWith(']}'), JSON.stringify(sxTail));
   /* Ohne Rueckstau stuende die ganze Datei im Puffer des Sockets, und die
@@ -1464,8 +1485,8 @@ async function sendImport(object, mode, withoutShare = false) {
   check('Und das Stilblatt hat genau zwei Behaelterabfragen',
     (cssEng.match(/@container /g) || []).length === 2,
     String((cssEng.match(/@container /g) || []).length));
-  check('Und sechzehn Fensterabfragen -- eine weniger als vor dieser Runde',
-    (cssEng.match(/@media /g) || []).length === 16,
+  check('Und dreissig Fensterabfragen',
+    (cssEng.match(/@media /g) || []).length === 30,
     String((cssEng.match(/@media /g) || []).length));
   const behaelter = (css.match(/@container \(max-width: 420px\) \{[\s\S]*?\n\}/) || [''])[0];
   check('Die Zeile des Protokolls fragt die Karte und nicht mehr das Fenster',
@@ -1494,8 +1515,8 @@ async function sendImport(object, mode, withoutShare = false) {
   check('Auf dem Finger traegt die Vorschaukachel kein Kreuz mehr',
     /@media \(hover: none\) \{ \.thumb \.del \{ display: none; \} \}/.test(cssEng),
     (cssEng.match(/@media \(hover: none\) \{ \.thumb \.del[^}]*\}/) || ['(keine Regel)'])[0]);
-  check('Am Zeigegeraet bleibt es beim Ueberfahren',
-    /\.thumb:hover \.del \{ opacity: 1; \}/.test(cssEng));
+  check('Am Zeigegeraet bleibt es beim Ueberfahren und mit dem Tastaturfokus',
+    /\.thumb:hover \.del, \.thumb \.del:focus-visible \{ opacity: 1; \}/.test(cssEng));
   /* Mit opacity: 0 bliebe das Kreuz antippbar. */
   check('Und zwar herausgenommen, nicht nur unsichtbar gemacht',
     !/@media \(hover: none\) \{ \.thumb \.del \{ (opacity|visibility)/.test(cssEng),
@@ -1558,21 +1579,24 @@ async function sendImport(object, mode, withoutShare = false) {
   ];
   for (const [name, fromLine, until] of FOUR) {
     const pieceText = piece(fromLine, until);
+    // viewFailed() zeichnet subhead() und ruft wireSubhead().
     check(`${name}: traegt die gemeinsame Kopfzeile`,
-      /\$\{subhead\(/.test(pieceText) && /wireSubhead\(/.test(pieceText),
+      (/\$\{subhead\(/.test(pieceText) || /viewFailed\(/.test(pieceText)) &&
+      (/wireSubhead\(/.test(pieceText) || /viewFailed\(/.test(pieceText)),
       pieceText ? '(Ansicht gefunden, aber ohne subhead)' : '(Ansicht nicht gefunden)');
     check(`${name}: die alte Rueckzeile ist weg`,
       !/class="back"/.test(pieceText));
   }
   check('Auch der Fehlerweg des Eintrags traegt sie',
-    /server\.entryUnknown[\s\S]{0,80}<\/div>`;\n      wireSubhead/.test(appSource)
-    || /\$\{subhead\(\)\}<p class="hint">\$\{tH\('server\.entryUnknown'\)\}/.test(appSource));
+    /viewFailed\(loadFailed\(e\), \{\}, \{ term \}\)/.test(appSource) &&
+    /function viewFailed\([^)]*\) \{\n  app\.innerHTML = `<div class="shell">\$\{subhead\(head\)\}[\s\S]{0,260}wireSubhead\(wire\);/.test(appSource));
   const appWithoutProse = appSource.replace(/\/\*[\s\S]*?\*\//g, ' ');
   check('Und die Klasse `back` steht nirgends mehr im Aufbau',
     (appWithoutProse.match(/class="back"/g) || []).length === 0,
     String((appWithoutProse.match(/class="back"/g) || []).length));
   check('Der Satz `list.backToList` lebt weiter und traegt den Knopf',
-    /class="icon-btn sub-back" title="\$\{esc\(t\('list\.backToList'\)\)\}/.test(appSource));
+    /: 'list\.backToList';/.test(appSource) &&
+    /class="icon-btn sub-back" title="\$\{esc\(t\(back\)\)\}/.test(appSource));
 
   /* Namentlich statt gezaehlt: eine Zahl bemerkt keinen Tausch zweier Elemente. */
   const headCode = piece('function subhead(', '\nfunction wireSubhead(');
@@ -1626,7 +1650,8 @@ async function sendImport(object, mode, withoutShare = false) {
     && /at < list\.length - 1 \? list\[at \+ 1\]\.id : null/.test(nachbarn)
     && /target == null \? 'disabled' : ''/.test(foot));
   check('Und sie verschwinden nicht, sondern werden gedaempft',
-    /\.entry-nav \.step:disabled \{ opacity: \.38; cursor: default; \}/.test(cssEng));
+    /:is\(\.btn, [^)]*\):disabled \{ opacity: \.42; cursor: not-allowed; \}/.test(cssEng) &&
+    /class="btn btn-sm step /.test(appSource));
   check('Und sie stehen am FUSS des Eintrags, in einer eigenen Reihe',
     /<div class="entry-nav">/.test(foot)
     && /\.entry-nav \{ display: flex; justify-content: space-between;/.test(cssEng));
@@ -1721,7 +1746,7 @@ async function sendImport(object, mode, withoutShare = false) {
       /app\.get\('\/api\/manifest\.json'/.test(serverCode)
       && !/app\.(post|put|delete)\('\/api\/manifest\.json'/.test(serverCode));
     check('Und die Zahl der lesenden Routen steht',
-      (serverCode.match(/^app\.get\('/gm) || []).length === 31,
+      (serverCode.match(/^app\.get\('/gm) || []).length === 39,
       String((serverCode.match(/^app\.get\('/gm) || []).length));
 
     // Die Pruefungen danach rechnen mit dem alten Titel.
@@ -2670,11 +2695,9 @@ async function sendImport(object, mode, withoutShare = false) {
   eDbVor.close();
   await E1.call('POST', '/api/setup', { user: 'einrichter', password: 'einrichtungs-passwort' });
   const eDb = open(path.join(eDir, 'katalog.sqlite'));
-  check('Die Einrichtung holt die Zuordnung nach',
-    eDb.prepare('SELECT COUNT(*) n FROM items WHERE user_id = 1').get().n === 2,
+  check('Auch die Einrichtung ordnet herrenlosen Bestand niemandem zu',
+    eDb.prepare('SELECT COUNT(*) n FROM items WHERE user_id IS NULL').get().n === 2,
     JSON.stringify(eDb.prepare('SELECT id, user_id FROM items').all()));
-  check('Keine Zeile bleibt ohne Benutzer',
-    eDb.prepare('SELECT COUNT(*) n FROM items WHERE user_id IS NULL').get().n === 0);
   eDb.close();
   await E1.stop();
   fs.rmSync(eDir, { recursive: true, force: true });
@@ -2688,7 +2711,7 @@ async function sendImport(object, mode, withoutShare = false) {
     .map(m => m[1]).filter(a => a !== 'id, userId, locale');
   const withoutUser = calls.filter(a => !/,\s*req\.user\.id\s*,\s*localeOf\(req\s*$/.test(a));
   check('Keine Aufrufstelle von detail() ohne Benutzer und ohne Sprache',
-    calls.length === 26 && withoutUser.length === 0,
+    calls.length === 39 && withoutUser.length === 0,
     `${calls.length} Aufrufe, unvollstaendig: ${JSON.stringify(withoutUser)}`);
   check('detail() klemmt einen fehlenden Benutzer ab, statt still false zu liefern',
     /function detail\(id, userId, locale\) \{\s*\n\s*if \(userId == null\) throw/.test(source),
@@ -2725,9 +2748,9 @@ async function sendImport(object, mode, withoutShare = false) {
       .map(s => s.trim().replace(/^'|'$/g, '')).filter(Boolean).sort();
   };
   const dListSrv = listOut(srvSource, 'PERSONAL_KEYS');
-  const dExpected = ['bellSeen', 'blocks', 'filters', 'font', 'language', 'linkRows',
-                 'searchNames', 'strip', 'theme', 'timeline', 'views'];
-  check('server.js kennt genau die elf persoenlichen Schluessel — 0.24.3',
+  const dExpected = ['bellSeen', 'blocks', 'documentTheme', 'filesEditAll', 'filesGroup', 'filesSort', 'filesView',
+                 'filters', 'font', 'language', 'linkRows', 'searchNames', 'strip', 'theme', 'timeline', 'timelineSpan', 'views'];
+  check('server.js kennt genau die siebzehn persoenlichen Schluessel — 0.24.3',
     equal(dListSrv, dExpected), JSON.stringify(dListSrv));
   check('Und `zuletztGesehen` steht in keiner Zeile Code mehr',
     !/zuletztGesehen/.test(srvSource.replace(/\/\*[\s\S]*?\*\//g, '')
@@ -2797,7 +2820,8 @@ async function sendImport(object, mode, withoutShare = false) {
   };
 
   await dCall('cookie-d-eins', 'PUT', '/api/settings',
-    { font: 120, linkRows: 12, timeline: false, searchNames: 4, strip: 100, language: 'de' });
+    { font: 120, linkRows: 12, timeline: false, searchNames: 4, strip: 100, language: 'de', filesView: 'list',
+      filesSort: 'name_asc', filesGroup: 'type' });
   await dCall('cookie-d-zwei', 'PUT', '/api/settings',
     { font: 80, linkRows: 3, searchNames: 1 });
   await dCall('cookie-d-eins', 'PUT', '/api/settings', { filters: { tested: 'yes' } });
@@ -2873,8 +2897,11 @@ async function sendImport(object, mode, withoutShare = false) {
   // blocks ist ein verschachteltes Objekt statt einer Zahl.
   await dCall('cookie-d-eins', 'PUT', '/api/settings',
     { blocks: { side: ['bewertung', 'tags', 'kategorie', 'potenzial'], bottom: [], closed: ['links'] } });
+  await dCall('cookie-d-eins', 'PUT', '/api/settings', { timelineSpan: 365 });
   await dCall('cookie-d-eins', 'PUT', '/api/settings', { theme: 'light' });
   await dCall('cookie-d-zwei', 'PUT', '/api/settings', { theme: 'device' });
+  // Beide gelten auch ohne Document Server; die Zaehlung weiter unten erwartet sie.
+  await dCall('cookie-d-eins', 'PUT', '/api/settings', { documentTheme: 'dark', filesEditAll: true });
   check('Das Farbschema gehoert dem Benutzer',
     (await dCall('cookie-d-eins', 'GET', '/api/settings')).content.theme === 'light' &&
     (await dCall('cookie-d-zwei', 'GET', '/api/settings')).content.theme === 'device',
@@ -2884,7 +2911,7 @@ async function sendImport(object, mode, withoutShare = false) {
   const dBlTwo = (await dCall('cookie-d-zwei', 'GET', '/api/settings')).content.blocks;
   check('Die Blockanordnung gehoert dem Benutzer',
     equal(dBlOne.side, ['bewertung', 'tags', 'kategorie', 'potenzial']) &&
-    equal(dBlTwo.side, ['kategorie', 'tags', 'potenzial', 'bewertung']),
+    equal(dBlTwo.side, ['potenzial', 'bewertung', 'kategorie', 'tags']),
     JSON.stringify([dBlOne.side, dBlTwo.side]));
   check('Und der Einklappzustand mit ihr',
     equal(dBlOne.closed, ['links']) && equal(dBlTwo.closed, []),
@@ -2918,7 +2945,7 @@ async function sendImport(object, mode, withoutShare = false) {
   const dMissing = dExpected.filter(k => !personalDa(k, 1));
   check('Kein persoenlicher Schluessel landet in der globalen Tabelle',
     dWrongGlobal.length === 0, `global gefunden: ${JSON.stringify(dWrongGlobal)}`);
-  check('Alle elf stehen beim Benutzer, der sie gesetzt hat — 0.24.3',
+  check('Alle siebzehn stehen beim Benutzer, der sie gesetzt hat — 0.24.3',
     dMissing.length === 0, `fehlt bei Benutzer 1: ${JSON.stringify(dMissing)}`);
   check('Der Suchvorrat bleibt in der globalen Tabelle',
     globalDa('searchOn') && !personalDa('searchOn', 1),
@@ -3125,8 +3152,8 @@ async function sendImport(object, mode, withoutShare = false) {
 
   /* ---- Sprachfassungen in der Exportdatei ---- */
   const rnFile = (await callF('GET', '/api/export?photos=0')).content;
-  check('Die Exportdatei traegt die Formatnummer 19',
-    rnFile?.version === 19, JSON.stringify(rnFile?.version));
+  check('Die Exportdatei traegt die Formatnummer 23',
+    rnFile?.version === 23, JSON.stringify(rnFile?.version));
   /* version nennt das Format der Felder, appVersion das Programm, das die Datei schrieb. */
   check('Und die Programmfassung daneben — 0.33.0',
     rnFile?.appVersion === require('./package.json').version,
@@ -3735,7 +3762,7 @@ async function sendImport(object, mode, withoutShare = false) {
     check('OWNER_KEYS traegt `imageStore` und nicht mehr `convertImages`',
       stOwnerKeys.includes('imageStore') && !stOwnerKeys.includes('convertImages'),
       stOwnerKeys.join(' · '));
-    check('Und es sind genau acht Schluessel', stOwnerKeys.length === 8,
+    check('Und es sind genau zehn Schluessel', stOwnerKeys.length === 10,
       `${stOwnerKeys.length}: ${stOwnerKeys.join(' · ')}`);
   }
 
@@ -3744,10 +3771,10 @@ async function sendImport(object, mode, withoutShare = false) {
     const bpPackage = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
     /* Fest eingetragen: aus der Lockfile gelesen, koennte die Pruefung nicht scheitern. */
     const BP_RANGES = {
-      'better-sqlite3-multiple-ciphers': '^11.5.0',
-      express: '^4.21.0', multer: '^2.0.1', nodemailer: '^9.0.5', sharp: '^0.35.3'
+      'better-sqlite3-multiple-ciphers': '^11.5.0', 'exif-reader': '^2.0.3',
+      express: '^4.21.0', 'mediainfo.js': '^0.3.8', multer: '^2.0.1', nodemailer: '^10.0.12', sharp: '^0.35.3'
     };
-    check('Beipackprobe: package.json nennt dieselben fuenf Bereiche wie vor der Hebung',
+    check('Beipackprobe: package.json nennt die sieben Bereiche',
       equal(bpPackage.dependencies, BP_RANGES), JSON.stringify(bpPackage.dependencies));
     check('Und die eine Entwicklungsabhaengigkeit steht unveraendert daneben',
       equal(bpPackage.devDependencies, { jsdom: '^30.0.1' }),
@@ -3755,8 +3782,8 @@ async function sendImport(object, mode, withoutShare = false) {
     const bpLock = JSON.parse(fs.readFileSync(path.join(__dirname, 'package-lock.json'), 'utf8'));
     const bpAt = (name) => ((bpLock.packages || {})[`node_modules/${name}`] || {}).version;
     check('Und die Lockfile traegt die gehobenen Staende',
-      bpAt('multer') === '2.3.0' && bpAt('nodemailer') === '9.1.1' &&
-      bpAt('sharp') === '0.35.4' && bpAt('body-parser') === '1.20.8',
+      bpAt('multer') === '2.4.0' && bpAt('nodemailer') === '10.0.12' &&
+      bpAt('sharp') === '0.35.5' && bpAt('body-parser') === '1.20.8',
       JSON.stringify(['multer', 'nodemailer', 'sharp', 'body-parser'].map(n => `${n}=${bpAt(n)}`)));
     check('Und express bleibt bei 4 — der Sprung auf 5 ist eine eigene Runde',
       /^4\./.test(String(bpAt('express'))), `express=${bpAt('express')}`);
@@ -3941,7 +3968,7 @@ async function sendImport(object, mode, withoutShare = false) {
     await call('PUT', `/api/criteria/${exCrit.id}`, { name: 'Üç dilli', language: 'tr' });
     const exFile = (await callF('GET', '/api/export?photos=0')).content;
     check('Ein Export traegt alle drei Sprachfassungen',
-      exFile?.version === 19 &&
+      exFile?.version === 23 &&
       exFile?.criteriaNames?.de?.['Dreisprachig'] === 'Dreisprachig DE' &&
       exFile?.criteriaNames?.tr?.['Dreisprachig'] === 'Üç dilli',
       JSON.stringify([exFile?.version, exFile?.criteriaNames?.de?.['Dreisprachig'],
@@ -4050,8 +4077,15 @@ async function sendImport(object, mode, withoutShare = false) {
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
       .all().map(z => z.name).sort();
     tzDb.close();
-    check('Die Datenbank traegt genau dreissig Tabellen',
-      tzTables.length === 30 && tzTables.includes('comment_videos'), `${tzTables.length}: ${tzTables.join(' ')}`);
+    check('Die Datenbank traegt genau fuenfzig Tabellen',
+      tzTables.length === 50 && tzTables.includes('comment_videos') && tzTables.includes('attachment_stills') &&
+      tzTables.includes('attachment_waveforms') &&
+      tzTables.includes('attachment_mediums') &&
+      tzTables.includes('attachment_media') && tzTables.includes('photo_media') && tzTables.includes('photo_names') && tzTables.includes('photo_waveforms') &&
+      tzTables.includes('folders') && tzTables.includes('attachment_folders') &&
+      ['uploads', 'disk_files', 'disk_files_gone', 'video_positions', 'folder_open', 'attachment_changes', 'proxy_files',
+        'proxy_rates'].every(n => tzTables.includes(n)),
+      `${tzTables.length}: ${tzTables.join(' ')}`);
     /* login_attempts: in einer Map setzte jeder Neustart die Zaehler auf null. */
     check('Und die neue heisst login_attempts',
       tzTables.includes('login_attempts'), tzTables.join(' '));
@@ -4408,7 +4442,7 @@ async function sendImport(object, mode, withoutShare = false) {
   await gSet('Preis', 1); await gSet('Kundendienst', 1);
   const eOneF = includingShare((m, p, k) => eCall('cookie-e-eins', m, p, k), eWord);
   const gOut = (await eOneF('GET', '/api/export?photos=0')).content;
-  check('Die Formatnummer steht auf 19', gOut?.version === 19, JSON.stringify(gOut?.version));
+  check('Die Formatnummer steht auf 23', gOut?.version === 23, JSON.stringify(gOut?.version));
   check('criteria bleibt eine Liste von Namen',
     Array.isArray(gOut?.criteria) && gOut.criteria.every(n => typeof n === 'string'),
     JSON.stringify(gOut?.criteria));
@@ -4952,8 +4986,6 @@ async function sendImport(object, mode, withoutShare = false) {
     return rows;
   };
 
-  /* Erst nach dem Start: beim Start weist assignInventory() in db.js
-     herrenlose Zeilen dem Eigentuemer zu. */
   {
     const d = e2Database();
     d.pragma('busy_timeout = 4000');
@@ -4995,7 +5027,7 @@ async function sendImport(object, mode, withoutShare = false) {
     e2Entry?.comments?.find(c => c.text === 'Kommentar ohne Verfasser')?.author === null &&
     'author' in (e2Entry?.comments?.find(c => c.text === 'Kommentar ohne Verfasser') || {}),
     JSON.stringify(e2Entry?.comments?.find(c => c.text === 'Kommentar ohne Verfasser')));
-  check('Die Formatnummer der Datei steht auf 19', e2Out?.version === 19, JSON.stringify(e2Out?.version));
+  check('Die Formatnummer der Datei steht auf 23', e2Out?.version === 23, JSON.stringify(e2Out?.version));
 
   /* Anhaenge stehen nur in einem Export mit Dateien. */
   const e2IncludingFiles = (await e2AnnaF('GET', '/api/export?photos=0&files=1')).content;
@@ -5564,8 +5596,6 @@ async function sendImport(object, mode, withoutShare = false) {
     d.close();
   };
 
-  /* Erst nach dem Start: assignInventory() in db.js wiese die herrenlose Zeile
-     sonst der Eigentuemerin zu. */
   pkWrite("UPDATE comments SET user_id = NULL WHERE text = 'Erledigt und herrenlos'");
   pkWrite("UPDATE users SET username = 'deleted-4', status = 'deleted', role = 'user', " +
              "password_hash = '' WHERE id = 4");
@@ -5583,6 +5613,14 @@ async function sendImport(object, mode, withoutShare = false) {
     (await pkCall('cookie-pk-carla', 'GET', '/api/settings')).content?.isAdmin === false);
   check('Die Frist steht in den Einstellungen und nicht nur in der Karte',
     pkRoles.content?.trashDays === 30, JSON.stringify(pkRoles.content?.trashDays));
+
+  const pkPending = () => pkRows('SELECT a.id FROM attachments a WHERE NOT EXISTS ' +
+    '(SELECT 1 FROM disk_files d WHERE d.attachment_id = a.id)').length;
+  const pkSince = Date.now(), pkNap = (ms) => new Promise(r => setTimeout(r, ms));
+  while (pkPending() && Date.now() - pkSince < 10000) await pkNap(100);
+  const pkMoved = pkPending() === 0;
+  check('Die Umlagerung beim Start ist fertig, bevor geloescht wird', pkMoved,
+    `nach 10 s noch ${pkPending()} Dateien in der Datenbank; Server: ${PK.log().split('\n').filter(l => /Disk run|Relocation|locked/.test(l)).join(' | ')}`);
 
   /* Ausgangsstand fuer den Vergleich. `|| {}`: ohne Eintrag werden die Pruefungen
      rot, statt dass der Lauf abreisst. */
@@ -5636,19 +5674,22 @@ async function sendImport(object, mode, withoutShare = false) {
   const pkBytesRows = pkRows('SELECT part, length(data) AS n FROM trash_bytes ' +
     'WHERE trash_id = ? ORDER BY part', pkRow.id ?? -1);
   check('Die Bytes liegen daneben, eine Zeile je Blob',
-    pkBytesRows.length === 6, JSON.stringify(pkBytesRows));
+    pkBytesRows.length === 4, JSON.stringify(pkBytesRows));
   check('Ihre Nummern sind lueckenlos ab null',
-    equal(pkBytesRows.map(z => z.part), [0, 1, 2, 3, 4, 5]), JSON.stringify(pkBytesRows.map(z => z.part)));
+    equal(pkBytesRows.map(z => z.part), [0, 1, 2, 3]), JSON.stringify(pkBytesRows.map(z => z.part)));
+  // Die Umlagerung beim Start hat beide Dateien auf die Platte gelegt.
+  check('Die Dateien liegen auf der Platte und gehoeren zum Papierkorb',
+    pkRows('SELECT id FROM disk_files WHERE trash_id = ?', pkRow.id ?? -1).length === 2,
+    JSON.stringify(pkRows('SELECT name, attachment_id, trash_id FROM disk_files')));
   /* Kopiert wird innerhalb von SQLite; eine falsche Kopie fiele sonst erst beim
      Zurueckholen auf. */
   const pkBytesHex = pkRows('SELECT hex(data) AS h FROM trash_bytes WHERE trash_id = ? ' +
     'ORDER BY part', pkRow.id ?? -1).map(z => z.h);
   const pkExpectHex = [
     ...pkBeforeCommentImages.map(z => z.h),
-    ...pkBeforeBytes.flatMap(z => z.kind === 'video' ? [z.h, pkBeforeStill[0]?.h] : [z.h]),
-    ...pkBeforeFiles.map(z => z.h)];
-  check('Der Waechter hat ueberhaupt sechs Traegerwerte vor sich',
-    pkExpectHex.length === 6 && pkExpectHex.every(h => typeof h === 'string' && h.length > 0),
+    ...pkBeforeBytes.flatMap(z => z.kind === 'video' ? [z.h, pkBeforeStill[0]?.h] : [z.h])];
+  check('Der Waechter hat ueberhaupt vier Traegerwerte vor sich',
+    pkExpectHex.length === 4 && pkExpectHex.every(h => typeof h === 'string' && h.length > 0),
     JSON.stringify(pkExpectHex.map(h => (h || '').length)));
   check('Und trash_bytes traegt Byte fuer Byte dieselben',
     equal(pkBytesHex, pkExpectHex),
@@ -5789,10 +5830,10 @@ async function sendImport(object, mode, withoutShare = false) {
     JSON.stringify(pkOne("SELECT thumb IS NOT NULL AS t, medium IS NOT NULL AS m FROM photos " +
                           "WHERE item_id = ? AND kind = 'video'", pkFreshId ?? -1)));
 
-  /* Der Favorit bedeutet „von mir markiert", wie im Austauschformat. */
+  // Bert und Carla hatten den Eintrag als Favorit; die Wiederherstellende nicht.
   const pkPins = pkRows('SELECT user_id FROM item_pins WHERE item_id = ? ORDER BY user_id', pkFreshId ?? -1);
-  check('Der Favorit kommt bei der Wiederherstellenden an',
-    equal(pkPins.map(z => z.user_id), [1]), JSON.stringify(pkPins));
+  check('Die Favoriten kommen bei ihren Besitzern an, nicht bei der Wiederherstellenden',
+    equal(pkPins.map(z => z.user_id), [2, 3]), JSON.stringify(pkPins));
 
   /* ---------------------------------------------------------------- */
   group('Der Papierkorb: dieselbe Transaktion');
@@ -5899,6 +5940,7 @@ async function sendImport(object, mode, withoutShare = false) {
     check('Schon der Start raeumt sie weg',
       pkRows('SELECT id FROM trash WHERE id = ?', idFresh).length === 0,
       JSON.stringify(pkRows('SELECT id, title, deleted_at FROM trash')));
+    await logUntil(() => PK2.log(), /Trash: \d+ row\(s\) older than 30 days removed/);
     check('Und sagt es im Protokoll',
       /Trash: \d+ row\(s\) older than 30 days removed/.test(PK2.log()),
       PK2.log().slice(-400));
@@ -6140,9 +6182,8 @@ async function sendImport(object, mode, withoutShare = false) {
     d.prepare("INSERT INTO items (title, user_id) VALUES ('Ein Merkmal', 1)").run();
     d.close();
   }
-  /* Ein Symlink aus der Wurzel heraus, ausgerechnet ins Datenverzeichnis. */
-  fs.symlinkSync(siDir, path.join(siRoot, 'zeigtAufDaten'));
-  const SI = startFurtherServer(siDir, { BACKUP_DIR: siRoot }, 4300);
+  // Eingehaengt ist `taeglich`; `leer` daneben liegt ausserhalb.
+  const SI = startFurtherServer(siDir, { BACKUP_DIR: path.join(siRoot, 'taeglich') }, 4300);
   await SI.ready;
   // bert wird Admin ohne Eigentuemerrolle.
   {
@@ -6169,8 +6210,8 @@ async function sendImport(object, mode, withoutShare = false) {
   const siStatus = await siCall('cookie-si-anna', 'GET', '/api/backup');
   check('Die Karte ist eingerichtet',
     siStatus.content?.configured === true, JSON.stringify(siStatus.content));
-  check('Sie nennt die eingerichtete Wurzel',
-    siStatus.content?.root === fs.realpathSync(siRoot), JSON.stringify(siStatus.content?.root));
+  check('Sie nennt den eingerichteten Ordner',
+    siStatus.content?.root === fs.realpathSync(path.join(siRoot, 'taeglich')), JSON.stringify(siStatus.content?.root));
   check('Und die erwartete Dauer aus der Groesse der Datenbank',
     Number.isInteger(siStatus.content?.durationSeconds) && siStatus.content.durationSeconds >= 1,
     JSON.stringify([siStatus.content?.dbBytes, siStatus.content?.durationSeconds]));
@@ -6220,38 +6261,11 @@ async function sendImport(object, mode, withoutShare = false) {
     }
   }
 
-  /* --- Zielort: zu jeder Absage die Nachschau, dass keine Datei entstanden ist --- */
-  const siDenials = [
-    ['../raus', 'ein Pfad nach oben', /Unterordner liegt im eingerichteten Backup-Ordner/],
-    ['/etc', 'ein absoluter Pfad', /Unterordner liegt im eingerichteten Backup-Ordner/],
-    ['a/../b', 'ein Punktpunkt mitten im Pfad', /Unterordner liegt im eingerichteten Backup-Ordner/],
-    ['..', 'ein nacktes Punktpunkt', /Unterordner liegt im eingerichteten Backup-Ordner/],
-    ['taeglich\\weg', 'ein Gegenschraegstrich', /Unterordner liegt im eingerichteten Backup-Ordner/],
-    ['gibtsnicht', 'ein Verzeichnis, das es nicht gibt', /gibt es im Backup-Ordner nicht/],
-    ['zeigtAufDaten', 'ein Symlink aus der Wurzel heraus', /führt aus dem/]
-  ];
-  for (const [place, event, pattern] of siDenials) {
-    const r = await siCall('cookie-si-anna', 'PUT', '/api/backup/dir', { place });
-    check(`Abgewiesen: ${event}`, r.status === 400, `Status ${r.status} · ${JSON.stringify(r.content)}`);
-    check(`Und die Begruendung spricht: ${event}`,
-      pattern.test(r.content?.error || ''), r.content?.error);
-    check(`Und nach der Absage liegt keine Datei da: ${event}`,
-      siAllFiles().length === 0, siAllFiles().join(' · '));
-  }
-  check('Ein nicht angelegtes Verzeichnis wird auch NICHT angelegt',
-    !fs.existsSync(path.join(siRoot, 'gibtsnicht')), 'es wurde still angelegt');
-  check('Und der eingestellte Ort steht nach allen Absagen unveraendert leer',
-    (await siCall('cookie-si-anna', 'GET', '/api/backup')).content?.place === '',
-    JSON.stringify((await siCall('cookie-si-anna', 'GET', '/api/backup')).content?.place));
-
-  const siGood = await siCall('cookie-si-anna', 'PUT', '/api/backup/dir', { place: 'taeglich' });
-  check('Ein erlaubter Ort geht durch',
-    siGood.status === 200 && siGood.content?.place === 'taeglich', JSON.stringify(siGood.content));
-  check('Und er steht danach in der Antwort der Karte',
-    (await siCall('cookie-si-anna', 'GET', '/api/backup')).content?.place === 'taeglich');
-  check('Der leere Ort ist die Wurzel selbst und ebenfalls erlaubt',
-    (await siCall('cookie-si-anna', 'PUT', '/api/backup/dir', { place: '' })).status === 200);
-  await siCall('cookie-si-anna', 'PUT', '/api/backup/dir', { place: 'taeglich' });
+  /* --- Kein Unterordner: Backups liegen im eingehaengten Ordner --- */
+  const siNoDir = await siCall('cookie-si-anna', 'PUT', '/api/backup/dir', { place: 'leer' });
+  check('`PUT /api/backup/dir` gibt es nicht mehr', siNoDir.status === 404, `Status ${siNoDir.status}`);
+  check('Und die Karte nennt keinen Unterordner', !('place' in (siStatus.content || {})) && siAllFiles().length === 0,
+    JSON.stringify(Object.keys(siStatus.content || {})));
 
   /* --- Die Kopie --- */
   const siBeforeBytes = fs.statSync(path.join(siDir, 'katalog.sqlite')).size;
@@ -6453,22 +6467,20 @@ async function sendImport(object, mode, withoutShare = false) {
   group('Die Sicherung auf Knopfdruck, Fortsetzung');
 
   {
-    /* Ein eigenes Verzeichnis, das verschwinden darf. */
-    fs.mkdirSync(path.join(siRoot, 'verschwindet'));
-    await siCall('cookie-si-anna', 'PUT', '/api/backup/dir', { place: 'verschwindet' });
-    fs.rmdirSync(path.join(siRoot, 'verschwindet'));
+    /* Der eingehaengte Ordner verschwindet und kommt zurueck. */
+    const away = path.join(siRoot, 'taeglich-weg');
+    fs.renameSync(path.join(siRoot, 'taeglich'), away);
     const r = await siCall('cookie-si-anna', 'GET', '/api/backup');
-    check('Ein verschwundener Zielort ergibt keine Zahl, sondern eine Ansage',
-      r.content?.last === null && !!r.content?.error, JSON.stringify(r.content));
+    check('Ein verschwundener Backup-Ordner ergibt keine Zahl, sondern eine Ansage',
+      r.content?.configured === false && r.content?.last === null && !!r.content?.reason, JSON.stringify(r.content));
     check('Und die Ansage spricht',
-      /gibt es im Backup-Ordner nicht/.test(r.content?.error || ''), r.content?.error);
+      /gibt es nicht/.test(r.content?.reason || ''), r.content?.reason);
     const go = await siCall('cookie-si-anna', 'POST', '/api/backup');
     check('Und der Knopf laeuft dort nicht ins Leere, sondern sagt ab',
       go.status === 400, `Status ${go.status} · ${JSON.stringify(go.content)}`);
     check('Nach dieser Absage liegt keine neue Datei da',
-      siFiles('').length === 0, siFiles('').join(' · '));
-    fs.rmSync(path.join(siRoot, 'verschwindet'), { recursive: true, force: true });
-    await siCall('cookie-si-anna', 'PUT', '/api/backup/dir', { place: 'taeglich' });
+      siFiles('').length === 0 && !fs.existsSync(path.join(siRoot, 'taeglich')), siFiles('').join(' · '));
+    fs.renameSync(away, path.join(siRoot, 'taeglich'));
   }
 
   /* --- Rechte --- */
@@ -6478,16 +6490,12 @@ async function sendImport(object, mode, withoutShare = false) {
                                ['cookie-si-bert', 'Ein Admin ohne Eigentuemerrolle']]) {
       const read = await siCall(actor, 'GET', '/api/backup');
       check(`${name} sieht die Karte nicht`, read.status === 403, `Status ${read.status}`);
-      const place = await siCall(actor, 'PUT', '/api/backup/dir', { place: 'leer' });
-      check(`${name} stellt den Zielort nicht um`, place.status === 403, `Status ${place.status}`);
       const go = await siCall(actor, 'POST', '/api/backup');
       check(`${name} sichert nicht`, go.status === 403, `Status ${go.status}`);
       check(`Und nach seinen Absagen liegt keine neue Datei da: ${name}`,
         siFiles('taeglich').length === before && siFiles('leer').length === 0,
         siAllFiles().join(' · '));
     }
-    check('Der eingestellte Ort steht danach unveraendert auf taeglich',
-      (await siCall('cookie-si-anna', 'GET', '/api/backup')).content?.place === 'taeglich');
     /* Der Dateiname ist sekundengenau; zwei Sicherungen in derselben Sekunde
        ergeben 409. */
     await nextSecond();
@@ -6587,8 +6595,8 @@ async function sendImport(object, mode, withoutShare = false) {
       (siSource.match(/new Database\(full[^\n]*/) || ['(nicht gefunden)'])[0]);
   }
 
-  /* Zuletzt: die Ausgabe des Kindprozesses ist gepuffert, direkt nach dem
-     Start fehlt die Zeile womoeglich noch. */
+  await logUntil(() => SI.log(), (t) => /\[Kriterion\] Backup location: /.test(t) &&
+    (t.match(/\[Kriterion\] Backup written: /g) || []).length >= 3);
   check('Der Start nennt den Sicherungsort im Protokoll',
     /\[Kriterion\] Backup location: /.test(SI.log()), SI.log().slice(0, 400));
   check('Und jede geschriebene Sicherung steht ebenfalls darin',
@@ -6629,6 +6637,7 @@ async function sendImport(object, mode, withoutShare = false) {
       (await (await fetch(SD.base + '/api/backup', { method: 'POST',
         headers: H.withCsrf('kriterion_session=cookie-sd-anna') })).json()
       ).error?.includes('Datenverzeichnis'), 'keine sprechende Absage');
+    await logUntil(() => SD.log(), /Backup location: off -- The backup folder must not be inside the data directory/);
     check('Der Start sagt es im Protokoll',
       /Backup location: off -- The backup folder must not be inside the data directory/
         .test(SD.log()), SD.log().slice(0, 500));
@@ -6641,6 +6650,7 @@ async function sendImport(object, mode, withoutShare = false) {
     const goneDirectory = path.join(dDir, 'gibt-es-nicht');
     const SF = startFurtherServer(dDir, { BACKUP_DIR: goneDirectory }, 4360);
     await SF.ready;
+    await logUntil(() => SF.log(), /Backup location: off -- The backup folder .*gibt-es-nicht.* does not exist/);
     const sfRow = SF.log().split('\n').filter(z => /Backup location/.test(z)).join(' | ');
     check('Und ein fehlender Ordner steht mit seinem Namen im Protokoll — 0.33.2',
       /Backup location: off -- The backup folder .*gibt-es-nicht.* does not exist/.test(SF.log()),
@@ -6693,22 +6703,24 @@ async function sendImport(object, mode, withoutShare = false) {
   /* ---------------------------------------------------------------- */
   group('Die Aufraeumregel an der Tafel');
 
-  /* Geprueft wird die Funktion aus server.js selbst, keine Nachbildung. */
+  /* Geprueft wird die Funktion aus backup.js selbst, keine Nachbildung. */
   const auSource = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const auBackup = fs.readFileSync(path.join(__dirname, 'backup.js'), 'utf8');
   const auAverage = (head) => {
-    const from = auSource.indexOf(head);
+    const from = auBackup.indexOf(head);
     if (from < 0) return '';
-    const to = auSource.indexOf('\n}\n', from);
-    return to < 0 ? '' : auSource.slice(from, to + 2);
+    const to = auBackup.indexOf('\n}\n', from);
+    return to < 0 ? '' : auBackup.slice(from, to + 2);
   };
-  const auTagMs = (auSource.match(/^const DAY_MS = (\d+);$/m) || [])[1] || '';
+  const auTagMs = (auBackup.match(/^const DAY_MS = (\d+);$/m) || [])[1] || '';
   const auRuleSource = auAverage('function ruleHit(');
-  check('Die Regel steht in server.js als eine Funktion',
+  check('Die Regel steht in backup.js als eine Funktion',
     auRuleSource.length > 100 && auTagMs === '86400000',
     `${auRuleSource.length} Zeichen, DAY_MS ${JSON.stringify(auTagMs)}`);
-  check('Und zwar genau einmal',
-    (auSource.match(/function ruleHit\(/g) || []).length === 1,
-    `${(auSource.match(/function ruleHit\(/g) || []).length} Stellen`);
+  check('Und zwar genau einmal, und server.js hat keine eigene',
+    (auBackup.match(/function ruleHit\(/g) || []).length === 1 &&
+    !/function ruleHit\(/.test(auSource),
+    `${(auBackup.match(/function ruleHit\(/g) || []).length} Stellen`);
   const ruleHit = auRuleSource
     // eslint-disable-next-line no-new-func
     ? new Function(`const DAY_MS = ${auTagMs};\n${auRuleSource}\nreturn ruleHit;`)()
@@ -6814,11 +6826,10 @@ async function sendImport(object, mode, withoutShare = false) {
       d.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run(n, 'x');
     for (const [t, u] of [['cookie-au-anna', 1], ['cookie-au-bert', 2], ['cookie-au-carla', 3]])
       d.prepare('INSERT INTO sessions (token, user_id) VALUES (?, ?)').run(t, u);
-    d.prepare("INSERT INTO settings (key, value) VALUES ('backupPlace', ?)").run('"kopien"');
     d.close();
   }
   for (const n of ['anna', 'bert', 'carla']) setPasswordImInventory(auDir, n, AU_WORD);
-  const AU = startFurtherServer(auDir, { BACKUP_DIR: auRoot }, 4300);
+  const AU = startFurtherServer(auDir, { BACKUP_DIR: auFolder }, 4300);
   await AU.ready;
   /* bert wird Admin ohne Eigentuemerrolle; nur so sind die Rollen zu unterscheiden. */
   {
@@ -7140,7 +7151,7 @@ async function sendImport(object, mode, withoutShare = false) {
   }
 
   /* ---------------------------------------------------------------- */
-  group('Alte Sicherungen aufraeumen: der Anschluss an die Sicherung');
+  group('Alte Sicherungen aufraeumen: nicht mehr im Anschluss an die Sicherung');
 
   {
     auSetState();
@@ -7153,10 +7164,11 @@ async function sendImport(object, mode, withoutShare = false) {
     }
     const before = auDa().length;
     const backupOut = await auCall('cookie-au-anna', 'POST', '/api/backup');
+    // Dazu kommen das neue Backup und seine Liste.
     check('Bei ausgeschaltetem Schalter raeumt die Sicherung nichts weg',
-      backupOut.status === 200 && backupOut.content?.cleaned === null &&
-      auDa().length === before + 1,
-      `Status ${backupOut.status} · ${JSON.stringify(backupOut.content?.cleaned)} · ${auDa().length} Dateien`);
+      backupOut.status === 200 && !('cleaned' in (backupOut.content || {})) &&
+      auDa().length === before + 2,
+      `Status ${backupOut.status} · ${auDa().length} Dateien`);
     // Die eben geschriebene Kopie ist die juengste und verschoebe sonst den Boden.
     for (const n of auDa())
       if (/^kriterion-/.test(n) && !AU_STAY.includes(n) && !AU_CASES.includes(n))
@@ -7194,25 +7206,15 @@ async function sendImport(object, mode, withoutShare = false) {
 
     /* --- Gelungene Sicherung --- */
     await nextSecond();
+    const vorOk = AU.log().length;
     const ok = await auCall('cookie-au-anna', 'POST', '/api/backup');
-    check('Nach einer gelungenen Sicherung raeumt der Anschluss auf',
-      ok.status === 200 && ok.content?.cleaned?.removed === 3,
-      `Status ${ok.status} · ${JSON.stringify(ok.content?.cleaned)}`);
-    check('Und zwar genau die drei, die die Regel nennt',
-      AU_CASES.every(n => !fs.existsSync(path.join(auFolder, n))) &&
-      ['notizen.txt', 'kriterion-alt.sqlite.bak', 'unterordner', 'kriterion-verweis.sqlite']
-        .every(n => fs.existsSync(path.join(auFolder, n))),
-      auDa().join(' · '));
+    check('Auch mit Schalter raeumt eine gelungene Sicherung nicht nach der Regel auf',
+      ok.status === 200 && !('cleaned' in (ok.content || {})) &&
+      AU_CASES.every(n => fs.existsSync(path.join(auFolder, n))) && !/Old backups removed/.test(AU.log().slice(vorOk)),
+      `Status ${ok.status} · ${auDa().join(' · ')}`);
     check('Und die Antwort bleibt die einer gelungenen Sicherung',
       ok.content?.ok === true && /^kriterion-.+\.sqlite$/.test(ok.content?.file || '') &&
       ok.content?.bytes > 0, JSON.stringify(ok.content?.file));
-    check('Die Zeile im Containerprotokoll nennt Zahl und freigegebene Bytes',
-      /\[Kriterion\] Old backups removed: 3 \(\d+ bytes freed\)\./.test(AU.log()),
-      (AU.log().match(/\[Kriterion\] Old backups removed.*/g) || []).join(' · '));
-    check('Und sie nennt keinen Dateinamen und keinen Pfad',
-      !(AU.log().match(/\[Kriterion\] Old backups removed.*/g) || [])
-        .some(z => z.includes('kriterion-') || z.includes(auFolder)),
-      (AU.log().match(/\[Kriterion\] Alte Sicherungen entfernt.*/g) || []).join(' · '));
   }
 
   /* --- Am Quelltext --- */
@@ -7222,32 +7224,40 @@ async function sendImport(object, mode, withoutShare = false) {
     const core = from >= 0 && to > from ? auSource.slice(from, to) : '';
     check('Die Route POST /api/backup steht im Quelltext',
       core.length > 500, `${core.length} Zeichen`);
-    const auRuleRow = 'const rule = cleanupStatus();';
-    const callAn = core.indexOf(auRuleRow);
-    check('Der Aufruf des Aufraeumens steht darin genau einmal',
-      callAn >= 0 && core.indexOf('cleanupStatus()', callAn + auRuleRow.length) < 0,
-      `Stelle ${callAn}, weitere bei ${core.indexOf('cleanupStatus()', callAn + auRuleRow.length)}`);
-    check('Und hinter ihm steht kein Fehlerausgang mehr',
-      !/return res\.status\((4|5)\d\d\)/.test(core.slice(callAn)),
-      (core.slice(callAn).match(/return res\.status\(\d+\)/g) || []).join(' · '));
-    check('Er steht hinter dem Umbenennen und hinter statSync',
-      core.indexOf('fs.renameSync(becoming, datei);') < callAn &&
-      core.indexOf('bytes = fs.statSync(datei).size;') < callAn,
-      `rename ${core.indexOf('fs.renameSync(becoming, datei);')}, Aufruf ${callAn}`);
-    check('Und er haengt in seinem eigenen try',
-      /let cleaned = null;\n  try \{\n    const rule = cleanupStatus\(\);/.test(core),
-      (core.match(/let cleaned[^\n]*\n[^\n]*\n[^\n]*/) || ['(nicht gefunden)'])[0]);
+    const route = core.slice(0, core.indexOf('\n});') + 4);
+    check('Die Route ruft die Regel nicht mehr; geloescht wird um Mitternacht in dailyCleanup()',
+      !/cleanupStatus\(\)|ruleHit\(|removeBackups\(|dailyCleanup\(/.test(route) && /function dailyCleanup\(\)/.test(auSource),
+      (route.match(/cleanupStatus\(\)|ruleHit\(|removeBackups\(|dailyCleanup\(/g) || []).join(' · '));
+    // backup.writeBackup() kehrt erst nach dem Umbenennen zurueck.
+    const auWritten = core.indexOf('await backup.writeBackup(');
+    const auFailed = core.indexOf('if (written.error) return answer(');
+    const auCalled = core.indexOf('cleanBackupFiles(target.filePath)');
+    check('Die Listen und Kopien raeumt sie weiter auf, hinter dem geschriebenen Backup und dessen Fehlerausgang',
+      auWritten >= 0 && auFailed > auWritten && auCalled > auFailed,
+      `writeBackup ${auWritten}, Fehler ${auFailed}, Aufruf ${auCalled}`);
+    const auWrite = (() => {
+      const a = auBackup.indexOf('async function writeBackup(');
+      return a < 0 ? '' : auBackup.slice(a, auBackup.indexOf('\n}\n', a));
+    })();
+    check('Und writeBackup() benennt vor seiner Rueckgabe um',
+      auWrite.indexOf('fs.renameSync(becoming, file);') > 0 &&
+      auWrite.indexOf('fs.renameSync(becoming, file);') < auWrite.indexOf('return { name: path.basename(file)'),
+      auWrite ? 'rename fehlt oder steht dahinter' : '(writeBackup nicht gefunden)');
+    check('Und dieser Aufruf haengt in seinem eigenen try',
+      /try \{ cleanBackupFiles\(target\.filePath\); \} catch \(e\) \{ logFail\(/.test(core),
+      (core.match(/[^\n]*cleanBackupFiles\(target\.filePath\)[^\n]*/) || ['(nicht gefunden)'])[0]);
     const lFrom = auSource.indexOf("app.post('/api/backup/cleanup'");
     const lTo = auSource.indexOf('\n});', lFrom);
     const lCore = lFrom >= 0 && lTo > lFrom ? auSource.slice(lFrom, lTo) : '';
     const lAccesses = lCore.match(/req\.body[^\n]*/g) || [];
-    check('Die Loeschroute liest aus dem Rumpf genau ein Feld, und das ist die Art',
-      lCore.length > 500 && lAccesses.length === 1 &&
-      lAccesses[0].startsWith("req.body?.kind || ''"),
+    check('Die Loeschroute liest aus dem Rumpf die Art und bei der Auswahl die Namen',
+      lCore.length > 500 && lAccesses.length === 2 &&
+      lAccesses[0].startsWith("req.body?.kind || ''") &&
+      lAccesses[1].startsWith("req.body?.names : [];"),
       JSON.stringify(lAccesses));
-    const eFrom = auSource.indexOf('function removeBackups(');
-    const eTo = auSource.indexOf('\n}\n', eFrom);
-    const eCore = eFrom >= 0 ? auSource.slice(eFrom, eTo) : '';
+    const eFrom = auBackup.indexOf('function removeBackups(');
+    const eTo = auBackup.indexOf('\n}\n', eFrom);
+    const eCore = eFrom >= 0 ? auBackup.slice(eFrom, eTo) : '';
     check('Und das Entfernen prueft jeden Namen unmittelbar davor noch einmal',
       /const short = path\.basename\(String\(n\)\);/.test(eCore) &&
       /if \(short !== String\(n\) \|\| !BACKUP_PATTERN\.test\(short\)\)/.test(eCore) &&
@@ -7283,8 +7293,7 @@ async function sendImport(object, mode, withoutShare = false) {
     // An Berts Eintrag haengt alles, was ein Fremder anfassen koennte.
     d.prepare("INSERT INTO photos (item_id, mime_type, data, sort_order) VALUES (2, 'image/jpeg', ?, 0)")
       .run(Buffer.from('kein echtes Bild, wird nur geloescht'));
-    /* Ohne user_id wiese assignInventory() sie beim Start der Eigentuemerin zu,
-       und „der Admin loescht eine fremde Datei" loeschte eine eigene. */
+    // Mit user_id: ohne Verfasser waere es keine fremde Datei.
     d.prepare("INSERT INTO attachments (item_id, filename, mime_type, size, data, user_id) VALUES (2, 'zettel.txt', 'text/plain', 5, ?, 2)")
       .run(Buffer.from('hallo'));
     /* Mit user_id aus demselben Grund wie die Datei. */
@@ -7327,23 +7336,8 @@ async function sendImport(object, mode, withoutShare = false) {
     try { content = await a.json(); } catch {}
     return { status: a.status, content };
   };
-  /* Echter Multipart-Upload gegen diesen Server mit diesem Cookie. */
-  const fUpload = async (cookieValue, itemId, name, content) => {
-    const limit = '----pruefungf' + crypto.randomBytes(6).toString('hex');
-    const parts = [
-      Buffer.from(`--${limit}\r\nContent-Disposition: form-data; name="files"; filename="${name}"\r\n` +
-                  `Content-Type: text/plain\r\n\r\n`, 'utf8'),
-      Buffer.from(content, 'utf8'),
-      Buffer.from(`\r\n--${limit}--\r\n`, 'utf8')
-    ];
-    const a = await fetch(F.base + `/api/items/${itemId}/attachments`, {
-      method: 'POST',
-      headers: { ...H.withCsrf(`kriterion_session=${cookieValue}`),
-                 'content-type': `multipart/form-data; boundary=${limit}` },
-      body: Buffer.concat(parts)
-    });
-    return { status: a.status, content: await a.json().catch(() => null) };
-  };
+  const fUpload = (cookieValue, itemId, name, content) =>
+    H.sendFiles(F.base, `kriterion_session=${cookieValue}`, itemId, [{ name, content }]);
   const fDatabase = () => open(path.join(fDir, 'katalog.sqlite'));
   const fRows = (sql, ...values) => {
     const d = fDatabase();
@@ -7360,8 +7354,6 @@ async function sendImport(object, mode, withoutShare = false) {
     d.close();
   };
 
-  /* Erst nach dem Start: assignInventory() wiese die herrenlose Zeile sonst
-     der Eigentuemerin zu. */
   {
     const d = fDatabase();
     d.pragma('busy_timeout = 4000');
@@ -8683,7 +8675,7 @@ async function sendImport(object, mode, withoutShare = false) {
   const agCallF = includingShare((m, p, k) => agCall('cookie-ag-anna', m, p, k), AG_WORD);
   const agFile = (await agCallF('GET', '/api/export?fotos=0')).content;
   const agPackage = agFile?.items?.find(i => i.title === 'Berts Saege');
-  check('Die Formatnummer der Datei steht auf 19', agFile?.version === 19,
+  check('Die Formatnummer der Datei steht auf 23', agFile?.version === 23,
     JSON.stringify(agFile?.version));
   check('Die Datei traegt Datum, Grund und den NAMEN des Ablehnenden',
     agPackage?.rejected_at === agBefore.rejected_at &&
@@ -9788,8 +9780,8 @@ async function sendImport(object, mode, withoutShare = false) {
     (await tbCall(null, 'POST', '/api/token/redeem',
       { token: tbGood, password: 'ein-gutes-passwort' })).status === 429,
     'das Einloesen laeuft an der Bremse vorbei');
-  check('Und die Sperre nennt die verbleibende Zeit',
-    /Sekunden erneut/.test((await tbCall(null, 'POST', '/api/token/check',
+  check('Und die Sperre nennt die verbleibende Zeit in Minuten und Sekunden',
+    /in \d+ min \d+ s erneut/.test((await tbCall(null, 'POST', '/api/token/check',
       { token: tbGood })).raw), 'die Sperre sagt nicht, wie lange');
   check('Der Zaehler ist derselbe wie bei der Anmeldung',
     (await tbCall(null, 'POST', '/api/login', { user: 'anna', password: 'x' })).status === 429,
@@ -10337,6 +10329,7 @@ async function sendImport(object, mode, withoutShare = false) {
     check('Und die junge bleibt stehen',
       raRows("SELECT COUNT(*) n FROM security_log WHERE at > datetime('now', '-180 days')")[0].n === 1,
       JSON.stringify(raRows('SELECT id, at FROM security_log')));
+    await logUntil(() => RA.log(), /Security log: 1 row\(s\) older than 180 days removed/);
     check('Der Start sagt es auch im Protokoll des Containers',
       /Security log: 1 row\(s\) older than 180 days removed/.test(RA.log()),
       RA.log().split('\n').filter(z => /Sicherheits/.test(z)).join(' | ') || '(keine Zeile)');
@@ -10851,6 +10844,7 @@ async function sendImport(object, mode, withoutShare = false) {
       withoutPhotos.fresh.content?.linkSource === 'browser', JSON.stringify(withoutPhotos.fresh.content?.linkSource));
     check('Der Schluessel steht trotzdem in der Antwort -- daraus baut der Browser',
       /^[0-9a-f]{64}$/.test(withoutPhotos.fresh.content?.token || ''), JSON.stringify(withoutPhotos.fresh.content?.token));
+    await logUntil(() => withoutPhotos.S.log(), /Public address: not set/);
     check('Der Start sagt, dass sie nicht gesetzt ist',
       /Public address: not set/.test(withoutPhotos.S.log()),
       withoutPhotos.S.log().split('\n').filter(z => /Adresse/.test(z)).join(' | ') || '(keine Zeile)');
@@ -10866,6 +10860,7 @@ async function sendImport(object, mode, withoutShare = false) {
       JSON.stringify(withPhotos.fresh.content?.link));
     check('Und sagt, woher die Adresse kam',
       withPhotos.fresh.content?.linkSource === 'einstellung', JSON.stringify(withPhotos.fresh.content?.linkSource));
+    await logUntil(() => withPhotos.S.log(), /Public address: https:\/\/kriterion\.beispiel\.de --/);
     check('Der Start nennt die Adresse im Protokoll des Containers',
       /Public address: https:\/\/kriterion\.beispiel\.de --/.test(withPhotos.S.log()),
       withPhotos.S.log().split('\n').filter(z => /Adresse/.test(z)).join(' | ') || '(keine Zeile)');
@@ -11253,6 +11248,7 @@ async function sendImport(object, mode, withoutShare = false) {
     await A.S.stop();
     const A2 = startFurtherServer(A.dir, { PUBLIC_ADDRESS: 'https://kriterion.beispiel.de' }, 6370);
     await A2.ready;
+    await logUntil(() => A2.log(), (t) => /Mail delivery: Own server via 127\.0\.0\.1:/.test(t) && /instanz@beispiel\.de/.test(t));
     check('Nach einem Neustart nennt die Startzeile Anbieter, Server und Absender',
       /Mail delivery: Own server via 127\.0\.0\.1:/.test(A2.log()) &&
       /instanz@beispiel\.de/.test(A2.log()),
@@ -12145,7 +12141,7 @@ async function sendImport(object, mode, withoutShare = false) {
     check('Die Anfrageroute ist damit ebenfalls gesperrt', bRequest.status === 429,
       `Status ${bRequest.status}`);
     check('Und die Absage nennt die Wartezeit',
-      /Sekunden/.test(JSON.stringify(await bRequest.json())), 'keine Wartezeit genannt');
+      /\d+ min \d+ s/.test(JSON.stringify(await bRequest.json())), 'keine Wartezeit genannt');
     check('Es ist dabei keine Zeile entstanden',
       regSql(bA.dir, 'SELECT id FROM requests').length === 0 &&
       regSql(bA.dir, "SELECT id FROM security_log WHERE event LIKE 'anfrage%'").length === 0,
@@ -12419,7 +12415,7 @@ async function sendImport(object, mode, withoutShare = false) {
       zfA.start.content.groups);
     check('Und die otpauth-Zeile mit dem oeffentlichen Titel der Instanz',
       zfA.start.content.row.includes('otpauth://totp/') &&
-      zfA.start.content.row.includes('Bewertungskatalog') &&
+      zfA.start.content.row.includes('Kriterion') &&
       zfA.start.content.row.includes(zfA.start.content.secret), zfA.start.content.row);
     check('Einschalten Schritt 2 nimmt den Code an und meldet "an"',
       zfA.an.status === 200 && zfA.an.content.an === true, JSON.stringify(zfA.an.content));
@@ -12525,8 +12521,9 @@ async function sendImport(object, mode, withoutShare = false) {
     const zfSecond = await zfLogin(zfB, zfOnce);
     check('Derselbe Code ein zweites Mal traegt NICHT',
       zfSecond.two.status === 401, JSON.stringify(zfSecond.two.content));
-    check('Und die Absage nennt nicht, ob er falsch oder verbraucht war',
-      zfSecond.two.content.error === 'Der Code stimmt nicht.', zfSecond.two.content.error);
+    check('Und die Absage sagt, dass er schon verwendet wurde',
+      zfSecond.two.content.error === 'Dieser Code wurde schon verwendet. Bitte auf den nächsten Code der App warten.',
+      zfSecond.two.content.error);
     check('Der verbrauchte Zaehler steht in der Zeile',
       zfSql(`SELECT last_counter l FROM two_factor WHERE user_id = ${zfB.id}`)[0].l === zfOnce,
       JSON.stringify(zfSql(`SELECT last_counter l FROM two_factor WHERE user_id = ${zfB.id}`)));
@@ -13480,10 +13477,9 @@ async function sendImport(object, mode, withoutShare = false) {
     JSON.stringify(gRows('SELECT username, status FROM users WHERE id = ?', gEmilId)));
 
   /* ---------------------------------------------------------------- */
-  group('Herrenloser Bestand faellt nicht an einen Grabstein');
+  group('Herrenloser Bestand bleibt ohne Verfasser; ein Grabstein wird nicht Eigentuemer');
 
-  /* assignInventory() liest die Rolle, nicht die kleinste Nummer: Nummer 1 kann
-     ein Grabstein sein. */
+  // Nummer 1 kann ein Grabstein sein; der Rueckfall auf den Eigentuemer zaehlt nur bestehende Zugaenge.
   const hDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kriterion-erbe-'));
   shortRun(`require('./db'); console.log('da');`, hDir);
   {
@@ -13502,10 +13498,9 @@ async function sendImport(object, mode, withoutShare = false) {
     const hOwner = d.prepare('SELECT user_id FROM items WHERE title = ?').get('Herrenlos')?.user_id;
     const hSuccessor = d.prepare("SELECT id FROM users WHERE username = 'nachfolger'").get().id;
     const hTomb = d.prepare("SELECT id FROM users WHERE username = 'deleted-1'").get().id;
-    check('Herrenloser Bestand faellt an den Eigentuemer',
-      hOwner === hSuccessor, `user_id ${hOwner}, Eigentuemer ${hSuccessor}`);
-    check('Und ausdruecklich nicht an den Grabstein mit der kleinsten Nummer',
-      hOwner !== hTomb, `user_id ${hOwner}, Grabstein ${hTomb}`);
+    check('Herrenloser Bestand bleibt beim Start ohne Verfasser, auch mit Eigentuemer',
+      hOwner === null && d.prepare("SELECT role FROM users WHERE id = ?").get(hSuccessor)?.role === 'owner',
+      `user_id ${hOwner}, Eigentuemer ${hSuccessor}`);
     check('Ein Grabstein wird nicht zum Eigentuemer befoerdert',
       d.prepare('SELECT role FROM users WHERE id = ?').get(hTomb)?.role === 'user',
       JSON.stringify(d.prepare('SELECT id, username, role FROM users').all()));
@@ -13889,6 +13884,8 @@ async function sendImport(object, mode, withoutShare = false) {
       (c.notnull ? ' NOT NULL' : '') +
       (c.dflt_value === null ? '' : ` DEFAULT (${c.dflt_value})`)).join(', ');
     const names = kept.map(c => c.name).join(', ');
+    // Sonst prueft RENAME die Trigger auf disk_files, die nach DROP TABLE ins Leere zeigen.
+    d.pragma('legacy_alter_table = ON');
     d.exec(`CREATE TABLE ${table}__alt (${shape});
             INSERT INTO ${table}__alt (${names}) SELECT ${names} FROM ${table};
             DROP TABLE ${table};
@@ -13992,7 +13989,7 @@ async function sendImport(object, mode, withoutShare = false) {
   const bl = (await call('GET', '/api/settings')).content.blocks;
   /* potenzial steht vor bewertung: geschaetzt wird vor dem Bewerten. */
   check('Vorgabeanordnung wird geliefert',
-    equal(bl.side, ['kategorie', 'tags', 'potenzial', 'bewertung']) &&
+    equal(bl.side, ['potenzial', 'bewertung', 'kategorie', 'tags']) &&
     equal(bl.bottom, ['beschreibung', 'testtage', 'links', 'dateien', 'kommentare']) &&
     equal(bl.closed, []), JSON.stringify(bl));
 
@@ -14017,7 +14014,7 @@ async function sendImport(object, mode, withoutShare = false) {
   check('Doppelte Namen fliegen raus', sb.side.filter(k => k === 'bewertung').length === 1);
   /* potenzial fehlt in der gesendeten Liste und wird hinten angehaengt. */
   check('Fehlende Blöcke hängen sich hinten an',
-    equal(sb.side, ['bewertung', 'kategorie', 'tags', 'potenzial']) &&
+    equal(sb.side, ['bewertung', 'potenzial', 'kategorie', 'tags']) &&
     equal(sb.bottom, ['kommentare', 'beschreibung', 'testtage', 'links', 'dateien']), JSON.stringify(sb));
   check('Unbekannter Einklappzustand wird verworfen', equal(sb.closed, ['links']));
   const blZu = await call('PUT', '/api/settings', { blocks: {
@@ -14552,8 +14549,8 @@ async function sendImport(object, mode, withoutShare = false) {
       oneLine.includes('const qAllPhotos = lateStatement(`SELECT ${PHOTO_COLUMNS}, ${PHOTO_VERSION} FROM photos'),
       (oneLine.match(/const PHOTO_VERSION = [^;]*/) || ['(nicht gefunden)'])[0]);
     check('Die Auswahl des Knopfs liest keinen Blob-Inhalt mehr',
-      /qConvertRows = lateStatement\(\s*"SELECT id FROM photos WHERE kind != 'video'"\);/.test(oneLine.replace(/\s+/g, ' ')) ||
-      /qConvertRows = lateStatement\([\s\S]{0,200}?SELECT id FROM photos WHERE kind != 'video'\"\);/.test(serverSource),
+      /qConvertRows = lateStatement\(\s*"SELECT id FROM photos WHERE kind = 'image'"\);/.test(oneLine.replace(/\s+/g, ' ')) ||
+      /qConvertRows = lateStatement\([\s\S]{0,200}?SELECT id FROM photos WHERE kind = 'image'\"\);/.test(serverSource),
       (serverSource.match(/qConvertRows = lateStatement\([\s\S]{0,200}/) || ['(nicht gefunden)'])[0]);
     check('Und sie nennt kein hex(substr(...)) mehr',
       !/qConvertRows = lateStatement\([\s\S]{0,200}?hex\(substr/.test(serverSource),
@@ -15342,9 +15339,9 @@ async function sendImport(object, mode, withoutShare = false) {
 
   const bin = await head(afterName['egal.bin'].id);
   check('Unbekanntes wird octet-stream', bin.h['content-type'] === 'application/octet-stream');
-  check('Der gemeldete Typ des Hochladenden wird nie ausgeliefert',
-    afterName['egal.bin'].mime_type === 'application/x-msdownload' &&
-    bin.h['content-type'] === 'application/octet-stream');
+  check('Der Typ kommt aus der Endung, nie vom Hochladenden',
+    afterName['egal.bin'].mime_type === 'application/octet-stream' &&
+    bin.h['content-type'] === 'application/octet-stream', afterName['egal.bin'].mime_type);
 
   // Ueber Multipart kommt so ein Name nicht an, der Header endet am
   // Zeilenumbruch; deshalb ueber den Import.
@@ -15576,20 +15573,10 @@ async function sendImport(object, mode, withoutShare = false) {
     exStats?.export && ['envelope', 'photos', 'videos', 'attachments', 'commentImages']
       .every(k => typeof exStats.export[k] === 'number'),
     JSON.stringify(exStats?.export));
-  check('Und alle drei Grenzen dazu, damit die Oberflaeche sie nicht selbst kennt',
-    exStats?.export?.warnFrom === 300 * 1024 * 1024 && exStats?.export?.limit > 4e8 &&
-    exStats?.export?.string === require('buffer').constants.MAX_STRING_LENGTH,
+  check('Und den Warnwert dazu, damit die Oberflaeche ihn nicht selbst kennt; eine Grenze gibt es nicht',
+    exStats?.export?.warnFrom === 300 * 1024 * 1024 && !('limit' in exStats.export) && !('string' in exStats.export),
     JSON.stringify(exStats?.export && { warnFrom: exStats.export.warnFrom,
       limit: exStats.export.limit, string: exStats.export.string }));
-  /* Drei Zahlen: ab wann gewarnt wird, ab wann abgesagt wird, wie lang ein
-     String werden kann. */
-  check('Und sie stehen in dieser Ordnung: warnen, absagen, Tatsache',
-    exStats?.export?.warnFrom < exStats?.export?.limit &&
-    exStats?.export?.limit < exStats?.export?.string,
-    JSON.stringify(exStats?.export && [exStats.export.warnFrom, exStats.export.limit, exStats.export.string]));
-  check('Der Warnwert liegt deutlich unter der Grenze — das ist die Luft der Schaetzung',
-    exStats?.export?.warnFrom < exStats?.export?.limit * 0.75,
-    `${exStats?.export?.warnFrom} gegen ${exStats?.export?.limit}`);
   check('Der Umschlag faellt an, auch ohne jeden Blob',
     exStats?.export?.envelope > 0, String(exStats?.export?.envelope));
   {
@@ -15630,9 +15617,8 @@ async function sendImport(object, mode, withoutShare = false) {
       core.indexOf("res.set('Content-Disposition'") < core.indexOf('writeExport'),
       `${core.indexOf("res.set('Content-Type'")} / ` +
       `${core.indexOf("res.set('Content-Disposition'")} / ${core.indexOf('writeExport')}`);
-    check('Und sie sagt nur ab, wenn ein einzelner Eintrag zu gross ist',
-      /const oversized = exchangePlan\(switches\)\.tooBig;/.test(core) && /res\.status\(413\)/.test(core)
-      && !/RangeError/.test(core), core.replace(/\s+/g, ' ').slice(0, 240));
+    check('Und sie sagt wegen der Groesse eines Eintrags nicht ab',
+      !/tooBig|res\.status\(413\)|RangeError/.test(core), core.replace(/\s+/g, ' ').slice(0, 240));
     /* Ohne Beachtung des Rueckstaus sammelt sich die ganze Datei im Puffer des
        Sockets. */
     const fWrite = (fSource.match(/async function writeExport\([\s\S]*?\n\}/) || [''])[0];
@@ -15677,8 +15663,8 @@ async function sendImport(object, mode, withoutShare = false) {
     vRaw.h['content-type']);
   check('Und darf eingebettet werden -- sonst spielte es nicht, sondern liefe herunter',
     /^inline;/.test(vRaw.h['content-disposition'] || ''), vRaw.h['content-disposition']);
-  check('Der Name traegt die Endung des ERKANNTEN Typs',
-    /filename="photo-\d+\.mp4"/.test(vRaw.h['content-disposition'] || ''), vRaw.h['content-disposition']);
+  check('Der Name ist der vom Hochladen, mit der Endung des erkannten Typs',
+    /filename="clip\.mp4"/.test(vRaw.h['content-disposition'] || ''), vRaw.h['content-disposition']);
   check('nosniff steht auch am Video', vRaw.h['x-content-type-options'] === 'nosniff');
   check('Auch das Video bekommt die Sicherheitsregel',
     /default-src 'none'/.test(vRaw.h['content-security-policy'] || '') &&
@@ -15942,9 +15928,9 @@ async function sendImport(object, mode, withoutShare = false) {
   {
     /* SQLite liest eine Zeile von vorn; was hinter einem grossen BLOB steht, ist
        nur ueber dessen Overflow-Kette erreichbar. */
-    /* Gelesen wird das Schema aus db.js. Zeilen ohne Spaltennamen am Anfang sind
+    /* Gelesen wird das Schema aus schema.js. Zeilen ohne Spaltennamen am Anfang sind
        Bedingungen: UNIQUE(trash_id, part) steht hinter data. */
-    const sfSource = fs.readFileSync(path.join(__dirname, 'db.js'), 'utf8');
+    const sfSource = fs.readFileSync(path.join(__dirname, 'schema.js'), 'utf8');
     const SF_CONSTRAINT = /^(UNIQUE|PRIMARY|FOREIGN|CHECK|CONSTRAINT)\b/i;
     const sfColumns = (table) => {
       const head = `CREATE TABLE IF NOT EXISTS ${table} (`;
@@ -16084,9 +16070,9 @@ async function sendImport(object, mode, withoutShare = false) {
   const statusA = (await call('GET', '/api/items')).content.find(i => i.id === at.id);
   check('Übersicht zählt die Dateien', statusA.attachmentCount === 9, `${statusA.attachmentCount}`);
   const statA = (await call('GET', '/api/stats')).content;
-  check('Kennzahlen nennen Zahl und Größe',
-    statA.attachmentCount === 9 && statA.attachmentBytes > 0,
-    `${statA.attachmentCount} / ${statA.attachmentBytes}`);
+  check('Kennzahlen nennen Zahl und Größe auf der Platte; in der Datenbank wartet keine',
+    statA.disk?.count >= 9 && statA.disk?.bytes > 0 && statA.attachmentCount === 0,
+    `${statA.disk?.count} / ${statA.disk?.bytes} · ${statA.attachmentCount}`);
 
   const outWithout = await callF('GET', '/api/export?photos=0');
   check('Export lässt Dateien ohne Schalter weg',
@@ -16960,7 +16946,7 @@ async function sendImport(object, mode, withoutShare = false) {
 
   /* ---- Das Austauschformat ---- */
   const phEx = await phExport(PH);
-  check('Die Formatnummer steht auf 19', phEx.version === 19, `${phEx.version}`);
+  check('Die Formatnummer steht auf 23', phEx.version === 23, `${phEx.version}`);
   /* Nur Abweichungen, wie bei den Gewichten: Nachher-Kriterien fehlen in
      criteriaPhase. */
   check('criteriaPhase nennt nur die Vorher-Kriterien',
@@ -17030,7 +17016,7 @@ async function sendImport(object, mode, withoutShare = false) {
   check('Ein gespeichertes „bewertung" in zu faellt heraus',
     equal(phBl.content.blocks.closed, ['links']), JSON.stringify(phBl.content.blocks.closed));
   check('Der Potenzialblock steht in der Vorgabereihenfolge vor der Bewertung',
-    equal(phBl.content.blocks.side, ['kategorie', 'tags', 'potenzial', 'bewertung']),
+    equal(phBl.content.blocks.side, ['potenzial', 'bewertung', 'kategorie', 'tags']),
     JSON.stringify(phBl.content.blocks.side));
 
   /* Mit await: ein nicht abgewartetes Ende laesst den Server in der Meldung an
@@ -17200,18 +17186,22 @@ async function sendImport(object, mode, withoutShare = false) {
       gzCss.head('content-type') === gzPlain.head('content-type')
       && /^text\/css/.test(gzCss.head('content-type') || ''),
       `${gzCss.head('content-type')} gegen ${gzPlain.head('content-type')}`);
-    const gzMore = [], gzWrongType = [];
+    const gzMore = [], gzWrongType = [], gzWrongCache = [];
     for (const file of ['app.js', 'index.html', 'languages/de.json', 'favicon.svg']) {
       const one = await gzBytes(file, 'gzip');
       const plain = await gzBytes(file, 'identity');
       if (one.head('content-encoding') !== 'gzip') gzMore.push(file);
       if (one.head('content-type') !== plain.head('content-type'))
         gzWrongType.push(`${file}: ${one.head('content-type')} gegen ${plain.head('content-type')}`);
+      if (one.head('cache-control') !== 'public, max-age=0' || plain.head('cache-control') !== 'public, max-age=0')
+        gzWrongCache.push(`${file}: ${one.head('cache-control') || 'keiner'} gegen ${plain.head('cache-control')}`);
     }
     check('Auch app.js, die Seite, die Sprachdatei und das Zeichen gehen gezippt hinaus',
       gzMore.length === 0, gzMore.join(' · '));
     check('Und jede von ihnen traegt denselben Typ wie ungezippt',
       gzWrongType.length === 0, gzWrongType.join(' · '));
+    check('Und denselben Cache-Control wie ungezippt, damit ein Update sofort ankommt',
+      gzWrongCache.length === 0, gzWrongCache.join(' · '));
   }
 }
 

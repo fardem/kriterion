@@ -1,12 +1,14 @@
 node_modules
 data
 .env
+.env.before-key-change-*
 *.log
 .git
 .DS_Store
 testbench.js
 counterproof.js
 keytool.sh
+backuptool.sh
 Doku
 kriterion-backup
 kriterion-sicherung

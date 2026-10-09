@@ -97,9 +97,11 @@ function checkInput(input, before) {
 
   const user = String(e.user ?? '').trim();
   const sender = String(e.sender ?? '').trim();
+  const sameAccount = provider === old.provider && user === old.user &&
+    (v.key !== 'eigen' || String(e.server || '').trim() === old.server);
   // Nicht trimmen: ein Leerzeichen am Ende kann zum Passwort gehoeren.
   const password = typeof e.password === 'string' && e.password !== ''
-    ? e.password : String(old.password || '');
+    ? e.password : (sameAccount ? String(old.password || '') : '');
 
   if (!user) throw message('mail.userMissing');
   if (!password) throw message('mail.passwordMissing');
@@ -162,15 +164,27 @@ async function send(raw, to, subject, text) {
   }
 }
 
-/* Entweder `reasonKey`, uebersetzt in der Sprache des Lesers, oder `reason`,
-   der Text des Anbieters, nie beides. */
+/* Fehler von nodemailer, die einen Satz bekommen; gelesen werden Code, SMTP-Antwort und Text. */
+const MAIL_ERRORS = [
+  [/ECONNREFUSED/, 'mail.errRefused'],
+  [/ENOTFOUND|EAI_AGAIN|EDNS/, 'mail.errNotFound'],
+  [/ETIMEDOUT|timed? ?out/i, 'mail.timeout'],
+  [/EAUTH|\b53[45]\b/, 'mail.errAuth'],
+  [/certificate|self[- ]signed|CERT_/i, 'mail.errCertificate'],
+  [/wrong version number|EPROTO|SSL|TLS/i, 'mail.errTls']
+];
+
+/* `reasonKey` wird in der Sprache des Lesers uebersetzt; `reason` ist der Text des Anbieters.
+   Ein erkannter Fehler traegt beides. */
 function shortReason(e) {
   if (e && e.key) return { reasonKey: e.key, reason: '' };
   /* Gekuerzt, weil manche Server die Anmeldedaten in der Fehlermeldung
      wiederholen; der Fehlercode steht am Anfang. */
   const raw = String((e && e.message) || '').replace(/\s+/g, ' ').trim();
   if (!raw) return { reasonKey: 'mail.unknownError', reason: '' };
-  return { reasonKey: '', reason: raw.length > 120 ? raw.slice(0, 117) + '…' : raw };
+  const seen = `${(e && e.code) || ''} ${(e && e.responseCode) || ''} ${raw}`;
+  const known = MAIL_ERRORS.find(([pattern]) => pattern.test(seen));
+  return { reasonKey: known ? known[1] : '', reason: raw.length > 120 ? raw.slice(0, 117) + '…' : raw };
 }
 
 const mail = (locale, kind, values) => ({
@@ -187,6 +201,6 @@ module.exports = {
   SEND_MS, CONNECT_MS, GREETING_MS,
   SEND_SHIPPED, CONNECT_SHIPPED, GREETING_SHIPPED,
   isAddress, forChoice, resolve, state, configured, checkInput, mark,
-  send, setTranslator,
+  send, setTranslator, shortReason,
   mailInvite, mailReset, mailConfirm, mailTest
 };

@@ -16,7 +16,8 @@
   --text: #e9ecef;
   --text-2: #b3bac1;
   --muted: #838c95;
-  --faint: #616a73;
+  /* Hinweistext: 4,97 : 1 auf --surface, 4,56 : 1 auf --surface-2. */
+  --faint: #808992;
 
   /* Grundfarben als RGB-Tripel fuer `rgba()`, weil das Alpha je Stelle
      wechselt. */
@@ -55,6 +56,8 @@
   /* Rand unter dem Zeiger in zwei Stufen; --line-hover-2 ist die kraeftigere. */
   --line-hover: #333b44;
   --line-hover-2: #3a434c;
+  /* Rand der Eingabefelder, gegen --surface dunkel 3,07 : 1, hell 3,12; Grenze fuer Grafik 3 : 1. */
+  --input-edge: #5e6770;
   /* Zeichen, wo kein Bild ist. Eigene Variable: im hellen Schema weicht sie
      von --line-hover ab. */
   --placeholder: #333b44;
@@ -76,6 +79,7 @@
   /* Als Zahl statt `var(--text-2)`: das helle Schema setzte sonst dunkle
      Schrift auf den dunklen Traeger. */
   --on-photo: #b3bac1;
+  --on-photo-strong: #e9ecef;
   --on-photo-dim: #616a73;
   /* Gruen und Rot auf Fotos, ebenfalls fest. Auf dem Traeger ueber hellem
      Foto: #3fd39a 5,89 : 1 statt 2,10 (#0c7a54), #f0555c 3,30 statt 2,10
@@ -84,6 +88,7 @@
   --badge-green-rgb: 63,211,154;
   --badge-red: #f0555c;
   --badge-red-rgb: 240,85,92;
+  --badge-gold: #ffc531;
   /* Striche der Marke (SVG in app.js). Kontrast dunkel 5,58 und 7,31, hell
      4,62 und 4,59; Grenze fuer Grafik 3 : 1. */
   --brand-grey: var(--muted);
@@ -97,10 +102,10 @@
   --edge-on-dark-rgb: 255,255,255;
   /* Schleier hinter Dialog und Vollbild. */
   --scrim-rgb: 6,7,9;
-  /* Fertige Werte statt Alphas: das helle Schema aendert auch die Deckung,
-     und --lb-bg ist dort deckend. */
+  /* Fertige Werte statt Alphas: das helle Schema aendert auch die Deckung. */
   --scrim: rgba(var(--scrim-rgb), .78);
-  --lb-bg: rgba(var(--scrim-rgb), .97);
+  /* Deckend; durchscheinend laege die Seite unter Zaehler und Titel. */
+  --lb-bg: rgb(var(--scrim-rgb));
 
   --r-sm: 7px;
   --r: 11px;
@@ -125,6 +130,7 @@
   --z-masthead: 20;
   --z-masthead-menu: 30;
   --z-compare-bar: 40;
+  --z-file-menu: 50;
   --z-lightbox: 90;
   --z-dialog: 100;
   --z-toast: 120;
@@ -146,7 +152,8 @@
   --text: #14181c;
   --text-2: #3f4851;
   --muted: #616b75;
-  --faint: #767f89;
+  /* Hinweistext: 4,96 : 1 auf --surface, 4,58 : 1 auf --surface-2. */
+  --faint: #68717b;
 
   /* #ff7a1a misst auf Weiss 2,61 : 1; Schrift und Kanten nehmen #ad4f0b
      (5,38, auf --bg 4,59). */
@@ -179,6 +186,7 @@
 
   --line-hover: #b9c2cb;
   --line-hover-2: #aab4bf;
+  --input-edge: #8a939d;
   --placeholder: #78828d;
   /* Gegen --bg (#eaedf1): --timeline-line 1,54 : 1 (Grenze 1,5),
      --timeline-mid 2,13 (2,0), --timeline-year 4,62 (4,5). */
@@ -269,13 +277,14 @@ button { cursor: pointer; background: none; border: none; padding: 0; }
 /* Hilfsfeld zum Kopieren ohne sicheren Kontext, ausserhalb des sichtbaren
    Bereichs. */
 .copy-spare { position: fixed; top: -1000px; left: 0; opacity: 0; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+:focus-visible { outline: 2px solid var(--accent-edge); outline-offset: 2px; border-radius: 4px; }
 ::selection { background: var(--accent); color: var(--on-accent); }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 999px; border: 2px solid var(--bg); }
 ::-webkit-scrollbar-thumb:hover { background: var(--line-hover-2); }
+::-webkit-scrollbar-corner { background: transparent; }
 
 .hint { color: var(--faint); font-size: .87rem; }
 /* --muted wie `.label`: die Beschriftung braucht man zum Bedienen. */
@@ -287,8 +296,8 @@ button { cursor: pointer; background: none; border: none; padding: 0; }
    springen. */
 .brand .count, .card-test, .rating-inline, .link-count, .rrow .ravg, .rrow .rname .rweight,
 .mrow .mcount, .mrow .mweight, .kv .v, .log-time, .session-time, .trash-meta, .cmt-head,
-.lb-count, .vcount, .bsum, .calc-row > span, .open-when, .card-find .find-more,
-.thumb .num, .thumb .duration, .cmt-img .duration, .lrow .lnum, .cmp-crit, .cmp-group, .pill .n, .photo-count,
+.lb-count, .lb-btn.whole, .vcount, .bsum, .calc-row > span, .open-when, .card-find .find-more,
+.thumb .num, .thumb .duration, .cmt-img .duration, .apic .duration, .lrow .lnum, .cmp-crit, .cmp-group, .pill .n, .photo-count,
 .two-factor-codes span, .user-status, .filter-toggle .fcount, .open-count {
   font-variant-numeric: tabular-nums;
 }
@@ -310,17 +319,17 @@ button { cursor: pointer; background: none; border: none; padding: 0; }
               color .15s var(--ease), transform .1s var(--ease);
   white-space: nowrap;
 }
-.btn:hover { background: var(--surface-3); border-color: var(--line-hover); color: var(--text); }
+@media (hover: hover) { .btn:hover:where(:not(:disabled)) { background: var(--surface-3); border-color: var(--line-hover); color: var(--text); } }
 .btn:active { transform: translateY(1px); }
 .btn-accent { background: var(--accent); border-color: var(--accent-edge); color: var(--on-accent); font-weight: 620; }
-.btn-accent:hover { background: var(--accent-hi); border-color: var(--accent-hi); color: var(--on-accent); }
+@media (hover: hover) { .btn-accent:hover:where(:not(:disabled)) { background: var(--accent-hi); border-color: var(--accent-hi); color: var(--on-accent); } }
 .btn-ghost { background: transparent; border-color: transparent; color: var(--muted); }
-.btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+@media (hover: hover) { .btn-ghost:hover:where(:not(:disabled)) { background: var(--surface-2); color: var(--text); } }
 .btn-danger { color: var(--red); border-color: rgba(var(--red-rgb), .32); background: transparent; }
-.btn-danger:hover { background: var(--red-dim); border-color: var(--red); }
+@media (hover: hover) { .btn-danger:hover:where(:not(:disabled)) { background: var(--red-dim); border-color: var(--red); } }
 .btn-sm { padding: 6px 11px; font-size: .87rem; }
-.btn:disabled { opacity: .42; cursor: not-allowed; }
-.btn:disabled:hover { background: var(--surface-2); border-color: var(--line); color: var(--text-2); }
+/* Ein Aussehen fuer alles, was gerade nicht geht; Hover gilt nur ohne `disabled`. */
+:is(.btn, .mact, .link-btn, .pill, .icon-btn, .sdefault):disabled { opacity: .42; cursor: not-allowed; }
 
 /* ---------- Anmeldung ---------- */
 /* `100vh` als Rueckfall vor `100dvh`, wie an `body.login`. */
@@ -336,7 +345,6 @@ button { cursor: pointer; background: none; border: none; padding: 0; }
   animation: rise .34s var(--ease) both;
 }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-/* Marke und Name in einer Zeile wie `.brand` in der Kopfzeile. */
 .login-card .login-brand {
   display: flex; align-items: center; gap: 11px; margin: 0 0 5px;
 }
@@ -348,17 +356,22 @@ button { cursor: pointer; background: none; border: none; padding: 0; }
 .login-card .login-brand .logo { height: 2.372rem; }
 .login-card h1 { font-size: 1.53rem; font-weight: 640; letter-spacing: -.028em; margin: 0 0 5px; }
 .login-card .sub { color: var(--muted); font-size: .9rem; margin: 0 0 24px; }
+.login-card .login-forgot { margin: 14px 0 0; font-size: .84rem; }
 .field { margin-bottom: 14px; }
 .field label { display: block; font-size: .8rem; font-weight: 600; color: var(--text-2); margin-bottom: 6px; }
 .input {
   width: 100%; padding: 10px 12px;
-  background: var(--bg); border: 1px solid var(--line);
+  background: var(--bg); border: 1px solid var(--input-edge);
   border-radius: var(--r-sm); font-size: .97rem; color: var(--text);
   transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
 }
 .input::placeholder { color: var(--faint); }
-.input:hover { border-color: var(--line-hover); }
-.input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.input:hover { border-color: var(--muted); }
+.input:focus { outline: none; border-color: var(--accent-edge); box-shadow: 0 0 0 3px var(--accent-dim); }
+/* Fehler zum Feld, gesetzt von fieldError() in public/app.js. */
+.input.bad, .input.bad:focus { border-color: var(--red); box-shadow: 0 0 0 3px var(--red-dim); }
+/* `.modal` davor: `.modal p` setzte sonst die gedaempfte Farbe. */
+.modal .field-err, .field-err { margin: 6px 0 0; font-size: .82rem; line-height: 1.4; color: var(--red); }
 .login-card .btn { width: 100%; margin-top: 10px; padding: 11px; }
 .login-card .login-divider {
   margin: 28px 0 0; font-size: .87rem;
@@ -411,13 +424,14 @@ button { cursor: pointer; background: none; border: none; padding: 0; }
   display: flex; align-items: center; justify-content: center; color: var(--text-2);
   transition: all .15s var(--ease);
 }
-.icon-btn:hover { background: var(--surface-3); color: var(--text); border-color: var(--line-hover); }
+@media (hover: hover) { .icon-btn:hover:where(:not(:disabled)) { background: var(--surface-3); color: var(--text); border-color: var(--line-hover); } }
 
 /* ---------- Kopfzeile der Unteransichten ---------- */
 /* `.subhead` steht neben `.masthead` und erbt alles; hier nur die
    Unterschiede. */
 
-.sub-back { border-color: transparent; background: none; }
+.sub-back { border-color: transparent; background: none; width: auto; gap: 6px; padding: 0 12px 0 9px; }
+.sub-back .back-word { font-size: .88rem; white-space: nowrap; }
 .sub-back:hover { background: var(--surface-2); border-color: var(--line); color: var(--text); }
 
 /* ---------- Blaettern am Ende des Eintrags ---------- */
@@ -426,8 +440,6 @@ button { cursor: pointer; background: none; border: none; padding: 0; }
 /* Am Telefon ragte der zweite Knopf sonst ueber den rechten Rand. */
 .entry-nav .step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entry-nav .step-arrow { color: var(--faint); }
-.entry-nav .step:disabled { opacity: .38; cursor: default; }
-.entry-nav .step:disabled:hover { background: var(--surface-2); border-color: var(--line); color: var(--text-2); }
 /* Gekuerzt wird der Titel, nicht die Symbolknoepfe; die schrumpften am
    Telefon (390 px) sonst unter ihr Mass. */
 .subhead .brand h1 { min-width: 0;
@@ -449,19 +461,23 @@ button { cursor: pointer; background: none; border: none; padding: 0; }
 .frow > .pills.cloud { flex: 1 1 0; min-width: 0; }
 /* In em: die Breite fasst nur Text und waechst mit der Schrift. */
 .frow > .eyebrow { min-width: 7.25em; flex-shrink: 0; }
-/* Zweite Beschriftung derselben Zeile: „Ansichten" hinter „Sortieren". */
-.frow > .eyebrow-with { min-width: 0; margin-left: 22px; }
+/* Beschriftung und Felder einer weiteren Gruppe brechen nur gemeinsam in die naechste Zeile. */
+.fgroup { display: flex; align-items: baseline; gap: 10px; min-width: 0; margin-left: 12px; }
+.fgroup > .eyebrow-with { flex-shrink: 0; }
+.fgroup > .pills { min-width: 0; }
 .pills { display: flex; flex-wrap: wrap; gap: 6px; }
 .sort-pair { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .sort-pair .select { min-width: 0; }
-/* Der Knopf nennt die Richtung als Text („neu → alt") und bricht nicht um. */
-.sort-dir { white-space: nowrap; flex-shrink: 0; font-family: var(--mono); font-size: .74rem; }
+.sort-way { flex-shrink: 0; }
+.sort-flip { display: inline-grid; align-items: center; white-space: nowrap; }
+.sort-flip > span { grid-area: 1 / 1; text-align: center; }
+.sort-flip > .off { visibility: hidden; }
 /* Hinweis unter einer Sprachpillenreihe; `flex-basis: 100%` gibt ihm eine
    eigene Zeile im Pillenkasten. */
-/* In der Karte „Sprachen" mit mehr Abstand, weil er dort unter einer Liste
-   steht. */
 .pills .langnote { flex-basis: 100%; margin: 2px 0 0; font-size: .68rem;
   color: var(--faint); font-style: italic; line-height: 1.35; }
+/* In der Karte „Sprachen" mit mehr Abstand, weil er dort unter einer Liste
+   steht. */
 .engine-list .langnote { margin: 8px 0 0; font-size: .72rem;
   color: var(--faint); font-style: italic; line-height: 1.45; }
 .pill {
@@ -470,12 +486,23 @@ button { cursor: pointer; background: none; border: none; padding: 0; }
   font-size: .83rem; color: var(--muted); font-weight: 500;
   transition: all .15s var(--ease);
 }
-.pill:hover { border-color: var(--accent-line); color: var(--text); background: var(--accent-dim); }
+@media (hover: hover) { .pill:hover:where(:not(:disabled)) { border-color: var(--accent-line); color: var(--text); background: var(--accent-dim); } }
 .pill.on { background: var(--accent); border-color: var(--accent-edge); color: var(--on-accent); font-weight: 620; }
 .pill-tag { font-family: var(--mono); font-size: .77rem; }
+/* `margin-left: -1px` legt die Raender der Felder uebereinander; `position: relative` zeichnet das gewaehlte oben. */
+.pills.seg { gap: 0; flex-wrap: nowrap; }
+.pills.seg .pill { border-radius: 0; margin-left: -1px; white-space: nowrap; flex-shrink: 0; }
+.pills.seg .pill:first-child { border-radius: 999px 0 0 999px; margin-left: 0; }
+.pills.seg .pill:last-child { border-radius: 0 999px 999px 0; }
+.pills.seg .pill.on { position: relative; }
+@media (hover: hover) { .pills.seg .pill:hover { position: relative; } }
 /* Trennt den Favoritenumschalter von den drei Statuspillen davor. Gesetzt
    orange (`.pill.on`), nicht gold: Gold steht fuer Bewertung. */
 .pill-sep { margin-left: 14px; }
+/* Rand einer waagrecht rollenden Reihe, wo sie weitergeht; die Klassen setzt markEdges() in public/app.js. */
+.more-after { mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
+.more-before { mask-image: linear-gradient(to left, #000 calc(100% - 24px), transparent); }
+.more-before.more-after { mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent); }
 .pill .n { opacity: .55; margin-left: 4px; font-size: .7rem; }
 /* Punkt an einer vollständigen Sprachpille; bei Lücken steht die Zahl. */
 .pill .dot { opacity: .5; margin-left: 5px; font-size: .58rem; vertical-align: middle; }
@@ -485,24 +512,35 @@ button { cursor: pointer; background: none; border: none; padding: 0; }
 .pill .view-remove:hover { opacity: 1; color: var(--red); }
 .pill.on .view-remove { opacity: .6; }
 
-/* Zeile „Ähnlich: …" im Dialog zum Anlegen. Leer ohne Hoehe, sonst
+/* Zeile „Ähnliche Titel: …“ im Dialog zum Anlegen. Leer ohne Hoehe, sonst
    verschoebe sie den Dialog bei jedem Anschlag. */
 .similar { margin-top: 6px; }
 .similar:empty { display: none; }
 .similar a { color: var(--text-2); text-decoration: underline; text-decoration-color: var(--line); }
 .similar a:hover { color: var(--accent-text); text-decoration-color: var(--accent-text); }
+/* Das Suchfeld hat seinen eigenen Knopf zum Leeren (#qclr). */
+#q { appearance: none; }
+#q::-webkit-search-cancel-button { appearance: none; display: none; }
 .select {
-  padding: 6px 10px; border-radius: var(--r-sm);
-  border: 1px solid var(--line); background: var(--surface); color: var(--text-2); font-size: .83rem;
+  padding: 8px 11px; border-radius: var(--r-sm);
+  border: 1px solid var(--input-edge); background: var(--bg); color: var(--text); font-size: .87rem;
 }
-.select:hover { border-color: var(--line-hover); }
+.select:hover { border-color: var(--muted); }
+.select:focus { outline: none; border-color: var(--accent-edge); box-shadow: 0 0 0 3px var(--accent-dim); }
 .link-btn { font-size: .8rem; color: var(--muted); text-decoration: underline; }
-.link-btn:hover { color: var(--accent-text); }
+@media (hover: hover) { .link-btn:hover:where(:not(:disabled)) { color: var(--accent-text); } }
 /* Abstand vor „+ Ansicht speichern", gleich `.pill-sep`. */
 .link-btn-sep { margin-left: 14px; }
-/* Erklaertext ohne Aufklapper, wenn er in eine Zeile passt. Abstand wie
+/* Erklaertext ohne Aufklapper unter drei Zeilen (trimMore()). Abstand wie
    `.more`, mit dem zusammen aendern. */
 .more-plain { margin: -6px 0 14px; }
+.more.more-plain > summary { display: none; }
+.more.more-plain > .more-text { margin-top: 0; }
+/* Nach einer Liste statt nach einem Satz: der negative Abstand von `.more` gilt dort nicht. */
+.engine-list + .more { margin-top: 10px; }
+/* „Namen in:“ und die Leiste der Sprachen in einer Zeile. */
+.names-in { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.names-in-hint { margin: 4px 0 12px; }
 /* Verweis mit Zeichen statt Wort: ohne Unterstrich, 30 x 30 px fuer den
    Finger. */
 .link-btn.icon-link {
@@ -510,7 +548,7 @@ button { cursor: pointer; background: none; border: none; padding: 0; }
   width: 30px; height: 30px; padding: 0; border-radius: 7px;
   text-decoration: none; flex-shrink: 0;
 }
-.link-btn.icon-link:hover { background: var(--surface-2); }
+@media (hover: hover) { .link-btn.icon-link:hover:where(:not(:disabled)) { background: var(--surface-2); } }
 .link-btn.icon-link .icon { width: 17px; height: 17px; }
 
 /* ---------- Kartenraster ---------- */
@@ -552,7 +590,7 @@ button { cursor: pointer; background: none; border: none; padding: 0; }
    sonst kaum zu sehen. */
 .card-pin {
   position: absolute; top: 8px; right: 9px;
-  font-size: 1.05rem; line-height: 1; color: var(--gold);
+  font-size: 1.05rem; line-height: 1; color: var(--badge-gold);
   width: 26px; height: 26px; display: flex;
   align-items: center; justify-content: center;
   background: rgba(var(--photo-rgb), .82);
@@ -566,18 +604,21 @@ button { cursor: pointer; background: none; border: none; padding: 0; }
 /* Links unten, weil rechts unten `.photo-count` steht. */
 .card-play {
   position: absolute; bottom: 8px; left: 8px;
-  font-size: .72rem; line-height: 1; color: var(--text-2);
+  font-size: .72rem; line-height: 1; color: var(--on-photo);
   width: 24px; height: 24px; display: flex;
   align-items: center; justify-content: center;
   background: rgba(var(--photo-rgb), .82);
   border-radius: 999px; padding-left: 2px;
 }
+/* Audio: ♪ und Dauer statt des runden Abspielzeichens. */
+.card-play.card-sound { width: auto; padding: 0 8px; font-family: var(--mono); }
 .card-body { padding: 12px 14px 13px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
 .card-cat {
   font-family: var(--mono); font-size: .63rem; text-transform: uppercase;
   letter-spacing: .1em; color: var(--accent-text); font-weight: 600;
 }
-.card-title { font-size: 1.03rem; font-weight: 600; letter-spacing: -.015em; margin: 0; line-height: 1.34; }
+.card-title { font-size: 1.03rem; font-weight: 600; letter-spacing: -.015em; margin: 0; line-height: 1.34;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; }
 /* Trefferzeile waehrend einer Suche. Einzeilig, weil die schmalste Kachel
    240 px misst; gekuerzt wird nur `.find-text`. */
 .card-find {
@@ -637,7 +678,7 @@ mark {
 .pick-box {
   width: 21px; height: 21px; border-radius: 5px; border: 1.5px solid var(--line);
   background: var(--surface-2); display: flex; align-items: center; justify-content: center;
-  font-size: .8rem; color: transparent; flex-shrink: 0; transition: all .15s var(--ease);
+  font-size: .8rem; color: var(--muted); flex-shrink: 0; transition: all .15s var(--ease);
 }
 .pick-box:hover { border-color: var(--accent-line); }
 .pick-box.on { background: var(--accent); border-color: var(--accent-edge); color: var(--on-accent); }
@@ -662,9 +703,13 @@ mark {
 
 /* ---------- Detail ---------- */
 .detail { display: grid; grid-template-columns: minmax(300px, 46%) 1fr; gap: 28px; align-items: start; }
-@media (max-width: 860px) { .detail { grid-template-columns: 1fr; } }
 .meta-col { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 84px; }
-@media (max-width: 860px) { .meta-col { position: static; } }
+/* Einspaltig steht der Titel vor Bild und Bildleiste, auch am Tablet hochkant. */
+@media (max-width: 860px) {
+  .detail { display: flex; flex-direction: column; align-items: stretch; }
+  .meta-col { display: contents; }
+  .title-head { order: -1; }
+}
 
 .viewer {
   position: relative; aspect-ratio: 4/3; background: var(--image-bg-2);
@@ -682,9 +727,9 @@ mark {
   background: rgba(var(--tool-rgb), .86);
   border: 1px solid rgba(var(--edge-on-dark-rgb), .12);
   display: flex; align-items: center; justify-content: center;
-  color: var(--text); font-size: 1.27rem; transition: all .15s var(--ease); opacity: 0;
+  color: var(--on-photo-strong); font-size: 1.27rem; transition: all .15s var(--ease); opacity: 0;
 }
-.viewer:hover .vnav { opacity: 1; }
+.viewer:hover .vnav, .vnav:focus-visible { opacity: 1; }
 /* Ohne Zeiger gibt es kein :hover. Regel einzeilig und ohne Kommentar
    lassen: test/roundtrip.js sucht sie woertlich. */
 @media (hover: none) { .vnav { opacity: 1; } }
@@ -693,14 +738,27 @@ mark {
 .vcount {
   position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
   background: rgba(var(--photo-rgb), .84); color: var(--on-photo);
-  font-family: var(--mono); font-size: .73rem; padding: 3px 10px; border-radius: 999px;
+  font-family: var(--mono); font-size: .73rem; padding: 3px 10px; border-radius: 999px; pointer-events: none;
 }
+/* Unten laege der Zaehler auf der Zeitleiste der Videosteuerung. */
+.vcount.on-video { top: 10px; bottom: auto; }
 .main-flag {
   position: absolute; top: 10px; left: 10px;
   background: var(--accent); color: var(--on-accent);
   font-family: var(--mono); font-size: .6rem; font-weight: 700;
   letter-spacing: .09em; text-transform: uppercase; padding: 3px 8px; border-radius: 5px;
 }
+.vspot {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px; white-space: nowrap;
+  background: rgba(var(--photo-rgb), .84); color: var(--on-photo);
+  font-size: .8rem; padding: 4px 5px 4px 12px; border-radius: 999px;
+}
+.vspot button {
+  padding: 3px 10px; border-radius: 999px; font-size: .78rem; color: inherit;
+  background: transparent; border: 1px solid rgba(var(--edge-on-dark-rgb), .3);
+}
+.vspot button:hover { background: var(--accent); border-color: var(--accent-edge); color: var(--on-accent); }
 
 /* auto-fill statt auto-fit: auto-fit klappt leere Spalten zusammen und streckt wenige Kacheln. */
 .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--tile-min), 1fr)); gap: 7px; margin: 10px 0; }
@@ -717,19 +775,19 @@ mark {
 .thumb .del { position: absolute; top: 0; right: 0; width: 19px; height: 19px; background: rgba(var(--photo-rgb), .82); color: var(--on-photo); font-size: .73rem; display: flex; align-items: center; justify-content: center; border-radius: 0 0 0 6px; opacity: 0; transition: opacity .15s var(--ease); }
 /* `pointer-events: none`, sonst faengt die Marke das Ziehen zum
    Umsortieren ab. */
-.thumb .play-badge, .lb-thumb .play-badge, .cmt-img .play-badge {
+.thumb .play-badge, .lb-thumb .play-badge, .cmt-img .play-badge, .markup-pic .play-badge, .apic .play-badge {
   position: absolute; top: 3px; left: 3px; pointer-events: none;
-  font-size: .58rem; line-height: 1; color: var(--text-2);
+  font-size: .58rem; line-height: 1; color: var(--on-photo);
   width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;
   background: rgba(var(--photo-rgb), .82); border-radius: 999px; padding-left: 1px;
 }
-.thumb .duration, .cmt-img .duration {
+.thumb .duration, .cmt-img .duration, .apic .duration {
   position: absolute; bottom: 0; right: 0; pointer-events: none;
   background: rgba(var(--photo-rgb), .82); color: var(--on-photo);
   font-family: var(--mono); font-size: .58rem; padding: 1px 4px; border-radius: 5px 0 0 0;
 }
 .lb-thumb { position: relative; }
-.thumb:hover .del { opacity: 1; }
+.thumb:hover .del, .thumb .del:focus-visible { opacity: 1; }
 /* Ohne Zeiger kein Kreuz: auf der kleinen Kachel laege es unter dem Daumen;
    geloescht wird ueber `.vremove`. Einzeilig lassen, test/roundtrip.js sucht
    die Regel woertlich. */
@@ -755,12 +813,17 @@ mark {
   transition: background .15s var(--ease), border-color .15s var(--ease);
 }
 .title-in:hover { background: var(--surface); border-color: var(--line); }
-.title-in:focus { outline: none; background: var(--surface); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.title-in:focus { outline: none; background: var(--surface); border-color: var(--accent-edge); box-shadow: 0 0 0 3px var(--accent-dim); }
+/* Ohne Recht auf den Eintrag steht der Titel als Text, in der Schrift von `.title-in`. */
+.title-text { flex: 1; margin: 0; font-size: 1.6rem; font-weight: 640; letter-spacing: -.032em; line-height: 1.28; color: var(--text); overflow-wrap: anywhere; }
 .pin-btn { font-size: 1.13rem; padding: 4px; color: var(--faint); flex-shrink: 0; transition: color .15s var(--ease), transform .15s var(--ease); }
 .pin-btn:hover { transform: scale(1.15); }
 .pin-btn.on { color: var(--gold); }
 
 .switches { display: flex; gap: 8px; flex-wrap: wrap; }
+.state { font-size: .83rem; color: var(--muted); }
+.state.on-green { color: var(--green); }
+.state.on-red { color: var(--red); }
 .switch {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 7px 13px; border-radius: 999px;
@@ -773,7 +836,9 @@ mark {
 .switch.on-green .knob { background: var(--green); }
 .switch.on-red { background: var(--red-dim); border-color: rgba(var(--red-rgb), .42); color: var(--red); }
 .switch.on-red .knob { background: var(--red); }
-.switch.locked { cursor: help; }
+/* Gesperrt solange Testtage eingetragen sind; gedaempft wie Deaktiviertes, ein Tipp nennt den Grund. */
+.switch.locked { opacity: .42; cursor: not-allowed; }
+.sw-lock { display: inline-flex; font-size: .8rem; }
 
 /* --line-2 wie `.sys-card`; zusammen aendern. */
 .block { background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r); padding: 15px 17px 17px; }
@@ -785,25 +850,26 @@ mark {
 .block-head .hint { color: var(--text-2); }
 .ta {
   width: 100%; min-height: 92px; resize: vertical; color: var(--text);
-  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--bg); border: 1px solid var(--input-edge); border-radius: var(--r-sm);
   padding: 11px 13px; font-size: .97rem; line-height: 1.65;
   transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
 }
 .ta::placeholder { color: var(--faint); }
-.ta:hover { border-color: var(--line-hover); }
-.ta:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.ta:hover { border-color: var(--muted); }
+.ta:focus { outline: none; border-color: var(--accent-edge); box-shadow: 0 0 0 3px var(--accent-dim); }
 .ta-desc { min-height: 140px; }
 /* Die Hoehe setzt `autoGrow()`; ein Ziehgriff wirkte nur bis zum naechsten
    Zeichen. */
 .ta-auto { resize: none; }
 .page-title { font-size: 1.47rem; font-weight: 640; letter-spacing: -.026em; margin: 0 0 4px; }
 .hint-sm { font-size: .8rem; }
-.input-sm { font-size: .87rem; }
-.select-sm { font-size: .9rem; }
+/* Gleiche Hoehe wie `.select`. */
+.input-sm { font-size: .87rem; padding: 8px 11px; }
 .page-hint { margin: 0 0 20px; }
 .page-hint.above-pills { margin-bottom: 10px; }
 .row-in { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .row-in .input { flex: 1; min-width: 145px; }
+.row-in:has(> .input) { align-items: stretch; }
 /* Auswahl der Kategorie im Eintrag. */
 #cat { min-width: 148px; }
 
@@ -826,6 +892,8 @@ mark {
 .star.on { color: var(--gold); }
 .stars .star { cursor: pointer; }
 .stars .star:hover { transform: scale(1.18); }
+.stars.read .star { cursor: default; }
+.stars.read .star:hover { transform: none; }
 
 /* Ein Raster fuer alle Zeilen, damit die Sternreihen gleich beginnen.
    Spalten: Name, Sterne, Durchschnitt, Ruecksetzknopf. `.rrow` ist
@@ -839,7 +907,6 @@ mark {
 .rrow:last-of-type > * { border-bottom: none; }
 .rrow .rname { font-size: .93rem; font-weight: 500; padding-right: 12px; }
 .rrow .racts { display: flex; align-items: center; gap: 9px; }
-/* Gewichtsmarke „×1,5" hinter dem Kriteriennamen. */
 .rrow .rname .rweight, .cmp-crit .cn .cweight {
   font-family: var(--mono); font-size: .72rem; color: var(--faint); white-space: nowrap;
 }
@@ -862,8 +929,6 @@ mark {
 .vote-list { display: flex; flex-direction: column; gap: 13px; }
 .vote-row .rname { display: block; font-size: .93rem; font-weight: 500; margin-bottom: 4px; }
 .vote-row .rvotes { padding: 0; margin-top: 0; }
-/* Verfasserangaben (Anlegen, Testtag, Ablehnung): wer etwas getan hat und
-   wann. */
 .author-row { margin: 8px 2px 0; }
 /* Von der Schrift ist nur der Grund (`.rej-why`) rot; Datum und Name sind
    Verfasserangabe. */
@@ -876,26 +941,21 @@ mark {
 /* Stift an allen vier Stellen in --accent-text. Im Kommentarkopf misst er
    mit --faint 2,95 : 1 (dunkel) und 3,75 : 1 (hell), so 6,22 und 4,97. */
 .mact.ed { color: var(--accent-text); }
-.mact.ed:hover { color: var(--accent-text-hi); }
 .rej-note .acts { display: flex; gap: 8px; flex-shrink: 0; }
-.rej-note .mact { color: var(--faint); font-size: .8rem; padding: 3px 6px;
-                     border-radius: 4px; transition: all .15s var(--ease); }
-.rej-note .mact:hover { color: var(--accent-text); background: var(--accent-dim); }
-.rej-note .mact.rm:hover { color: var(--red); background: var(--red-dim); }
 .rej-reason { margin-top: 8px; }
 .trow .tfrom { font-size: .76rem; color: var(--faint); flex-shrink: 0; }
 .trow .tfrom.mine { color: var(--muted); }
 .cmt-head .cmt-from { color: var(--muted); }
 
-.xdel { color: var(--faint); font-size: .87rem; opacity: 0; transition: opacity .15s var(--ease), color .15s var(--ease); padding: 2px 5px; border-radius: 4px; }
-/* Jede Zeilenart mit `.xdel` hier eintragen, sonst bleibt das Kreuz
-   unsichtbar. */
-.lrow:hover .xdel, .trow:hover .xdel, .arow:hover .xdel { opacity: 1; }
-@media (hover: none) { .xdel { opacity: 1; } }
-/* An einer Stimme ist das Kreuz immer sichtbar; in der schmalen Zeile
-   faende man es sonst nicht. */
-.rvote .xdel { opacity: 1; padding: 0 3px; font-size: .8rem; }
-.xdel:hover { color: var(--red); background: var(--red-dim); }
+/* ---- Zeilenaktionen: Stift, Papierkorb, ✕ ---- */
+.mact { color: var(--faint); font-size: .8rem; padding: 3px 6px; border-radius: 4px;
+  transition: color .15s var(--ease), background .15s var(--ease), opacity .15s var(--ease); }
+@media (hover: hover) {
+  .mact:hover:where(:not(:disabled)) { color: var(--accent-text); background: var(--accent-dim); }
+  .mact.ed:hover:where(:not(:disabled)) { color: var(--accent-text-hi); }
+  .mact.rm:hover:where(:not(:disabled)) { color: var(--red); background: var(--red-dim); }
+}
+.rvote .mact { padding: 0 3px; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .chip {
@@ -914,7 +974,8 @@ mark {
 /* „mehr" in der Testtagzeile schrumpft nicht, sonst braeche es selbst um. */
 .ttag-more { font-size: .68rem; flex-shrink: 0; align-self: center; }
 .ttag-add:hover { color: var(--accent-text); background: var(--surface-2); }
-.ttag-in { width: 8em; padding: 2px 7px !important; font-size: .73rem !important; }
+.ttag-in { width: 8em; min-width: 4em; flex: 0 1 8em; padding: 2px 7px !important; font-size: .73rem !important; }
+.tend { display: inline-flex; align-items: center; gap: 12px; flex-shrink: 0; white-space: nowrap; }
 /* `max-height` setzt app.js, gemessen an der ersten Marke. */
 .cloud { transition: max-height .15s var(--ease); }
 .cloud-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 14px 0 7px; padding-top: 12px; border-top: 1px dashed var(--line); }
@@ -953,10 +1014,23 @@ mark {
 .lrow.search:hover .dom { color: var(--accent-text-hi); }
 /* Anbieternamen ohne Monoschrift: Woerter, keine Adressteile. */
 .snames { font-size: .7rem; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Gekuerzt wird der Pfad, nicht der Name dahinter (`.lfrom`). */
 .lbottom { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .lbottom .path, .lbottom .snames { flex: 0 1 auto; min-width: 0; }
-.lbottom .lfrom { flex: 0 0 auto; font-size: .7rem; color: var(--muted); }
+/* Nicht abschneiden; gekuerzt wird die Adresse. */
+.lrow .lfrom { flex-shrink: 0; font-size: .7rem; color: var(--muted); }
+/* Alle Linkzeilen in denselben Spalten, auch auf dem Telefon. */
+@supports (grid-template-columns: subgrid) {
+  #links { display: grid; grid-template-columns: [grip] auto [num] auto [url] minmax(0, 1fr) [from] auto [go] auto [del] auto; }
+  #links > * { grid-column: 1 / -1; }
+  .lrow { display: grid; grid-template-columns: subgrid; gap: 0; }
+  .lrow > * + * { margin-left: 10px; }
+  .lrow .grip { grid-column: grip; }
+  .lrow .lnum { grid-column: num; }
+  .lrow .lurl { grid-column: url; }
+  .lrow .lfrom { grid-column: from; }
+  .lrow .go { grid-column: go; }
+  .lrow .mact { grid-column: del; }
+}
 .snames .sname { cursor: pointer; transition: color .15s var(--ease); }
 .snames .sname:hover { color: var(--accent-text-hi); text-decoration: underline; }
 
@@ -968,19 +1042,22 @@ mark {
 }
 .engine.blank .engine-name { color: var(--faint); }
 .engine-name { font-size: .85rem; }
-.engine .sdefault {
-  font-size: .68rem; padding: 2px 8px; border-radius: 999px;
-  border: 1px solid var(--line); background: none; color: var(--muted);
-  transition: color .15s var(--ease), border-color .15s var(--ease);
-}
-.engine .sdefault:hover:not(:disabled) { color: var(--accent-text); border-color: var(--accent-line); }
-.engine .sdefault.on { color: var(--accent-text); border-color: var(--accent); }
-.engine .sdefault:disabled, .engine input:disabled { opacity: .4; cursor: default; }
+/* Kopf und Auswahlpunkt gleich breit, damit der Punkt unter „Standard“ steht. */
+.engine .sdefault { flex: 0 0 5.6rem; display: flex; justify-content: center; padding: 4px 0; background: none; border: 0; }
+.engine .sdefault.none { visibility: hidden; }
+.sdot { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--line-hover);
+  transition: border-color .15s var(--ease); }
+.engine .sdefault:hover:not(:disabled) .sdot { border-color: var(--accent-line); }
+.engine .sdefault.on .sdot { border-color: var(--accent); background: radial-gradient(var(--accent) 0 3.5px, transparent 4px); }
+.engine-head { background: none; padding-top: 0; padding-bottom: 0; }
+.engine-head .engine-check { visibility: hidden; }
+.engine-head .sdefault { font-family: var(--mono); font-size: .66rem; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; }
+.engine input:disabled { opacity: .4; cursor: default; }
 .engine-own { display: flex; flex-direction: column; gap: 6px; }
-.engine-slot { display: flex; align-items: center; gap: 6px; }
+.engine-slot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .engine-slot .input { padding: 7px 9px; }
 .engine-slot input[id^="se-name-"] { flex: 0 0 8.5em; }
-.engine-slot input[id^="se-vorlage"] { flex: 1; min-width: 0; }
+.engine-slot input[id^="se-vorlage"] { flex: 1 1 100%; min-width: 0; }
 
 /* ---------- Testtage ---------- */
 .spark { display: block; width: 100%; height: 46px; margin-bottom: 12px; }
@@ -993,13 +1070,18 @@ mark {
 .trow:hover { border-color: var(--line); background: var(--surface-3); }
 .trow .tdate { font-family: var(--mono); font-size: .83rem; color: var(--text-2); min-width: 92px; }
 .trow .tweek { font-size: .73rem; color: var(--faint); flex-shrink: 0; }
+.tfolder {
+  flex-shrink: 0; width: 44px; height: 44px; margin: -8px 0; display: flex; align-items: center;
+  justify-content: center; border: 0; border-radius: 6px; background: none; font-size: 1.05rem; cursor: pointer;
+}
+.tfolder { color: var(--muted); }
+.tfolder .icon { width: 18px; height: 18px; }
+.tfolder:hover { background: var(--surface-3); color: var(--text); }
+.tfolder:focus-visible { outline: 2px solid var(--accent-edge); outline-offset: -2px; }
+.trow.lit, .afolder.lit { border-color: var(--accent); border-radius: 8px; box-shadow: 0 0 0 2px var(--accent-dim); }
 .test-scroll { max-height: 300px; overflow-y: auto; margin: 0 -4px 12px; padding: 0 4px; }
 .test-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-top: 12px; border-top: 1px dashed var(--line); }
-.test-add input[type=date] {
-  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
-  color: var(--text); padding: 8px 11px; font-size: .87rem;
-}
-.test-add input[type=date]:hover { border-color: var(--line-hover); }
+.test-add .input { width: auto; }
 .test-locked { display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: .87rem; }
 
 /* ---------- Kommentare ---------- */
@@ -1007,11 +1089,10 @@ mark {
 .cmt { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 10px 12px; }
 .cmt-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-family: var(--mono); font-size: .7rem; color: var(--faint); margin-bottom: 6px; }
 .cmt-head .acts { display: flex; gap: 8px; flex-shrink: 0; }
-/* Abstand zum Stift gegen Fehlgriffe: .6em bei .73rem sind 6,57 px. */
-.cmt-head button.rm { margin-left: .6em; }
-.cmt-head button { color: var(--faint); font-size: .73rem; }
-.cmt-head button:hover { color: var(--accent-text); }
-.cmt-head button.rm:hover { color: var(--red); }
+/* Abstand zum Stift gegen Fehlgriffe: .6em bei .8rem sind 7,7 px. */
+.cmt-head .mact.rm { margin-left: .6em; }
+.cmt-head .mark { color: var(--faint); font-size: .73rem; }
+@media (hover: hover) { .cmt-head .mark:hover { color: var(--accent-text); } }
 /* `pre-wrap` bricht nur an Leerzeichen um; eine lange Adresse ragte sonst
    ueber den Rand. */
 .cmt-body { font-size: .93rem; white-space: pre-wrap; word-break: break-word; line-height: 1.6; }
@@ -1040,6 +1121,19 @@ mark {
 /* Verweis auf einen geloeschten Kommentar: kein Klickziel, daher keine
    Linkfarbe. */
 .markup-ref.gone { border-color: var(--line); background: var(--surface-2); color: var(--muted); font-style: italic; }
+.markup-ref-sign { color: var(--muted); }
+.markup-ref.open { border-color: var(--accent); }
+.markup-pic { position: relative; align-items: center; padding: 2px; vertical-align: middle; }
+/* 64 px: zwei Zeilen Text, die Zeile reisst nicht weiter auf. */
+.markup-thumb { display: block; height: 64px; max-width: 160px; object-fit: cover; border-radius: 3px; }
+/* `white-space: normal`: der Kasten steht im Text unter `pre-wrap`. */
+.markup-viewer { margin: 6px 0; border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; background: var(--preview-bg); white-space: normal; }
+.markup-viewer-bar { display: flex; justify-content: flex-end; padding: 2px 4px; background: var(--surface-2); }
+.markup-viewer a.markup-viewer-open { padding: 2px 8px; border-radius: 4px; color: var(--muted); text-decoration: none; }
+.markup-viewer a.markup-viewer-open:hover { color: var(--accent-text); background: var(--surface); }
+.markup-viewer-doc { height: 360px; }
+.markup-viewer-doc iframe { width: 100%; height: 100%; border: 0; }
+.markup-viewer-doc .hint { margin: 12px; }
 
 /* ---------- Die Beschreibung, gelesen ---------- */
 /* Schrift und Innenabstand wie `.ta` und `.ta-desc`, sonst springt der
@@ -1088,7 +1182,7 @@ mark {
   animation: rise .26s var(--ease) both;
 }
 .cmp-bar .btn-x { color: var(--muted); padding: 4px 8px; }
-.cmp-bar .btn-x:hover { color: var(--text); }
+@media (hover: hover) { .cmp-bar .btn-x:hover:where(:not(:disabled)) { color: var(--text); } }
 .cmp-grid { display: grid; gap: 18px; margin-top: 6px; }
 .cmp-col { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
 .cmp-col .cimg { aspect-ratio: 16/10; background: var(--image-bg-2); }
@@ -1108,6 +1202,21 @@ mark {
 .cmp-group:first-child { border-top: none; margin-top: 0; padding-top: 4px; }
 .cmp-group .cn { color: var(--text-2); }
 .cmp-best { color: var(--green); font-weight: 700; }
+/* Tabelle am Telefon; die erste Spalte bleibt beim Wischen stehen. */
+.cmp-scroll { overflow-x: auto; margin: 0 -12px; padding: 0 12px; scrollbar-width: none; }
+.cmp-scroll::-webkit-scrollbar { display: none; }
+.cmp-table { border-collapse: separate; border-spacing: 0; font-size: .85rem; }
+.cmp-table th, .cmp-table td { padding: 8px 10px; border-bottom: 1px solid var(--line-2); text-align: left; vertical-align: middle; }
+.cmp-table tbody th { position: sticky; left: 0; background: var(--bg); color: var(--muted); font-weight: 500;
+  min-width: 7.5rem; max-width: 9.5rem; }
+.cmp-table thead th { min-width: 6.5rem; max-width: 8rem; vertical-align: top; font-weight: 600; }
+.cmp-table thead .cmp-corner { position: sticky; left: 0; background: var(--bg); }
+.cmp-table td { font-family: var(--mono); white-space: nowrap; }
+.cmp-table .cmp-grp th { color: var(--text-2); }
+.cmp-table thead a { display: flex; flex-direction: column; gap: 6px; color: var(--text); }
+.cmp-table .cimg { display: block; width: 100%; aspect-ratio: 16/10; border-radius: var(--r-sm); overflow: hidden; background: var(--image-bg-2); }
+.cmp-table .cimg img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cmp-name { font-size: .82rem; line-height: 1.3; overflow-wrap: break-word; hyphens: auto; }
 
 /* ---------- Einstellungen ---------- */
 /* Am Telefon eine Liste: fuenf Woerter brechen auf 366 px um.
@@ -1138,14 +1247,18 @@ mark {
 .sys-card > .btn { align-self: flex-start; }
 /* Die Klasse setzt und entfernt `saved()` in app.js. */
 .sys-card.saved { animation: card-saved .4s var(--ease); }
-/* Karte mit Lücken: nur Rand und Hof in Rot, keine Fläche; eine
-   eingefärbte Karte läse sich als Fehler. */
-.sys-card.gaps { border-color: rgba(var(--red-rgb), .55); box-shadow: 0 0 0 3px var(--red-dim); }
+/* Karte mit Lücken: nur Rand und Hof, keine Fläche; Rot bleibt Fehlern vorbehalten. */
+.sys-card.gaps { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-dim); }
 @keyframes card-saved {
   0% { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-dim); }
   100% { border-color: var(--line-2); box-shadow: none; }
 }
 .sys-card h3 { font-size: 1.03rem; font-weight: 620; letter-spacing: -.018em; margin: 0 0 4px; }
+.import-result .warn-text { color: var(--red); }
+.view-failed { padding: 24px 0; }
+.view-failed .btn { margin-top: 10px; }
+.sys-card.unsaved h3::after { content: attr(data-unsaved); margin-left: 8px; font-size: .78rem; font-weight: 500;
+  letter-spacing: 0; color: var(--accent-text); }
 .sys-card .desc { color: var(--muted); font-size: .87rem; margin: 0 0 14px; line-height: 1.55; }
 .sys-card .desc strong { color: var(--text-2); font-weight: 600; }
 /* Aufklapper statt Tooltip: ohne Zeiger gibt es kein :hover. */
@@ -1163,6 +1276,10 @@ mark {
 .server-box { border: 1px solid var(--line-2); border-radius: var(--r-sm); padding: 10px 12px; margin: 0 0 14px; background: var(--surface-2); }
 .server-head { font-size: .78rem; font-weight: 600; color: var(--text-2); letter-spacing: .03em; text-transform: uppercase; margin-bottom: 4px; }
 .server-box .desc { margin: 0 0 8px; }
+/* Nach „Speichern“ in „Mein Account“, mit Abstand zum Formular. */
+.acc-after { margin-top: 22px; }
+.acc-after .server-box { margin-bottom: 0; }
+.acc-after > .desc { margin: 0; }
 .server-row { display: flex; align-items: center; gap: 8px; }
 .server-row code { flex: 1 1 auto; min-width: 0; overflow-x: auto; white-space: nowrap; font-family: var(--mono); font-size: .78rem; padding: 6px 8px; background: var(--bg); border: 1px solid var(--line-2); border-radius: var(--r-sm); }
 .server-row .btn { flex: 0 0 auto; }
@@ -1170,11 +1287,14 @@ mark {
    Eintragszahl und bis zu vier Bedienelemente brechen in 300 px um. */
 .sys-card.wide { grid-column: 1 / -1; }
 .sys-card .sys-part { border-top: 1px solid var(--line); margin: 16px 0 8px; padding-top: 14px; }
-/* Ueberschrift unter der Kartenebene, etwa Import unter Export. */
 .sys-card .sys-sub {
   font-size: .93rem; font-weight: 620; color: var(--text-2);
   letter-spacing: -.012em; margin: 0 0 6px;
 }
+.sys-card .set-name { margin: 18px 0 2px; }
+.sys-card h3 + .set-name { margin-top: 0; }
+.sys-card .set-desc { margin: 0 0 8px; }
+.sys-card .set-desc + .more { margin: -4px 0 10px; }
 /* Ablagefeld des Imports leiser, weil er Daten ersetzt; `.drop:hover`
    gilt weiter. */
 .drop-quiet { border-color: var(--line-2); background: none; }
@@ -1182,7 +1302,20 @@ mark {
 .kv:last-child { border-bottom: none; }
 .kv .k { color: var(--muted); }
 .kv .k .extra { color: var(--faint); }
+/* Zahlenfeld rechts neben Name und Spanne; alle Felder einer Karte gleich breit und buendig. */
+.numfield { display: grid; grid-template-columns: minmax(0, 1fr) 96px; column-gap: 14px; align-items: center; }
+.numfield label { margin-bottom: 2px; }
+.numfield .desc { margin: 0; }
+.numfield .numfield-hint { grid-column: 1 / -1; margin-top: 6px; }
+.mail-detail { display: block; margin-top: 4px; font-size: .72rem; opacity: .8; overflow-wrap: anywhere; }
 .kv .v { font-family: var(--mono); font-size: .83rem; }
+/* Ohne min-width: 0 schrumpft ein Flex-Kind nicht unter sein laengstes Wort. */
+.kv .k, .kv .v { min-width: 0; overflow-wrap: anywhere; }
+.kv .v .extra { display: block; color: var(--faint); }
+.kv .v.kv-num { white-space: nowrap; flex-shrink: 0; }
+/* Fuer Namen, die neben dem Wert keinen Platz haben. */
+.kv-stack { flex-direction: column; gap: 2px; }
+.kv-stack .k { font-size: .75rem; }
 /* ---- Faelligkeitsdatum ---- */
 .cmt-due { font-size: .76rem; color: var(--muted); }
 .cmt-due.on { color: var(--text); font-family: var(--mono); }
@@ -1208,6 +1341,14 @@ mark {
 #cleanup-list .mrow .mcount { flex: 1 1 0; min-width: 0; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; text-align: right; }
 .backup-probe { padding: 0 0 6px 14px; font-size: .83rem; }
+.cleanup-head { display: flex; align-items: baseline; justify-content: space-between; gap: 9px; }
+#cleanup-store { margin: 2px 2px 6px; }
+/* Zweite Zeile je Backup: Version, Marke und Dateien. */
+#cleanup-list .mrow { flex-wrap: wrap; row-gap: 1px; }
+#cleanup-list .mrow .mfiles { flex: 0 0 100%; min-width: 0; font-family: var(--mono); font-size: .68rem;
+  color: var(--faint); }
+#cleanup-list .mrow .mbefore { color: var(--accent-text); }
+.mrow .cleanup-pick { flex-shrink: 0; margin: 0; }
 .probe-ok { font-family: var(--mono); font-size: .8rem; }
 .probe-no { color: var(--muted); }
 
@@ -1259,18 +1400,27 @@ mark {
    Import aus dem Blick (20 GB sind 70 Zeilen). */
 #ex-part-list { flex: none; max-height: 280px; }
 
-/* Fuenf Zeilen: 5 x 41,92 px / 15 = 13,973 rem. */
-#cleanup-list { flex: none; max-height: 13.98rem; }
+/* Fuenf Zeilen mit zweiter Zeile: 5 x 58,73 px / 15 = 19,578 rem. */
+#cleanup-list { flex: none; max-height: 19.58rem; }
 /* Rot: wird beim naechsten Lauf geloescht. Gedaempft: bleibt. */
 .mrow .cleanup-badge { flex-shrink: 0; font-size: .7rem; letter-spacing: .03em; text-transform: uppercase; }
 .mrow .cleanup-badge.remove { color: var(--red); }
 .mrow .cleanup-badge.old { color: var(--faint); }
-/* Hover wie bei `.lrow`, `.trow` und `.arow`; zusammen aendern. */
+/* Hover wie bei `.lrow` und `.trow`; zusammen aendern. */
 .mrow { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: var(--r-sm); background: var(--surface-2); margin-bottom: 5px; border: 1px solid transparent;
   transition: background .15s var(--ease), border-color .15s var(--ease); }
 .mrow:hover { border-color: var(--line); background: var(--surface-3); }
 .mrow .mname { flex: 1; min-width: 0; font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mrow .mcount { font-family: var(--mono); font-size: .7rem; color: var(--faint); }
+/* Name und Bedienelemente; reicht der Platz nicht, rueckt `.mctl` rechtsbuendig in eine zweite Zeile. */
+.mrow.mline { flex-wrap: wrap; row-gap: 3px; }
+.mrow.mline .mname { flex: 1 0 auto; max-width: 100%; }
+.mctl { display: flex; align-items: center; gap: 9px; margin-left: auto; flex-shrink: 0; }
+.mhead { display: flex; padding: 0 10px 3px; position: sticky; top: 0; background: var(--surface); }
+.mhead .mact { visibility: hidden; }
+/* So breit wie `.mweight-field`, rechtsbuendig an dessen Rand. */
+.mweight-head { width: 3.8em; display: flex; justify-content: flex-end; white-space: nowrap;
+  font-family: var(--mono); font-size: .78rem; color: var(--faint); }
 /* Vermerk, dass für die gezeigte Sprache nichts eingetragen ist. Eigene
    Zeile: in 280 px verdrängte er sonst den Namen. */
 .mrow.withback { flex-wrap: wrap; row-gap: 1px; }
@@ -1284,14 +1434,12 @@ mark {
 .namegap { border: 1px dashed var(--line-2); border-radius: var(--r-sm);
   padding: 10px 12px; margin-bottom: 12px; }
 .namegap .desc { font-size: .82rem; }
-.mrow .mact { color: var(--faint); font-size: .8rem; padding: 3px 6px; border-radius: 4px; opacity: 0; transition: all .15s var(--ease); }
-.mrow:hover .mact { opacity: 1; }
-.mrow .mact:hover { color: var(--accent-text); background: var(--accent-dim); }
-.mrow .mact.rm:hover { color: var(--red); background: var(--red-dim); }
-/* Der Radierer steht immer da. Orange statt Rot beim Überfahren: die
-   Zeile bleibt. */
-.mrow .mact.nx { opacity: .5; }
-.mrow:hover .mact.nx { opacity: 1; }
+/* In Listen der Einstellungen halb sichtbar; der Text der Karte kündigt die Knöpfe an.
+   `:not(:disabled)`: sonst saehe ein deaktivierter Knopf aus wie ein ruhender. */
+.mrow .mact:where(:not(:disabled)) { opacity: .5; }
+.mrow:hover .mact:where(:not(:disabled)), .mrow .mact:focus-visible { opacity: 1; }
+/* „↓ Laden“ ist die einzige Aktion seiner Zeile. */
+#ex-part-list .mact:where(:not(:disabled)) { opacity: 1; }
 .mrow input.medit { flex: 1; background: var(--bg); border: 1px solid var(--accent); border-radius: 5px; padding: 4px 8px; font-size: .87rem; }
 /* Immer sichtbar, anders als `.mact`: das Gewicht ist ein Wert, keine
    Aktion. */
@@ -1305,8 +1453,7 @@ mark {
   transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
 }
 .mrow .mweight-field:hover { border-color: var(--line-hover); }
-.mrow .mweight-field:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
-/* Ohne Verwaltungsrecht Text statt Feld. */
+.mrow .mweight-field:focus { outline: none; border-color: var(--accent-edge); box-shadow: 0 0 0 3px var(--accent-dim); }
 .mrow .mweight-fixed { font-size: .74rem; }
 /* Kein `touch-action: none`: jede Wischbewegung wuerde zum Umsortieren;
    `makeSortable()` in app.js beginnt erst nach kurzem Halten. */
@@ -1349,11 +1496,12 @@ mark {
 .mrow.user-locked { opacity: .62; }
 .mrow.user-remove { opacity: .4; }
 .mrow.user-remove .mname { font-style: italic; }
-@media (hover: none) { .mrow .mact { opacity: 1; } }
+@media (hover: none) { .mrow .mact:where(:not(:disabled)) { opacity: 1; } }
 
 .user-new { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
 .user-new .input { flex: 1 1 130px; min-width: 0; }
 .user-new select.input { flex: 0 0 auto; width: auto; }
+.user-kind { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 
 .mrow.user .user-waiting { color: var(--accent-text); }
 .log-detail .role-badge { margin-left: 2px; }
@@ -1369,7 +1517,9 @@ mark {
 .user-send-fail strong { color: var(--red); }
 
 .mail-on { color: var(--green); }
-.mail-off { color: var(--red); }
+/* Freiwillige Funktion, die aus ist: kein Fehler. */
+.mail-off { color: var(--muted); }
+.mail-bad { color: var(--red); }
 .mail-ok { background: var(--green-dim); border-color: rgba(var(--green-rgb), .3); }
 .mail-ok strong { color: var(--green); }
 /* ---- Dialog „Mailzugang" ---- */
@@ -1420,11 +1570,12 @@ mark {
 
 .warn-box { background: var(--red-dim); border: 1px solid rgba(var(--red-rgb), .3); border-radius: var(--r-sm); padding: 11px 13px; font-size: .87rem; color: var(--text-2); line-height: 1.55; }
 .warn-box strong { color: var(--red); }
+.plain-box { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 11px 13px; font-size: .87rem; color: var(--text-2); line-height: 1.55; }
+.plain-box .plain-danger strong { color: var(--red); }
 .ok-box { background: var(--green-dim); border: 1px solid rgba(var(--green-rgb), .3); border-radius: var(--r-sm); padding: 11px 13px; font-size: .87rem; color: var(--text-2); line-height: 1.55; }
 
 /* ---------- Zweiter Faktor ---------- */
 /* „aus" grau statt rot: ein dauerhaft roter Hinweis wird bald nicht mehr gelesen. */
-.two-factor-block { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
 .two-factor-state { font-size: .87rem; line-height: 1.55; color: var(--text-2); }
 .two-factor-on strong { color: var(--green); }
 .two-factor-off strong { color: var(--muted); }
@@ -1449,43 +1600,156 @@ mark {
   font-family: var(--mono); font-size: .95rem; letter-spacing: .04em;
   color: var(--text); user-select: all;
 }
+.codes-copy { margin-top: 10px; }
 
 /* ---------- Vollbild ---------- */
 /* `overscroll-behavior: contain`: sonst scrollt ein Wisch am Ende die Seite dahinter;
    `body.lb-open` verhindert das nicht. */
 .lightbox { position: fixed; inset: 0; z-index: var(--z-lightbox); background: var(--lb-bg); display: flex; flex-direction: column; overscroll-behavior: contain; animation: fade .2s var(--ease) both; }
+/* Zwei Finger zoomen das Bild, nicht die Seite; app.js wertet sie aus. */
+.lightbox { touch-action: pan-x pan-y; }
+.lightbox:focus { outline: none; }
+/* Die Buehne endet vor Gestenleiste und Notch; oben haelt `.lb-top` den Abstand selbst. */
+.lightbox { padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 .lb-stage { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; min-height: 0; }
 .lb-stage img { max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; user-select: none; -webkit-user-drag: none; }
+.lb-stage img.lb-plain { cursor: default; }
+.lb-stage img.lb-coming { visibility: hidden; }
 /* `flex-start`, weil ein zentriertes, zu grosses Flex-Kind nach beiden Seiten
    ueberlaeuft; zentriert wird ueber `margin: auto` am Bild. */
 .lb-stage.zoomed { overflow: auto; align-items: flex-start; justify-content: flex-start; }
-.lb-stage.zoomed img { max-width: none; max-height: none; margin: auto; cursor: zoom-out; }
+.lb-stage.zoomed img { max-width: none; max-height: none; margin: auto; cursor: grab; }
+.lb-stage.zoomed.dragging img { cursor: grabbing; }
+.lb-wait { position: absolute; top: 50%; left: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; border: 3px solid rgba(var(--edge-on-dark-rgb), .2); border-top-color: var(--accent); animation: lb-turn .8s linear infinite; pointer-events: none; }
+@keyframes lb-turn { to { transform: rotate(1turn); } }
+.lb-loading { position: absolute; inset: 0; z-index: var(--z-viewer-tools); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: var(--lb-bg); text-align: center; }
+.lb-loading p { margin: 0; font-size: .93rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.lb-loading .lb-loading-at { font-size: .8rem; color: var(--muted); }
+.lb-hint { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: var(--z-viewer-tools); max-width: calc(100% - 32px); margin: 0; padding: 6px 14px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: .8rem; text-align: center; pointer-events: none; }
 /* Kein Zoomzeiger am Video: der Klick gehoert der eigenen Steuerung. */
 .lb-stage video { max-width: 100%; max-height: 100%; object-fit: contain; background: #000; }
-/* `safe-area-inset`, sonst liegt der Schliessknopf unter der Uhr des Telefons. */
-.lb-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; padding-top: calc(14px + env(safe-area-inset-top)); padding-left: max(18px, env(safe-area-inset-left)); padding-right: max(18px, env(safe-area-inset-right)); flex-shrink: 0; }
-.lb-title { font-size: .93rem; color: var(--text-2); font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lb-tools { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+/* Seitlich so viel Abstand, wie Pfeil und Rand zusammen breit sind. */
+.lb-unplayable { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 0 70px; text-align: center; color: var(--text-2); }
+.lb-unplayable p { margin: 0; font-size: .93rem; }
+.lb-unplayable .lb-why { max-width: 420px; font-size: .82rem; color: var(--muted); }
+.lb-unplayable a { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text); text-decoration: none; font-size: .85rem; }
+.lb-unplayable a:hover { border-color: var(--accent); color: var(--accent-text); }
+/* `safe-area-inset-top`, sonst liegt der Schliessknopf unter der Uhr des Telefons. */
+.lb-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; padding-top: calc(14px + env(safe-area-inset-top)); flex-shrink: 0; }
+/* Basis 0: der Titel bekommt nur den Platz, den die Knoepfe uebrig lassen; die Leiste bricht erst um,
+   wenn sie allein nicht passt. */
+.lb-title { font-size: .93rem; color: var(--text-2); font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 0; min-width: 0; }
+.lb-name:not(:empty) + .lb-of { margin-left: 8px; font-size: .8rem; font-weight: 400; color: var(--muted); }
+.lb-tools { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; order: 1; }
 .lb-count { font-family: var(--mono); font-size: .8rem; color: var(--muted); }
+.lb-title .lb-count { display: none; }
 .lb-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); display: flex; align-items: center; justify-content: center; color: var(--text-2); font-size: 1rem; transition: all .15s var(--ease); }
 .lb-btn:hover { background: var(--surface-3); color: var(--text); border-color: var(--line-hover-2); }
 .lb-btn.download { text-decoration: none; }
-/* Abstand zum Papierkorb, damit er nicht direkt neben dem Schliessknopf liegt. */
-.lb-btn.remove { margin-left: 10px; }
+.lb-btn.whole, .lb-btn.zoom { width: auto; padding: 0 10px; font-size: .8rem; }
+.lb-btn.whole[aria-pressed="true"], .lb-btn.zoom[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+/* Beim Laden haelt app.js die Breite fest; der Anteil waechst nicht mit jeder Ziffer. */
+.lb-btn.whole { min-width: 34px; white-space: nowrap; }
+.lb-btn.whole[aria-pressed="true"] { padding: 0 4px; }
+.lb-btn.whole.done, .lb-btn.whole.done:hover { cursor: default; background: var(--surface); border-color: var(--line); color: var(--text-2); }
+.lb-btn.whole .ok { stroke: var(--green); }
+.lb-btn.whole .lb-phone { display: none; }
+.lb-btn.whole .lb-phone .icon { width: 15px; height: 15px; }
+.lb-btn.still.wanted { color: var(--accent); border-color: var(--accent); }
+.lb-source .pill { height: 34px; padding: 0 8px; font-size: .8rem; display: flex; align-items: center; }
+/* --muted erreicht im hellen Schema auf --surface nur 4,1 : 1. */
+.lb-source .pill:not(.on) { color: var(--text-2); }
+/* ✕ steht ausserhalb der Leiste und bleibt oben rechts, auch wenn sie umbricht. */
+.lb-top > .close { flex-shrink: 0; align-self: flex-start; order: 2; }
+.lb-btn.remove { margin-right: 10px; }
 .lb-btn.remove:hover { color: var(--red); border-color: var(--red); background: var(--surface-3); }
 /* Pfeile an `.lightbox`, nicht an `.lb-stage`: gezoomt scrollt `.lb-stage`, und die
    Pfeile scrollten mit. */
 .lb-nav { position: absolute; z-index: var(--z-page-arrows); top: 50%; transform: translateY(-50%); width: 46px; height: 46px; border-radius: 50%; background: rgba(var(--lb-surface-rgb), .9); border: 1px solid rgba(var(--edge-on-dark-rgb), .11); display: flex; align-items: center; justify-content: center; color: var(--text); font-size: 1.53rem; transition: all .15s var(--ease); }
 .lb-nav:hover { background: var(--accent); border-color: var(--accent-edge); color: var(--on-accent); transform: translateY(-50%) scale(1.07); }
-.lb-nav.prev { left: 16px; } .lb-nav.next { right: 16px; }
+.lb-nav.prev { left: calc(16px + env(safe-area-inset-left)); } .lb-nav.next { right: calc(16px + env(safe-area-inset-right)); }
 /* `safe center`: bei Ueberlauf schoebe `center` die ersten Bilder unerreichbar ueber
    den linken Rand. `center` davor gilt fuer Browser ohne `safe`. */
-.lb-strip { display: flex; gap: 7px; padding: 12px 18px 18px; padding-bottom: calc(18px + env(safe-area-inset-bottom)); overflow-x: auto; overscroll-behavior-x: contain; justify-content: center; justify-content: safe center; flex-shrink: 0; }
+.lb-strip { display: flex; gap: 7px; padding: 12px 18px 18px; overflow-x: auto; overscroll-behavior-x: contain; justify-content: center; justify-content: safe center; flex-shrink: 0; }
 .lb-thumb { width: 56px; height: 56px; border-radius: 6px; overflow: hidden; flex-shrink: 0; border: 2px solid transparent; opacity: .5; transition: all .15s var(--ease); }
 .lb-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Ein Video ohne Standbild zeigt die Endung; ohne Bild nicht abgedunkelt, die Wahl zeigt der Rand. */
+.lb-thumb:has(.lb-ext) { display: flex; align-items: center; justify-content: center; background: var(--surface-2); opacity: 1; }
+.lb-ext { font-family: var(--mono); font-size: .62rem; font-weight: 700; letter-spacing: .05em; color: var(--text-2); }
 .lb-thumb.on { opacity: 1; border-color: var(--accent); }
 .lb-thumb:hover { opacity: 1; }
 body.lb-open { overflow: hidden; }
+/* Auch am Wurzelelement: Ist die Seite breiter als der Bildschirm, legt Chrome auf Android das Vollbild sonst ebenso breit an. */
+html:has(> body.lb-open) { overflow: hidden; overscroll-behavior-x: none; }
+/* Seitlich Platz fuer die Pfeile. */
+.lb-audio { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; width: calc(100% - 140px); height: 100%; padding: 16px 0; }
+.lb-cover { flex: 1 1 auto; min-height: 0; width: 100%; max-width: 640px; display: flex; align-items: center; justify-content: center; }
+.lb-cover img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; cursor: default; }
+.lb-sign { font-size: 4rem; color: var(--muted); display: flex; }
+.lb-wave { position: relative; flex-shrink: 0; width: 100%; height: 64px; color: var(--text); cursor: pointer; touch-action: none; }
+.lb-wave.big { flex: 1 1 auto; height: auto; max-height: 260px; min-height: 64px; }
+.lb-wave-rest, .lb-wave-done { position: absolute; inset: 0; }
+.lb-wave-done { color: var(--accent); clip-path: inset(0 calc(100% - var(--at, 0%)) 0 0); }
+.lb-wave .wave { display: block; width: 100%; height: 100%; }
+.lb-wave-head { position: absolute; top: 0; bottom: 0; left: var(--at, 0%); width: 2px; margin-left: -1px; background: var(--text); pointer-events: none; }
+.lb-deck { display: flex; width: 100%; flex-shrink: 0; }
+.lb-deck.big { flex: 1 1 auto; min-height: 0; max-height: 320px; }
+
+/* ---- Abspieler fuer Audio (soundDeck) ---- */
+.sdeck { flex: none; display: grid; grid-template-columns: 28px auto 1fr; grid-template-rows: 88px auto;
+  column-gap: 8px; row-gap: 8px; width: 100%; align-items: center; }
+.sdeck.big { flex: 1 1 auto; grid-template-rows: minmax(64px, 1fr) auto; }
+/* Die linke Spalte steht mittig zwischen Kartenrand und Balken L: 30px sind column-gap und die Skala (.sd-meter),
+   --sd-edge der Innenabstand der Karte. */
+.sdeck.fine { padding-left: max(0px, calc(30px - var(--sd-edge, 30px))); }
+.apreview .sdeck { --sd-edge: 10px; }
+.viewer .sdeck { --sd-edge: 16px; }
+.sdeck .lb-wave { grid-area: 1 / 3; height: 100%; max-height: none; min-height: 0; align-self: stretch; }
+.sd-time { grid-area: 2 / 3; justify-self: end; font-family: var(--mono); font-size: .75rem; color: var(--text-2); }
+.sd-play { grid-area: 2 / 1; justify-self: center; display: grid; place-items: center; width: 28px; height: 28px;
+  padding: 0; border: 0; border-radius: 6px; background: none; color: var(--text-2); cursor: pointer; }
+.sd-play:hover { color: var(--accent-text); }
+.sd-play .icon { width: 16px; height: 16px; }
+.sd-vol { grid-area: 1 / 1; align-self: stretch; justify-self: center; display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 0; }
+.sd-mute { display: grid; place-items: center; width: 22px; height: 18px; padding: 0; border: 0; background: none; color: var(--text-2); cursor: pointer; }
+.sd-mute:hover { color: var(--accent-text); }
+.sd-mute .icon { width: 15px; height: 15px; }
+/* Eigene Spur und eigener Knopf: mit accent-color zeichnet der Browser den Knopf rund 16 px gross. --vol setzt soundWire(). */
+.sd-volume { flex: 1 1 auto; min-height: 0; width: 12px; margin: 0; writing-mode: vertical-lr; direction: rtl; cursor: pointer;
+  -webkit-appearance: none; appearance: none; background: none; }
+.sd-volume::-webkit-slider-runnable-track { width: 4px; margin: 0 auto; border-radius: 2px;
+  background: linear-gradient(to top, var(--accent) var(--vol, 100%), var(--line-hover) var(--vol, 100%)); }
+.sd-volume::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; margin-left: -4px;
+  border: 0; border-radius: 50%; background: var(--text-2); }
+.sd-volume::-moz-range-track { width: 4px; border-radius: 2px; background: var(--line-hover); }
+.sd-volume::-moz-range-progress { width: 4px; border-radius: 2px; background: var(--accent); }
+.sd-volume::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: var(--text-2); }
+.sd-volume:hover::-webkit-slider-thumb, .sd-volume:focus-visible::-webkit-slider-thumb { background: var(--accent-edge); }
+.sd-volume:hover::-moz-range-thumb, .sd-volume:focus-visible::-moz-range-thumb { background: var(--accent-edge); }
+/* Skala -48 bis 0 dBFS; Gruen bis -18, Gelb bis -6 (62,5 und 87,5 % der Hoehe), wie METER_FLOOR in public/app.js. */
+.sd-meter { grid-area: 1 / 2; align-self: stretch; position: relative; display: flex; gap: 4px; padding: 8px 0 0 22px; cursor: pointer; }
+.sd-scale { position: absolute; left: 0; top: 8px; bottom: 0; width: 18px; font-family: var(--mono); font-size: .6rem; line-height: 1; color: var(--muted); }
+.sd-scale span { position: absolute; right: 0; transform: translateY(50%); }
+.sd-bar { position: relative; width: 8px; border-radius: 1px; background: var(--surface-3); }
+.sd-meter.mono .sd-bar { width: 20px; }
+.sd-fill { position: absolute; inset: 0; border-radius: 1px; clip-path: inset(calc(100% - var(--lv, 0%)) 0 0 0);
+  background: linear-gradient(to top, rgb(var(--green-rgb)) 0 62.5%, rgb(var(--gold-rgb)) 62.5% 87.5%, rgb(var(--red-rgb)) 87.5% 100%); }
+.sd-peak { position: absolute; left: -1px; right: -1px; height: 2px; bottom: calc(var(--pk, 0%) - 1px); background: var(--text); }
+.sd-bar.quiet .sd-peak { display: none; }
+.sd-clip { position: absolute; left: 0; right: 0; top: -7px; height: 4px; border-radius: 1px; background: var(--surface-3); }
+.sd-clip.on { background: rgb(var(--red-rgb)); }
+.sd-lr { grid-area: 2 / 2; display: flex; gap: 4px; padding-left: 22px; font-family: var(--mono); font-size: .6rem; color: var(--muted); }
+.sd-lr span { width: 8px; text-align: center; }
+.sd-meter.mono + .sd-lr span { width: 20px; }
+.sd-flat { background: linear-gradient(currentColor, currentColor) center / 100% 2px no-repeat; }
+.sdeck:not(.fine) { grid-template-columns: auto 1fr; grid-template-rows: 72px auto; row-gap: 2px; }
+.sdeck:not(.fine).big { grid-template-rows: minmax(64px, 1fr) auto; }
+.sdeck:not(.fine) .lb-wave { grid-area: 1 / 1 / 2 / 3; }
+.sdeck:not(.fine) .sd-play { grid-area: 2 / 1; justify-self: start; width: 44px; height: 44px; margin-left: -12px; }
+.sdeck:not(.fine) .sd-play .icon { width: 20px; height: 20px; }
+.sdeck:not(.fine) .sd-time { grid-area: 2 / 2; }
+.lb-ext .wave { width: 44px; height: 28px; display: block; color: var(--text); }
+.lb-ext .icon { font-size: 1.4rem; }
 
 /* ---------- Dialoge ---------- */
 /* Kein `backdrop-filter: blur`; `--scrim` ist dafuer etwas dichter. */
@@ -1495,6 +1759,25 @@ body.lb-open { overflow: hidden; }
 .modal p { margin: 0; color: var(--muted); font-size: .93rem; line-height: 1.6; }
 .modal .ta { min-height: 74px; }
 .modal-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.modal .minfo-name { font-family: var(--mono); font-size: .8rem; overflow-wrap: anywhere; }
+.modal .minfo-place { margin-top: -6px; font-size: .78rem; color: var(--muted); }
+.arename { display: flex; align-items: center; gap: 6px; }
+.arename .input { flex: 1; min-width: 0; }
+.arename-ext { font-family: var(--mono); font-size: .88rem; color: var(--muted); white-space: nowrap; }
+.share-in { width: 5.5em; margin: 0 4px 0 8px; }
+.minfo-head { margin: 14px 0 2px; font-size: .8rem; font-weight: 620; color: var(--muted); }
+.minfo-head:first-child { margin-top: 0; }
+.minfo-group > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 7px; user-select: none; }
+.minfo-group > summary::-webkit-details-marker { display: none; }
+.minfo-group > summary::before { content: ''; width: .45em; height: .45em; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform .15s var(--ease); }
+.minfo-group[open] > summary::before { transform: rotate(45deg); }
+.minfo-group > summary:hover { color: var(--text-2); }
+.minfo-group > :not(summary) { margin-left: 13px; }
+.adeleted-list { list-style: none; margin: 0; padding: 0; max-height: 55vh; overflow-y: auto; }
+.adeleted-list li + li { border-top: 1px solid var(--line); }
+.adeleted-list label { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: baseline; padding: 6px 0; }
+.adeleted-name { overflow-wrap: anywhere; }
+.adeleted-meta { grid-column: 2; }
 /* ---- Glocke ---- */
 .bell-panel { max-width: 520px; }
 .bell-row { cursor: pointer; }
@@ -1502,6 +1785,7 @@ body.lb-open { overflow: hidden; }
 /* „von wem" in eigener Zeile, sonst schrumpft `.mname` auf Auslassungspunkte. */
 .mrow.bell-row { flex-wrap: wrap; row-gap: 2px; }
 .bell-row .bell-from { flex-basis: 100%; font-size: .76rem; color: var(--faint); }
+.bell-row.read { opacity: .55; }
 .bell-head {
   font-size: .72rem; letter-spacing: .06em; text-transform: uppercase;
   color: var(--faint); padding: 12px 0 4px;
@@ -1529,27 +1813,57 @@ body.lb-open { overflow: hidden; }
 .calc-same > span { color: var(--muted); border-bottom: 0; border-top: 1px solid var(--line-2); }
 
 /* `safe-area-inset-bottom`, sonst liegt die Meldung halb hinter dem Home-Indikator. */
-.toast { position: fixed; bottom: calc(22px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); background: var(--surface-3); border: 1px solid var(--line); color: var(--text); padding: 10px 18px; border-radius: 999px; font-size: .9rem; z-index: var(--z-toast); box-shadow: var(--sh-lg); animation: pop 2.6s forwards; max-width: 82vw; text-align: center; }
+.toast { position: fixed; bottom: calc(22px + env(safe-area-inset-bottom)); left: 16px; right: 16px; margin: 0 auto; width: fit-content; background: var(--surface-3); border: 1px solid var(--line); color: var(--text); padding: 10px 18px; border-radius: 999px; font-size: .9rem; z-index: var(--z-toast); box-shadow: var(--sh-lg); animation: pop 2.6s forwards; text-align: center; }
 /* Ueber `.cmp-bar`: 90px sind 20 Abstand, 60 Hoehe der Leiste und 10 Luft. */
 body:has(.cmp-bar) .toast { bottom: calc(90px + env(safe-area-inset-bottom)); }
-.toast.err { background: var(--red); border-color: var(--red); color: var(--on-signal); }
+/* Mit offenem Dialog oben, sonst laege sie ueber seinen Knoepfen. `body` schlaegt die Regel davor. */
+body .toast.top { top: calc(16px + env(safe-area-inset-top)); bottom: auto; }
+.toast.err { display: flex; align-items: center; gap: 10px; padding-right: 8px; border-radius: 22px; text-align: left;
+  background: var(--red); border-color: var(--red); color: var(--on-signal); animation: toast-in .2s forwards; }
+.toast-x { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+  border: 0; border-radius: 50%; background: none; color: inherit; cursor: pointer; }
+.toast-x:hover { background: color-mix(in srgb, currentColor 18%, transparent); }
+.toast-x svg { width: 18px; height: 18px; }
 /* Meldung mit Knopf; die Dauer setzt toast() in public/app.js. */
 .toast.with-btn { display: inline-flex; align-items: center; gap: 8px; }
 .toast-sep { color: var(--muted); }
 .toast-btn { background: none; border: 0; padding: 0; color: var(--accent-text); font: inherit; font-weight: 600; cursor: pointer; }
 .toast-btn:hover { color: var(--accent-text-hi); text-decoration: underline; }
-@keyframes pop { 0% { opacity: 0; transform: translate(-50%, 8px); } 8% { opacity: 1; transform: translate(-50%, 0); } 84% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -4px); } }
+@keyframes pop { 0% { opacity: 0; transform: translateY(8px); } 8% { opacity: 1; transform: none; } 84% { opacity: 1; } 100% { opacity: 0; transform: translateY(-4px); } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
 /* ================= Zeitleiste der Testtage ================= */
-/* Ohne Rahmen und Untergrund: sonst saehe sie aus wie eine Karte. */
+/* Ohne Rahmen und Untergrund: sonst saehe sie aus wie eine Karte. Aktiv (Zoom) mit Rahmen in der Akzentfarbe. */
 .timeline {
-  position: relative; margin: 0 0 22px; padding: 14px 0 4px;
+  position: relative; margin: 0; padding: 14px 0 4px 16px;
+  border-radius: var(--r-sm); outline: 1px solid transparent; outline-offset: 6px; cursor: zoom-in;
+  /* Auch inaktiv: sonst zoomt der Browser die Seite und schickt `pointercancel` statt der Finger. */
+  touch-action: pan-y;
+  /* Ein Doppelklick schaltet die Leiste um und markiert sonst die Jahreszahlen. */
+  user-select: none;
 }
-.timeline-axis { position: absolute; left: 0; right: 0; top: 14px; height: 60px; }
+.timeline.active { outline-color: var(--accent-edge); cursor: grab; }
+/* Ueber dem Rahmen der aktiven Leiste: 18 px Abstand sind 12 px zu `outline-offset: 6px`. */
+.timeline-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin: 0 0 18px;
+  font-size: .8rem; color: var(--muted); }
+.tl-key { display: inline-flex; align-items: center; gap: 5px; }
+.tl-mark { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); }
+.tl-mark.foreign { background: transparent; border: 1.5px solid var(--gold); }
+/* 12 px: 6 px Luft unter dem Rahmen der aktiven Leiste (`outline-offset: 6px`). */
+.tl-below { display: flex; justify-content: flex-end; align-items: center; gap: 14px; margin: 12px 0 18px;
+  font-size: .8rem; color: var(--muted); white-space: nowrap; }
+.tl-how { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tl-all { flex-shrink: 0; }
+.timeline-scroll { position: relative; height: 4px; margin-top: 2px; border-radius: 2px; background: var(--timeline-line); }
+.timeline-thumb { position: absolute; top: -3px; bottom: -3px; min-width: 12px; border-radius: 4px; background: var(--muted); cursor: grab; }
+/* Links 16 px fuer die Notenskala, innerhalb des Rahmens. */
+.timeline-axis { position: absolute; left: 16px; right: 0; top: 14px; height: 60px; }
 .timeline-line { position: absolute; left: 0; right: 0; height: 1px; background: var(--timeline-line); }
 .timeline-line.center { background: var(--timeline-mid); }
+.timeline-grade { position: absolute; left: -16px; width: 10px; text-align: right; transform: translateY(50%);
+  font-family: var(--mono); font-size: .6rem; line-height: 1; color: var(--timeline-year); }
 .timeline-field { position: relative; height: 60px; }
 .timeline-dot {
   position: absolute; width: 9px; height: 9px; margin: 0 0 -4px -4px;
@@ -1559,13 +1873,15 @@ body:has(.cmp-bar) .toast { bottom: calc(90px + env(safe-area-inset-bottom)); }
 /* Fremde Punkte als Ring; mit `border-box` bleibt ihre Groesse bei 9 px. */
 .timeline-dot.foreign { background: transparent; border: 1.5px solid var(--gold); }
 .timeline-dot:hover { opacity: 1; transform: scale(1.5); }
-.timeline-years { position: relative; height: 18px; margin-top: 4px; border-top: 1px solid var(--timeline-line); }
+.timeline-years { position: relative; height: 18px; margin-top: 4px; }
 .timeline-year {
   position: absolute; transform: translateX(-50%); top: 3px;
   font-family: var(--mono); font-size: .63rem; color: var(--timeline-year); white-space: nowrap;
 }
 /* `max-content` loest die Breite vom Platz rechts des Punkts; showHint() in
    public/app.js schiebt den Hinweis danach in die Zeitleiste. */
+.timeline-year.at-start { transform: none; }
+.timeline-year.at-end { transform: translateX(-100%); }
 .timeline-hint {
   position: absolute; bottom: 100%; transform: translateX(-50%);
   margin-bottom: -6px; padding: 7px 10px; z-index: var(--z-timeline-hint); pointer-events: none;
@@ -1590,10 +1906,9 @@ body:has(.cmp-bar) .toast { bottom: calc(90px + env(safe-area-inset-bottom)); }
 .bgrip:hover { color: var(--accent-text); }
 .bcaret { color: var(--faint); font-size: .73rem; width: .8em; flex-shrink: 0; }
 .bsum { color: var(--muted); font-size: .83rem; font-family: var(--mono); }
-.block.closed > *:not(.block-head) { display: none; }
+.block.closed > *:not(.block-head), .block.closed .ahead-acts, .block.closed #acount { display: none; }
 .block.closed { padding-bottom: 15px; }
 .block.closed .block-head { margin-bottom: 0; }
-/* Beim Ziehen schrumpft der Block auf seine Kopfzeile. */
 .block.dragging {
   max-height: 50px; overflow: hidden; opacity: .55;
   padding-top: 15px; padding-bottom: 15px;
@@ -1611,19 +1926,19 @@ body:has(.cmp-bar) .toast { bottom: calc(90px + env(safe-area-inset-bottom)); }
   display: flex; align-items: center; gap: 6px;
   opacity: 0; transition: opacity .15s var(--ease);
 }
-.viewer:hover .vtools { opacity: 1; }
+.viewer:hover .vtools, .vtools:has(:focus-visible) { opacity: 1; }
 @media (hover: none) { .vtools { opacity: 1; } }
 /* Im Ausschnittmodus sichtbar ohne Hover, sonst verschwaende der Weg hinaus. */
 .vtools.open { opacity: 1; }
 
-.vfocus, .vfull, .vremove {
+.vfocus, .vlink, .vfull, .vremove {
   display: flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; border-radius: 999px;
   background: rgba(var(--photo-rgb), .78); border: 1px solid var(--line); color: var(--on-photo);
   transition: color .15s var(--ease), border-color .15s var(--ease),
               background .15s var(--ease);
 }
-.vfocus:hover, .vfull:hover, .vremove:hover { color: var(--text); border-color: var(--line-hover-2); }
+.vfocus:hover, .vlink:hover, .vfull:hover, .vremove:hover { color: var(--on-photo-strong); border-color: var(--line-hover-2); }
 .vfocus.on { color: var(--accent-text); border-color: var(--accent); }
 /* Papierkorb abgesetzt, erst beim Hover rot; die beiden davor stellen nur etwas ein. */
 .vremove { margin-left: 14px; }
@@ -1656,32 +1971,243 @@ body:has(.cmp-bar) .toast { bottom: calc(90px + env(safe-area-inset-bottom)); }
 }
 
 /* ================= Dateien am Eintrag ================= */
-.arow {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px; border-radius: var(--r-sm); background: var(--surface-2);
-  margin-bottom: 5px; border: 1px solid transparent;
-  transition: background .15s var(--ease), border-color .15s var(--ease);
+/* Kante der Kachel: 128 px am Rechner, 96 px am Telefon. auto-fill wie `.thumbs`. */
+.agrid {
+  --file-tile: 128px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--file-tile), 1fr));
+  gap: 12px 10px; margin: 10px 0; padding: 0; list-style: none;
 }
-.arow { cursor: pointer; }
-.arow:hover { border-color: var(--line); background: var(--surface-3); }
-.arow.open { border-color: var(--line); }
-.arow.open .aicon { color: var(--accent-text); }
-.arow .ago { color: var(--faint); font-size: .73rem; flex-shrink: 0; }
-.arow:hover .ago { color: var(--muted); }
-/* Eigener Download-Knopf: bei Dateien mit Vorschau oeffnet der Klick auf
-   die Zeile die Vorschau. */
-.arow .adl {
-  color: var(--faint); font-size: .87rem; line-height: 1; padding: 2px 6px; border-radius: 4px;
-  opacity: 0; flex-shrink: 0; transition: opacity .15s var(--ease), color .15s var(--ease);
+.atile { position: relative; min-width: 0; }
+.aface {
+  display: flex; flex-direction: column; gap: 3px; width: 100%; min-width: 0;
+  padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
 }
-.arow:hover .adl { opacity: 1; }
-.arow .adl:hover { color: var(--accent-text); background: var(--surface); }
-@media (hover: none) { .arow .adl { opacity: 1; } }
-.arow .aicon { color: var(--faint); font-size: .87rem; flex-shrink: 0; }
-.arow .aname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .87rem; }
-.arow .asize { font-family: var(--mono); font-size: .7rem; color: var(--faint); flex-shrink: 0; }
-/* Nicht abschneiden; schrumpfen darf nur `.aname`. */
-.arow .afrom { font-size: .7rem; color: var(--muted); flex-shrink: 0; }
+.apic {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 1 / 1; margin-bottom: 3px; border-radius: 8px; overflow: hidden;
+  background: var(--surface); border: 2px solid var(--line);
+  transition: border-color .15s var(--ease);
+}
+.aface:hover .apic { border-color: var(--line-hover-2); }
+.aface:focus-visible { outline: none; }
+.aface:focus-visible .apic { border-color: var(--accent-edge); box-shadow: 0 0 0 3px var(--accent-dim); }
+/* Rahmen, solange Vorschau oder Vollbild dieser Datei offen ist. */
+.atile.open .apic { border-color: var(--accent); }
+.apic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.apic img.adoc { object-position: top; }
+.abadge {
+  position: absolute; top: 5px; left: 5px; padding: 1px 5px; border-radius: 4px; pointer-events: none;
+  background: rgba(var(--photo-rgb), .82); color: var(--on-photo);
+  font-family: var(--mono); font-size: .58rem; font-weight: 700; letter-spacing: .04em;
+}
+.aext { font-family: var(--mono); font-size: 1.05rem; font-weight: 700; letter-spacing: .05em; color: var(--muted); }
+.awave { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 18% 10%; color: var(--text); }
+.awave .wave { width: 100%; height: 100%; display: block; }
+.awave .icon { font-size: 1.6rem; color: var(--muted); }
+.aname { display: block; min-width: 0; font-size: .77rem; line-height: 1.3; color: var(--text-2); }
+.aname-head, .aname-tail { display: block; overflow: hidden; white-space: nowrap; }
+.aname-head { text-overflow: ellipsis; }
+.aname-all {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ameta { font-family: var(--mono); font-size: .66rem; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.akind, .asize, .adur, .adate, .afrom, .anote, .aadd .aname { display: none; }
+/* Immer sichtbar, auch ohne Zeiger. */
+.amore {
+  position: absolute; top: 5px; right: 5px; width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 6px; background: rgba(var(--photo-rgb), .78); color: var(--on-photo);
+  font-size: 1rem; line-height: 1; cursor: pointer;
+}
+.amore[aria-expanded="true"] { background: var(--accent); color: var(--on-accent); }
+@media (hover: hover) { .amore:hover { background: var(--accent); color: var(--on-accent); } }
+/* Genau eins: Ring mit Prozent, „wartet" oder ⚠. `--done` setzt app.js. */
+.astate {
+  position: absolute; right: 5px; bottom: 5px; min-width: 24px; height: 24px; padding: 0 7px;
+  display: flex; align-items: center; justify-content: center; border-radius: 999px;
+  background: rgba(var(--photo-rgb), .82); color: var(--on-photo);
+  font-family: var(--mono); font-size: .6rem; white-space: nowrap;
+}
+.astate.run {
+  width: 38px; height: 38px; padding: 0;
+  background: radial-gradient(closest-side, rgb(var(--photo-rgb)) 78%, transparent 80%),
+    conic-gradient(var(--accent) calc(var(--done, 0) * 1%), var(--line-hover-2) 0);
+}
+.astate.fail { background: var(--red); color: var(--on-signal); font-size: .8rem; }
+.astate.pause { font-size: .8rem; }
+.atile.busy .aface:disabled { cursor: default; }
+.atile.failed .aname { color: var(--red); }
+.aadd .apic { background: none; border-style: dashed; }
+.aplus { font-size: 2rem; font-weight: 300; line-height: 1; color: var(--muted); }
+.aadd.full .aface { cursor: not-allowed; }
+.aadd.full .aplus { opacity: .35; }
+.aempty { margin: 8px 0 0; }
+/* Ablegen nur mit Maus; auf dem Telefon waere der Satz falsch. */
+@media (pointer: coarse), (pointer: none) { .adrop-hint { display: none; } }
+.block[data-block="dateien"].over { outline: 2px dashed var(--accent); outline-offset: 4px; }
+.agroup { padding: 2px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+.afolder { padding: 2px 4px; }
+.afolder.over { border-color: var(--accent); }
+.afolders { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.afolders:empty { display: none; }
+.afolder-head { display: flex; align-items: center; gap: 4px; }
+.afolder-face {
+  flex: 1 1 auto; min-width: 0; min-height: 44px; display: flex; align-items: center; gap: 8px;
+  padding: 4px 6px; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit;
+  text-align: left; cursor: pointer;
+}
+.afolder-face:hover, .afolder.over .afolder-face { background: var(--surface-3); }
+.afolder-face:focus-visible { outline: 2px solid var(--accent-edge); outline-offset: 1px; }
+.afolder-caret { width: 12px; flex-shrink: 0; color: var(--muted); }
+.afolder-icon { display: inline-flex; color: var(--muted); }
+.afolder-icon .icon { width: 18px; height: 18px; }
+#f-own .icon { width: 1.15em; height: 1.15em; }
+.afolder-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.afolder-meta {
+  flex: 0 1 auto; min-width: 0; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono); font-size: .66rem; color: var(--faint);
+}
+.afolder-face .astate { position: static; flex-shrink: 0; }
+.afolder-face .astate.run { width: 30px; height: 30px; }
+.afolder-more {
+  flex-shrink: 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 6px; background: none; color: var(--muted); font-size: 1rem; cursor: pointer;
+}
+.afolder-more:hover, .afolder-more[aria-expanded="true"] { background: var(--accent); color: var(--on-accent); }
+.afolder-day { flex-shrink: 0; min-height: 44px; padding: 0 6px; font-family: var(--mono); font-size: .72rem; white-space: nowrap; }
+.upload-bar {
+  position: fixed; top: 10px; right: 12px; z-index: var(--z-compare-bar); padding: 6px 12px; border-radius: 999px;
+  background: var(--accent); color: var(--on-accent); font-family: var(--mono); font-size: .8rem; text-decoration: none;
+}
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.afolder-body { padding: 0 6px 2px; }
+.acheck { display: none; }
+.picking .acheck {
+  position: absolute; top: 5px; left: 5px; width: 26px; height: 26px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center; pointer-events: none;
+  background: rgba(var(--photo-rgb), .78); color: var(--on-photo);
+}
+.picking .acheck .icon { width: 20px; height: 20px; }
+.picking .picked .acheck { background: var(--accent); color: var(--on-accent); }
+.picking .picked .apic, .thumbs.picking .thumb.picked { border-color: var(--accent); }
+/* Beim Auswaehlen zeigt Orange nur die Auswahl, nicht das angezeigte Foto. */
+.thumbs.picking .thumb.current:not(.picked) { border-color: var(--line); }
+.picking .atile.aadd, .picking .amore, .picking .afolder-more, .picking .abadge,
+.thumbs.picking .del, .thumbs.picking .play-badge { display: none; }
+.picking .atile:not(.pickable) { opacity: .45; }
+.picking .atile:not(.pickable) .aface { cursor: default; }
+.alist .picking .acheck { top: 50%; left: 9px; transform: translateY(-50%); }
+.afolder-check {
+  flex-shrink: 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 6px; background: none; color: var(--text-2); cursor: pointer;
+}
+.afolder-check .icon { width: 20px; height: 20px; }
+.afolder-check[aria-checked="true"], .afolder-check[aria-checked="mixed"] { color: var(--accent-text); }
+.afolder-check:focus-visible { outline: 2px solid var(--accent-edge); outline-offset: -2px; }
+.apick {
+  position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px;
+  margin-top: 10px; padding: 8px 12px; padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+}
+.apick-n { font-family: var(--mono); font-size: .8rem; font-weight: 600; margin-right: auto; }
+.apick .apick-del:not(:disabled) { color: var(--red); }
+.pick-row { display: flex; justify-content: flex-end; margin-top: 6px; }
+.thumbs.picking .thumb { cursor: pointer; }
+.thumbs.picking .thumb:focus-visible { outline: 2px solid var(--accent-edge); outline-offset: 2px; }
+/* ---- Kacheln oder Liste ---- */
+/* Am Telefon brechen Sortierung, Ansicht und Knoepfe um; sonst ist die Seite breiter als der Bildschirm. */
+.block-head:has(> .ahead-acts) { flex-wrap: wrap; }
+.ahead-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; min-width: 0; }
+.aview { display: inline-flex; }
+.asort { padding: 3px 8px; border-radius: 999px; font-family: var(--mono); font-size: .72rem; color: var(--muted); background: var(--surface); }
+/* ↓ ↑ so hoch wie „Kacheln · Liste“ daneben (`.pill-mode`). */
+.asort-box .sort-way .pill { padding: 3px 9px; font-size: .7rem; }
+/* Feste Spaltenbreiten: jede Zeile ist ein eigenes Grid, und nur so stehen die Spalten untereinander. */
+/* „Typ“ in der Breite von „JPEG · 3000 × 2000“; der Name nimmt den Rest. */
+.alist { --acols: 32px minmax(0, 1fr) 10.7rem 4.6rem 5.8rem; }
+.alist.afrom-on { --acols: 32px minmax(0, 1fr) 10.7rem 4.6rem 5.8rem minmax(0, 7.5rem); }
+.alist .agrid { display: flex; flex-direction: column; gap: 2px; margin: 6px 0; }
+.alist .atile { display: flex; align-items: center; }
+.alist .aface {
+  flex: 1 1 auto; display: grid; grid-template-columns: var(--acols); align-items: center;
+  column-gap: 12px; min-height: 44px; padding: 4px 6px; border-radius: 6px;
+}
+.alist .aface:hover, .alist .atile.open .aface { background: var(--surface-3); }
+.alist .aface:focus-visible { outline: 2px solid var(--accent-edge); outline-offset: -2px; }
+.alist .aface:focus-visible .apic { box-shadow: none; }
+.alist .apic { width: 32px; height: 32px; margin: 0; border-width: 1px; border-radius: 5px; }
+.alist .aext { font-size: .5rem; letter-spacing: 0; }
+.alist .awave { padding: 6px 3px; }
+.alist .awave .icon { font-size: 1rem; }
+.alist .aplus { font-size: 1.2rem; }
+.alist .ameta, .alist .abadge, .alist .astate, .alist .apic .duration, .alist .apic .play-badge,
+.alist .apic .acodec { display: none; }
+.alist .aname { display: flex; min-width: 0; font-size: .82rem; color: var(--text); }
+.alist .aname-head { flex: 0 1 auto; min-width: 0; }
+.alist .aname-tail { flex: 0 0 auto; }
+.alist .aname-all { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.alist .akind, .alist .asize, .alist .adate, .alist .afrom {
+  display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono); font-size: .7rem; color: var(--muted);
+}
+.alist .asize { text-align: right; }
+.alist .anote:not(:empty) {
+  display: block; grid-column: 2 / -1; grid-row: 2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono); font-size: .66rem; color: var(--faint);
+}
+.alist .atile.failed .anote { color: var(--red); }
+.atile.missing .anote:not(:empty) { display: block; font-family: var(--mono); font-size: .66rem; color: var(--red); }
+.alist .amore { position: static; flex-shrink: 0; width: 44px; height: 44px; background: none; color: var(--muted); }
+/* Eine Spalte gleicher Breite in jeder Zeile, sonst stehen Art, Größe und Datum nicht untereinander. */
+.aacts { display: none; }
+.alist .aacts { display: grid; grid-template-columns: 36px 36px; flex-shrink: 0; }
+.aact {
+  display: flex; align-items: center; justify-content: center; width: 36px; height: 36px;
+  border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer;
+}
+.aact:hover { background: var(--surface-3); color: var(--text); }
+.aact:focus-visible { outline: 2px solid var(--accent-edge); outline-offset: -2px; }
+.aedit { grid-column: 1; }
+.alink { grid-column: 2; }
+.aproxy { display: none; }
+.alist .aproxy-on .aacts { grid-template-columns: 44px 36px 36px; }
+.alist .aproxy {
+  display: flex; align-items: center; justify-content: center; grid-column: 1;
+  font-family: var(--mono); font-size: .66rem; color: var(--muted);
+}
+.aproxy-on .aedit { grid-column: 2; }
+.aproxy-on .alink { grid-column: 3; }
+/* 11px: Rand und Innenabstand von .agroup; 116px: .aacts und .amore, mit Proxy 160px. */
+.acols { display: none; }
+.alist .acols { display: flex; align-items: center; padding: 0 11px; }
+.acols-face { flex: 1 1 auto; display: grid; grid-template-columns: var(--acols); column-gap: 12px; padding: 0 6px; }
+.acols-rest { flex-shrink: 0; width: 116px; }
+.alist .aproxy-on .acols-rest { width: 160px; }
+.acol {
+  min-width: 0; padding: 4px 0; border: 0; background: none; text-align: left; white-space: nowrap;
+  font-family: var(--mono); font-size: .66rem; color: var(--faint);
+}
+button.acol { cursor: pointer; }
+button.acol:hover, .acol[aria-pressed="true"] { color: var(--text); }
+button.acol:focus-visible { outline: 2px solid var(--accent-edge); outline-offset: 2px; }
+.acol-size { text-align: right; }
+.acol-from { display: none; }
+.afrom-on .acol-from { display: block; }
+.akindhead {
+  grid-column: 1 / -1; padding: 6px 2px 3px; border-bottom: 1px solid var(--line);
+  font-family: var(--mono); font-size: .68rem; color: var(--muted);
+}
+.alist .akindhead { margin-top: 4px; }
+.acodec {
+  position: absolute; bottom: 0; left: 0; pointer-events: none;
+  background: rgba(var(--photo-rgb), .82); color: var(--on-photo);
+  font-family: var(--mono); font-size: .58rem; padding: 1px 4px; border-radius: 0 5px 0 0;
+}
+.asort-box { display: inline-flex; align-items: center; gap: 6px; }
 /* Nur der Ausweichknopf der PDF-Vorschau. */
 .abtn {
   font-size: .73rem; color: var(--muted); padding: 3px 8px; border-radius: 5px;
@@ -1693,8 +2219,49 @@ body:has(.cmp-bar) .toast { bottom: calc(90px + env(safe-area-inset-bottom)); }
   margin: 0 0 10px; padding: 10px; border-radius: var(--r-sm);
   background: var(--image-bg); border: 1px solid var(--line);
 }
+.apreview-head { display: flex; align-items: center; gap: 6px; margin: -4px 0 8px; font-size: .85rem; }
+.apreview-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.apreview-size { flex-shrink: 0; font-family: var(--mono); font-size: .7rem; color: var(--faint); }
+.apreview-head a, .apreview-head button {
+  flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  min-width: 32px; height: 32px; padding: 0 6px; border: 0; border-radius: 5px;
+  background: none; color: var(--muted); font-size: .95rem; cursor: pointer;
+}
+.apreview-head a:hover, .apreview-head button:hover { color: var(--accent-text); background: var(--surface); }
 .apreview img { max-width: 100%; max-height: 460px; display: block; margin: 0 auto; border-radius: 4px; }
 .apreview iframe { width: 100%; height: 520px; border: 0; border-radius: 4px; background: var(--preview-bg); }
+.aaudio { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.aaudio img { max-height: 240px; }
+.aaudio-wave { display: flex; align-items: center; justify-content: center; width: 100%; height: 72px; color: var(--text); }
+.aaudio-wave .wave { width: 100%; height: 100%; display: block; }
+.aaudio-wave .icon { font-size: 2.4rem; color: var(--muted); }
+.viewer .vaudio { width: 100%; height: 100%; padding: 16px 16px 12px; justify-content: center; }
+.viewer .vaudio img { flex: 0 1 auto; min-height: 0; max-height: none; width: 100%; height: auto; }
+.aaudio-fail { padding: 18px 0; }
+/* Der Document Server ersetzt das innere div durch seinen Rahmen. */
+.aoffice { height: 720px; height: min(720px, 75dvh); border-radius: 4px; overflow: hidden; background: var(--preview-bg); }
+.apreview .aoffice iframe { height: 100%; border-radius: 0; }
+.aoffice-hint { margin: 8px 0 0; }
+/* Fest ueber dem Fenster, damit nichts scrollt; der Betrachter bekommt die Resthoehe. */
+.fileview { position: fixed; inset: 0; padding: 10px 16px 6px; display: flex; flex-direction: column; background: var(--bg); }
+.fileview-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; font-size: .9rem; }
+.fileview-back { max-width: 40%; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fileview-name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fileview-name:has(.fv-tail) { display: flex; }
+.fv-head { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.fv-tail { flex-shrink: 0; }
+.fileview-bar .adl { color: var(--muted); padding: 4px 8px; border-radius: 4px; }
+.fileview-full { display: inline-flex; padding: 4px 8px; border: 0; border-radius: 4px; background: none; color: var(--muted); cursor: pointer; }
+.fileview-full:hover { color: var(--text); }
+.fileview-editall { display: inline-flex; align-items: center; gap: 5px; font-size: .82rem; color: var(--muted); white-space: nowrap; cursor: pointer; }
+.fileview-doc { flex: 1; min-height: 0; border-radius: 4px; overflow: hidden; background: var(--preview-bg); }
+.fileview-doc iframe { width: 100%; height: 100%; border: 0; }
+.fileview-plain { display: flex; flex-direction: column; overflow: auto; background: var(--image-bg); }
+.fileview-plain img { max-width: 100%; max-height: 100%; margin: auto; object-fit: contain; }
+.fileview-plain iframe { flex: 1; min-height: 0; }
+.fileview-plain .apdf-hint { margin: 8px 12px; }
+.fileview-plain .atext { max-height: none; padding: 12px 14px; }
+.fileview-plain > .hint { margin: 16px; }
 .atext {
   margin: 0; max-height: 420px; overflow: auto;
   font-family: var(--mono); font-size: .77rem; line-height: 1.6; color: var(--text-2);
@@ -1703,18 +2270,50 @@ body:has(.cmp-bar) .toast { bottom: calc(90px + env(safe-area-inset-bottom)); }
 .ex-parts { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .ex-parts .mrow .mname { font-weight: 500; }
 .ex-files { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: .83rem; color: var(--muted); cursor: pointer; }
-.ex-files input { accent-color: var(--accent); }
+input[type=checkbox] { accent-color: var(--accent); }
 .apdf-hint { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 0 0; flex-wrap: wrap; }
 
+/* ================= Menue an Kachel und Ordner ================= */
+.fmenu {
+  position: absolute; z-index: var(--z-file-menu); min-width: 220px; max-width: min(320px, calc(100vw - 16px));
+  padding: 6px; border-radius: var(--r-sm); background: var(--surface-2); border: 1px solid var(--line);
+  box-shadow: var(--sh-lg);
+}
+.fmenu-head { display: flex; flex-direction: column; gap: 2px; padding: 6px 10px 8px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.fmenu-name { font-size: .85rem; font-weight: 600; overflow-wrap: anywhere; }
+.fmenu-sub { font-size: .74rem; color: var(--muted); overflow-wrap: anywhere; }
+.fmenu-item {
+  display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px 10px;
+  border: 0; border-radius: 5px; background: none; color: var(--text);
+  font: inherit; font-size: .87rem; text-align: left; text-decoration: none; cursor: pointer;
+}
+.fmenu-item:hover { background: var(--surface-3); }
+.fmenu-item:focus-visible { background: var(--surface-3); outline: 2px solid var(--accent-edge); outline-offset: -2px; }
+.fmenu-item.danger { color: var(--red); }
+.fmenu-line { height: 1px; margin: 4px 8px; background: var(--line); }
+.fmenu-mark { width: 16px; flex-shrink: 0; color: var(--accent-text); }
+/* Am Telefon als Liste am unteren Rand, ueber einem Schleier. */
+.fmenu.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; max-width: none;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-radius: 14px 14px 0 0;
+}
+.fmenu.sheet .fmenu-item { padding: 13px 12px; }
+.fmenu-shade { position: fixed; inset: 0; z-index: var(--z-file-menu); background: var(--scrim); }
+
 /* ================= Verknüpfung der Tagfilter ================= */
-.tagmode { display: inline-flex; gap: 3px; flex-shrink: 0; margin-right: 4px; }
+.tagmode { display: inline-flex; flex-shrink: 0; margin-right: 4px; }
+/* Wie `.pills.seg`, ohne die Klasse `pills`: am Telefon gaelten sonst die Regeln der Filterreihen. */
+.tagmode .pill { border-radius: 0; margin-left: -1px; white-space: nowrap; }
+.tagmode .pill:first-child { border-radius: 999px 0 0 999px; margin-left: 0; }
+.tagmode .pill:last-child { border-radius: 0 999px 999px 0; }
+.tagmode .pill.on { position: relative; }
 /* Unter zwei gewählten Tags wirkt der Umschalter nicht, bleibt aber sichtbar. */
 .tagmode.idle { opacity: .45; }
 .tagmode.idle:hover { opacity: 1; }
 .pill-mode { padding: 3px 9px; font-size: .7rem; font-family: var(--mono); }
 /* Pillen, die mit der Auswahl null Treffer brächten; gilt für jede Pille, nicht nur Tags. */
 .pill.blank { opacity: .34; }
-.pill.blank:hover { opacity: .7; }
+@media (hover: hover) { .pill.blank:hover:where(:not(:disabled)) { opacity: .7; } }
 
 /* ================= Berichte, Anpinnung, Kommentarbilder ================= */
 /* Die Kante zeigt, warum ein Bericht ausserhalb der zeitlichen Folge oben steht. */
@@ -1771,7 +2370,7 @@ body:has(.cmp-bar) .toast { bottom: calc(90px + env(safe-area-inset-bottom)); }
   border-radius: 50%; background: rgba(var(--photo-rgb), .8); color: var(--on-photo-dim);
   font-size: .7rem; line-height: 1; opacity: 0; transition: opacity .15s var(--ease);
 }
-.cmt-img:hover .del { opacity: 1; }
+.cmt-img:hover .del, .cmt-img .del:focus-visible { opacity: 1; }
 .cmt-img .del:hover { color: var(--red); }
 @media (hover: none) { .cmt-img .del { opacity: 1; } }
 .cmt-form-row { display: flex; align-items: center; gap: 8px; }
@@ -1849,7 +2448,7 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
    Spezifitaet die spaetere Regel gewinnt. */
 
 /* Der Punkt ist absolut gesetzt, sonst rueckt die Kopfzeile, wenn er erscheint. */
-.icon-btn.bell { position: relative; }
+.icon-btn.bell, .mast-menu { position: relative; }
 /* `bell-pop` laeuft bei jedem Erscheinen neu, weil `hidden` `display: none` setzt. */
 .bell-dot {
   position: absolute; top: 6px; right: 6px;
@@ -1872,7 +2471,6 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
 .filter-toggle .fcount { font-family: var(--mono); font-size: .72rem; color: var(--faint); }
 .sys-toggle { display: none; align-items: center; gap: 7px; margin-bottom: 12px; }
 .sys-toggle .fcount { font-family: var(--mono); font-size: .72rem; color: var(--faint); }
-.sys-tabs.closed { display: none; }
 .filter-toggle.active { border-color: var(--accent-line); color: var(--text); }
 .filter-toggle.active .fcount { color: var(--accent-text); }
 
@@ -1910,12 +2508,23 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
   .server-row { flex-wrap: wrap; }
   .server-row code { flex: 1 1 100%; overflow-x: visible;
     white-space: pre-wrap; overflow-wrap: anywhere; }
+  .mrow.user { flex-wrap: wrap; row-gap: 4px; }
+  .mrow.user .mname { flex: 1 0 100%; }
+  .mrow.user .user-act { margin-left: auto; }
 }
 
 /* Suche in eigener Zeile nur bei schmalem, nicht bei niedrigem Fenster: quer
    waere die Kopfzeile sonst 124 statt 86 px hoch. */
 @media (max-width: 700px) {
   .search-box { order: 3; flex: 1 1 100%; max-width: none; }
+  /* Titel und ✕ in der ersten Zeile, die Knoepfe darunter in einer Zeile von Rand zu Rand, die sich wischen laesst.
+     9 px Abstand: mit Roboto ragt bei 411 px und einem Video mit Proxy der letzte Knopf zu 51 % heraus. */
+  .lb-top { flex-wrap: wrap; }
+  .lb-tools { order: 3; flex: 1 1 100%; flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; gap: 9px; }
+  .lb-tools::-webkit-scrollbar { display: none; }
+  .lb-tools > * { flex-shrink: 0; }
+  .lb-tools > .lb-count { display: none; }
+  .lb-title .lb-count { display: inline; margin-right: 8px; font-size: .8rem; font-weight: 400; }
 }
 
 /* Fuer den Dialog am Telefon, der von unten hereinkommt; `rise` hebt nur an. */
@@ -1930,15 +2539,16 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
   .pill { padding: 7px 13px; }
   /* Der Und/Oder-Umschalter bleibt 4 px niedriger als die Pillen daneben. */
   .pill-mode { padding: 5px 11px; }
+  .aview-btn { min-height: 44px; padding: 0 14px; }
+  .asort-box .sort-flip { min-height: 44px; }
   .chip { padding: 7px 12px; }
   .chip button { padding: 3px 5px; }
   /* Muss nach `.chip` stehen: gleiche Spezifitaet. */
   .chip-xs { padding: 4px 9px; }
-  .select { padding: 9px 12px; }
   .link-btn { padding: 7px 3px; }
   .mark { padding: 8px 12px; }
   .abtn { padding: 7px 12px; }
-  .engine .sdefault { padding: 6px 12px; }
+  .engine .sdefault { padding: 8px 0; }
   .switch { padding: 10px 15px; }
   .pin-btn { padding: 8px; }
   .open-check { padding: 6px 9px; }
@@ -1948,17 +2558,15 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
   /* Ein span im Knopf, `button { padding: 0 }` greift hier nicht. */
   .pill .view-remove { padding: 5px 4px; margin-left: 6px; }
 
-  .xdel { padding: 8px 10px; }
-  /* Eigene Regel: die Grundregel `.rvote .xdel` ist spezifischer als `.xdel`. */
-  .rvote .xdel { padding: 6px 8px; }
+  .mact { padding: 9px 11px; }
+  /* Eigene Regel: die Grundregel `.rvote .mact` ist spezifischer als `.mact`. */
+  .rvote .mact { padding: 6px 8px; }
   /* 32 px, sonst trifft man oft den fuenften Stern daneben. */
   .rreset { width: 32px; height: 32px; }
-  .mrow .mact { padding: 9px 11px; }
-  .arow .adl { padding: 9px 11px; }
-  .cmt-head button { padding: 8px 10px; }
+  .cmt-head .mark { padding: 8px 10px; }
   .cmt-head .acts, .cmt-head .marks { gap: 2px; }
   /* 2 px `gap` plus 11 px: 13 px Abstand vor dem Loeschknopf. */
-  .cmt-head button.rm { margin-left: 11px; }
+  .cmt-head .mact.rm { margin-left: 11px; }
   .cmt-img .del, .thumb .del { width: 27px; height: 27px; }
   .thumb .del { border-radius: 0 0 0 9px; }
 
@@ -1974,10 +2582,12 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
   .timeline-dot { width: 12px; height: 12px; margin: 0 0 -6px -6px; }
 
   .lb-btn { width: 42px; height: 42px; }
+  .lb-btn.whole { min-width: 42px; }
+  .lb-source .pill { height: 42px; }
   .lb-nav { width: 54px; height: 54px; }
   .lb-thumb { width: 62px; height: 62px; }
   .vnav { width: 44px; height: 44px; }
-  .vfocus, .vfull, .vremove { width: 44px; height: 44px; }
+  .vfocus, .vlink, .vfull, .vremove { width: 44px; height: 44px; }
 
   /* Kein Markieren beim langen Druck: makeSortable() greift nach `HOLD_MS`, und in
      dieser Zeit bietet das Telefon die Textmarkierung an. */
@@ -1986,9 +2596,8 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
   /* Ohne `manipulation` wartet der Browser rund 300 ms auf einen Doppeltipp.
      Nicht am Vollbild: dort hat der Doppeltipp eine Bedeutung. */
   .btn, .icon-btn, .pill, .mark, .switch, .chip, .pick-box, .star,
-  .abtn, .link-btn, .xdel, .open-check, .pin-btn, .vnav, .vfocus, .vfull,
-  .cmt-head button, .mrow .mact, .arow .adl,
-  .rej-note .mact { touch-action: manipulation; }
+  .abtn, .link-btn, .mact, .open-check, .pin-btn, .vnav, .vfocus, .vlink, .vfull,
+  .cmt-head button, .aface, .amore { touch-action: manipulation; }
 
   /* Bei kleinerer Schrift zoomt Safari auf iOS beim Tippen die Seite heran. `max()`,
      weil die Instanz die Schrift von 80 bis 120 Prozent stellt; jeder Selektor
@@ -2021,14 +2630,20 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
   /* `translateY(-50%)` haelt den Pfeil mittig; `none` schoebe ihn nach unten. */
   .vnav:hover {
     transform: translateY(-50%);
-    background: rgba(var(--tool-rgb), .82); border-color: rgba(var(--edge-on-dark-rgb), .12);
-    color: var(--text);
+    background: rgba(var(--tool-rgb), .86); border-color: rgba(var(--edge-on-dark-rgb), .12);
+    color: var(--on-photo-strong);
   }
   .lb-nav:hover {
     transform: translateY(-50%);
-    background: rgba(var(--lb-surface-rgb), .86); border-color: rgba(var(--edge-on-dark-rgb), .11);
+    background: rgba(var(--lb-surface-rgb), .9); border-color: rgba(var(--edge-on-dark-rgb), .11);
     color: var(--text);
   }
+  /* Der Finger wischt und rollt: keine Pfeile ueber dem laufenden Video, keine Rollbalken an der Buehne.
+     `.lb-idle` und `.lb-arrows` setzt openLightbox(). */
+  .lightbox.lb-playing .lb-nav, .lightbox.lb-idle .lb-nav { visibility: hidden; }
+  .lightbox.lb-arrows .lb-nav { visibility: visible; }
+  .lb-stage { scrollbar-width: none; }
+  .lb-stage::-webkit-scrollbar { display: none; }
 }
 
 /* ---- Tablett ---- */
@@ -2038,6 +2653,10 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
   /* Gemessen bei 834 px Fensterbreite: 255 x 374 px. */
   .card { contain-intrinsic-size: auto 375px; }
+  .card-test { flex-wrap: wrap; gap: 3px 9px; }
+  .card-test > span { white-space: nowrap; }
+  .card-test .sep { display: none; }
+  .cmp-col .cimg { aspect-ratio: 16/7; }
   .sys-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
   .detail { gap: 22px; }
 }
@@ -2064,7 +2683,7 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
     padding: 12px 12px; border-color: transparent; background: none;
     border-radius: var(--r-sm); white-space: nowrap;
   }
-  .mast-rest .icon-btn:hover, .mast-rest .btn:hover { background: var(--surface-3); }
+  @media (hover: hover) { .mast-rest .icon-btn:hover, .mast-rest .btn:hover { background: var(--surface-3); } }
   /* Ohne Hover gibt es keinen Titel; das Wort ersetzt ihn. */
   .mast-rest .mast-word { display: inline; }
   .mast-rest .bell-dot { top: 10px; left: 25px; right: auto; }
@@ -2074,16 +2693,28 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
     border-top: 1px solid var(--line-2);
   }
   .mast-menu { display: inline-flex; }
+  .sub-back { width: 36px; padding: 0; }
+  .sub-back .back-word { display: none; }
 
-  /* Auch auf dem Tablett: die Filter sind dort ueber 600 px hoch, die Reiter der
-     Einstellungen 241 px. Eingeklappt startet nur das Telefon. */
+  /* Auch auf dem Tablett: die Filter sind dort ueber 600 px hoch. Eingeklappt startet nur das Telefon. */
   .filter-toggle { display: inline-flex; }
-  .sys-toggle { display: inline-flex; }
   .filters.closed { display: none; }
 }
 
 /* ---- Telefon ---- */
 @media (max-width: 700px), (max-height: 500px) and (max-width: 960px) {
+
+  /* Am Tablett passen die Reiter der Einstellungen in eine Zeile. */
+  .sys-toggle { display: inline-flex; }
+  .sys-tabs.closed { display: none; }
+
+  /* Unter den Werkzeugen des Videos: 10 px Abstand oben, 44 px Knopf, 8 px Luft. */
+  .vspot { top: 62px; }
+  .lb-btn.whole:not([aria-pressed="true"]) { padding: 0; }
+  .lb-btn.whole .lb-phone { display: flex; }
+  .lb-btn.whole .lb-wide { display: none; }
+  .upload-bar { top: auto; bottom: calc(16px + env(safe-area-inset-bottom)); }
+  body:has(.cmp-bar) .upload-bar { bottom: calc(90px + env(safe-area-inset-bottom)); }
 
   .shell {
     padding-left: max(12px, env(safe-area-inset-left));
@@ -2110,9 +2741,14 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
      (fuenf Pillen: 35 statt 77 px). Die Wolke ist ausgenommen. */
   .frow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center; gap: 7px 10px; }
-  .frow > .eyebrow, .frow > .eyebrow-with { grid-column: 1; min-width: 0;
+  .fgroup { display: contents; }
+  :is(.frow, .fgroup) > .eyebrow { grid-column: 1; min-width: 0;
     margin-left: 0; margin-top: 0; }
-  .frow > .pills, .frow > .select, .frow > .sort-pair { grid-column: 2; min-width: 0; }
+  :is(.frow, .fgroup) > :is(.pills, .select, .sort-pair) { grid-column: 2; min-width: 0; }
+  .frow > .pill-fav { grid-column: 3; margin-left: 0; }
+  /* Die Leisten der Gruppen nutzen die dritte Spalte mit, ausser neben dem Favoritenknopf. */
+  .fgroup > .pills { grid-column: 2 / -1; }
+  .fgroup:has(+ .pill-fav) > .pills { grid-column: 2; }
   .frow > .frow-right { grid-column: 1 / -1; }
   /* Dritte Spalte (`auto`) nur fuer kurze Links: „Filter zuruecksetzen (n)" mit 140 px
      liesse der Sortierwahl daneben 30 px. Daher eine eigene Klasse. */
@@ -2136,10 +2772,10 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
   /* Eine Stufe kleiner: vier statt drei Tags in der zugeklappten Wolke. */
   .pill-tag { font-size: .72rem; padding: 4px 10px; }
   /* Ohne Rollbalken, er kostete Hoehe; die angeschnittene Pille zeigt, dass mehr folgt. */
-  .frow > .pills:not(.cloud) { flex-wrap: nowrap; overflow-x: auto;
+  :is(.frow, .fgroup) > .pills:not(.cloud) { flex-wrap: nowrap; overflow-x: auto;
     scrollbar-width: none; -ms-overflow-style: none; }
-  .frow > .pills:not(.cloud)::-webkit-scrollbar { display: none; }
-  .frow > .pills:not(.cloud) > * { flex-shrink: 0; }
+  :is(.frow, .fgroup) > .pills:not(.cloud)::-webkit-scrollbar { display: none; }
+  :is(.frow, .fgroup) > .pills:not(.cloud) > * { flex-shrink: 0; }
   /* In der Spalte hiesse `flex: 1 1 0` Grundhoehe null, und die Wolke fiele zusammen. */
   .frow > .pills.cloud { flex: 0 1 auto; }
 
@@ -2154,9 +2790,6 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
   .card { contain-intrinsic-size: auto 305px; }
   .card-body { padding: 9px 11px 11px; gap: 5px; }
   .card-title { font-size: .95rem; }
-  /* Die Angaben brechen um; ohne `.sep`, ein Punkt am Zeilenende trennt nichts. */
-  .card-test { flex-wrap: wrap; gap: 3px 9px; }
-  .card-test .sep { display: none; }
   .empty { padding: 44px 16px; }
 
   /* Block ohne Kasten: Trennstrich, Titel, Inhalt. Mit Rahmen und Innenabstand von
@@ -2175,8 +2808,8 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
 
   /* Gleicher Radius fuer alles in einer Flucht, der groessere des Bildbereichs.
      `.keyline` und `.two-factor-key` fehlen, sie liegen in einem Kasten. */
-  .viewer, .drop, .ta, .cmt, .lrow, .trow, .arow, .mrow, .open-group,
-  .apreview, .vocabulary-preview, .warn-box, .ok-box, .engine, .empty, .timeline {
+  .viewer, .drop, .ta, .cmt, .lrow, .trow, .mrow, .open-group,
+  .apreview, .vocabulary-preview, .warn-box, .plain-box, .ok-box, .engine, .empty, .timeline {
     border-radius: var(--r);
   }
   /* 1px wie eine Karte: der leere Zustand steht an der Stelle des Kartenrasters. */
@@ -2217,7 +2850,7 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
   .detail { display: flex; flex-direction: column; gap: 16px; align-items: stretch; }
   .meta-col { display: contents; }
   .title-head { order: -1; }
-  .title-in { font-size: 1.32rem; }
+  .title-in, .title-text { font-size: 1.32rem; }
   /* Nach Fensterhoehe: quer ist ein Telefon nur 390 bis 430 px hoch. */
   .apreview img { max-height: min(340px, 56dvh); }
   .apreview iframe { height: 420px; height: min(420px, 62dvh); }
@@ -2258,35 +2891,53 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
   .star { font-size: 1.1rem; }
   .stars { gap: 2px; }
   .stars .star { padding: 3px 3px; }
-  /* Weniger Innenabstand, nur mit Durchschnittsspalte. */
   .rlist:not(.no-average) .rrow .rname { padding-top: 4px; line-height: 1.35; }
   .rlist:not(.no-average) .rrow .racts,
   .rlist:not(.no-average) .rrow .ravg,
   .rlist:not(.no-average) .rrow .rreset-cell { padding-bottom: 5px; }
 
-  /* Datei- und Testtagzeile brechen um, sonst wird die Dateiendung abgeschnitten. */
-  .arow { flex-wrap: wrap; row-gap: 2px; }
-  .arow .aname { flex: 1 1 auto; }
-  .arow .asize, .arow .afrom { order: 2; }
-  .arow .asize { margin-left: auto; }
+  /* Drei Spalten bei 344 px; ⋯ bekommt 44 px fuer den Finger. */
+  .agrid { --file-tile: 96px; gap: 10px 8px; }
+  .amore { top: 0; right: 0; width: 44px; height: 44px; border-radius: 0 8px 0 8px; }
+  /* Zweizeilig: der Name, darunter Groesse, bei Video und Audio die Dauer, und Datum. */
+  /* 42 px: 32 px Bild und 10 px Abstand zum Namen; `margin-right` am Bild wirkte in der Spalte nicht. */
+  .alist .aface { grid-template-columns: 42px auto auto auto minmax(0, 1fr); column-gap: 0; }
+  .alist .apic { grid-row: span 2; }
+  .alist .aname { grid-column: 2 / -1; }
+  .alist .akind, .alist .afrom { display: none; }
+  .alist .asize { grid-column: 2; grid-row: 2; text-align: left; }
+  .alist .adur { display: block; grid-column: 3; grid-row: 2; white-space: nowrap;
+    font-family: var(--mono); font-size: .7rem; color: var(--muted); }
+  .alist .adate { grid-column: 4; grid-row: 2; }
+  .alist .asize:not(:empty) + .adur:not(:empty)::before,
+  .alist .asize:not(:empty) ~ .adate:not(:empty)::before { content: '·'; margin: 0 5px; }
+  .alist .anote:not(:empty) { grid-row: 3; }
+  .alist .amore { border-radius: 6px; }
+  .alist .aacts, .alist .acols { display: none; }
+  .asort { min-height: 44px; }
   /* 8px: Datum, Verfasser, Knopf, Sterne und Papierkorb brauchen 311 von 344 px.
      `row-gap` muss nach `gap` stehen, das beide Richtungen setzt. */
+  /* Ordnerkopf: die Angabe unter dem Namen; in einer Zeile blieb fuer beide zu wenig Platz. */
+  .afolder-face { flex-wrap: wrap; row-gap: 0; }
+  .afolder-name { flex: 1 1 0; }
+  .afolder-meta { flex: 1 0 100%; margin-left: 46px; }
   .trow { flex-wrap: wrap; gap: 8px; row-gap: 4px; }
+  .trow .tend { gap: 8px; margin-left: auto; }
   /* Ohne Wochentag (51 von 344 px). `1 1 auto` statt `flex: 1`: ohne Tags nimmt der
      Kasten nicht die ganze Breite. */
   .trow .tweek { display: none; }
   .trow .ttags { flex: 1 1 auto; }
-  /* Mit Tags: Datum und Tags oben, Verfasser und Sterne darunter. Den Umbruch
+  /* Mit Tags oder Ordner: Datum und Tags oben, Verfasser und Sterne darunter. Den Umbruch
      erzwingt `::after` mit `flex-basis: 100%`. */
   .trow-tags .ttags { flex: 1 1 0; }
   .trow-tags::after { content: ''; flex-basis: 100%; height: 0; order: 1; }
-  .trow-tags .tfrom, .trow-tags .stars { order: 2; }
-  .trow-tags .xdel { order: 3; }
+  .trow-tags .tfrom, .trow-tags .tend { order: 2; }
+  .trow-folder .ttags { flex: 1 1 0; }
+  .trow-folder::after { content: ''; flex-basis: 100%; height: 0; order: 1; }
+  .trow-folder .tfrom, .trow-folder .tend { order: 2; }
 
   .cmt-form-row { flex-wrap: wrap; row-gap: 8px; }
-  .cmt-form-row .btn { flex: 1 1 auto; }
   .cmt-edit .acts { flex-wrap: wrap; }
-  .cmt-edit .acts .btn { flex: 1 1 auto; }
   .card-foot { flex-wrap: wrap; row-gap: 5px; }
   .apdf-hint { row-gap: 6px; }
 
@@ -2314,12 +2965,19 @@ body.login .login-screen { flex: 1 0 auto; min-height: 0; }
   .modal-acts { flex-direction: column-reverse; gap: 8px; margin-top: 10px; }
   .modal-acts .btn { width: 100%; }
 
-  /* ---- Die Vergleichsleiste ---- Statt mittig als Pille nimmt sie auf dem
-     Telefon die volle Breite, erreichbar mit dem Daumen. */
+  /* ---- Vergleichsleiste ---- */
+  /* Volle Breite statt mittig: so erreicht sie der Daumen. */
   .cmp-bar {
     left: 12px; right: 12px; width: auto; max-width: none;
     bottom: calc(14px + env(safe-area-inset-bottom));
     border-radius: var(--r); padding: 9px 10px 9px 15px;
     justify-content: space-between;
   }
+}
+
+/* ---- Telefon quer ---- */
+/* Der Streifen kostete 92 von 360 px Hoehe; geblaettert wird mit den Pfeilen und durch Wischen. */
+@media (max-height: 500px) and (max-width: 960px) {
+  .lb-strip { display: none; }
+  .lb-top { padding-top: calc(6px + env(safe-area-inset-top)); padding-bottom: 6px; }
 }

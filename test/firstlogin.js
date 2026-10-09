@@ -103,7 +103,7 @@ async function checkFirstLogin() {
     times[5] >= BRAKE_STEP,
     `Versuch 6: ${times[5]} ms (Versuch 1: ${times[0]} ms), Grenze ${BRAKE_STEP} ms`);
   check('Ab dem elften Versuch ist gesperrt', lockedFrom === 11, `gesperrt ab Versuch ${lockedFrom}`);
-  check('Die Sperre nennt die verbleibende Zeit', /Sekunden/.test(lastMessage), lastMessage);
+  check('Die Sperre nennt die verbleibende Zeit', /\d+ min \d+ s/.test(lastMessage), lastMessage);
   check('Auch das richtige Passwort kommt waehrend der Sperre nicht durch',
     (await B.call('POST', '/api/login', { user: 'chefin', password: 'ganz-neues-passwort' })).status === 429);
   await B.stop();
@@ -161,14 +161,13 @@ async function checkFirstLogin() {
   afterReset.close();
   await C.stop();
 
-  // assignInventory() laeuft beim Start (db.js) und in createFirstUser()
-  // (auth.js); hier wird der zweite Aufruf geprueft.
+  // Herrenloser Bestand bleibt auch bei der Einrichtung ohne Verfasser.
   group('Erstanmeldung: Einrichtung bei leerer Benutzertabelle');
   {
     const d = open(path.join(freshDir, 'katalog.sqlite'));
     d.prepare('DELETE FROM users').run();
     d.prepare('DELETE FROM sessions').run();
-    // ON DELETE SET NULL hat user_id geleert; das raeumt createFirstUser() auf.
+    // ON DELETE SET NULL hat user_id geleert.
     check('Der Bestand ist jetzt herrenlos',
       d.prepare('SELECT COUNT(*) n FROM items WHERE user_id IS NULL').get().n === 1,
       JSON.stringify(d.prepare('SELECT id, user_id FROM items').all()));
@@ -185,8 +184,8 @@ async function checkFirstLogin() {
   const afterFresh = open(path.join(freshDir, 'katalog.sqlite'));
   const freshId = afterFresh.prepare('SELECT MIN(id) AS id FROM users').get().id;
   const freshItems = afterFresh.prepare('SELECT id, user_id FROM items').all();
-  check('Der herrenlose Bestand faellt an den neu eingerichteten Zugang',
-    freshItems.length === 1 && freshItems[0].user_id === freshId, JSON.stringify(freshItems));
+  check('Der herrenlose Bestand bleibt ohne Verfasser, auch nach der Einrichtung',
+    freshItems.length === 1 && freshItems[0].user_id === null, JSON.stringify(freshItems));
   check('Und der neu eingerichtete Zugang ist Eigentuemer',
     afterFresh.prepare('SELECT role FROM users WHERE id = ?').get(freshId)?.role === 'owner',
     JSON.stringify(afterFresh.prepare('SELECT id, username, role FROM users').all()));

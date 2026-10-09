@@ -47,9 +47,9 @@ async function run() {
 
   const links = wb.document.querySelector('[data-block="links"]');
   check('Gespeicherter Einklappzustand wird angewandt', links.classList.contains('closed'));
-  check('Eingeklappte Kopfzeile nennt den Inhalt',
-    links.querySelector('.bsum').textContent === '(8)',
-    links.querySelector('.bsum').textContent);
+  check('Eingeklappt nennt „Links“ die Zahl nur einmal, in der Kopfzeile',
+    links.querySelector('.bsum').textContent === '' && wb.document.getElementById('lcount').textContent === '8 Links',
+    `${links.querySelector('.bsum').textContent} | ${wb.document.getElementById('lcount').textContent}`);
   const comments = wb.document.querySelector('[data-block="kommentare"]');
   check('Offener Block zeigt keine Zusammenfassung',
     comments.querySelector('.bsum').textContent === '');
@@ -143,80 +143,72 @@ async function run() {
   /* ---- Dateien in der Oberflaeche ---- */
   group('Dateien in der Oberflaeche');
 
-  const fileRows = [...wb.document.querySelectorAll('#atts .arow')];
-  // Wirft nicht bei fehlenden Teilen: ein Rueckbau der Gegenprobe soll
-  // Pruefungen rot machen, nicht den Lauf abbrechen.
-  const clickable = (z, part = '.aname') => {
-    if (!z || typeof z.onclick !== 'function') return false;
-    z.onclick({ target: z.querySelector(part) || z });
-    return true;
-  };
+  const DE_FILES = D.DE_TEXTS;
+  const fileTiles = [...wb.document.querySelectorAll('#atts .atile[data-file]')];
+  const faceAt = (n) => [...wb.document.querySelectorAll('#atts .atile[data-file]')][n]?.querySelector('.aface');
   const text = (z, sel) => z?.querySelector(sel)?.textContent ?? '(fehlt)';
-  check('Alle Dateien werden aufgelistet', fileRows.length === 4, `${fileRows.length}`);
-  check('Name und Größe stehen in der Zeile',
-    fileRows[0].textContent.includes('notiz.txt') && fileRows[3].textContent.includes('5,0 MB'),
-    fileRows[3].textContent);
-  check('Jede Datei lässt sich herunterladen',
-    fileRows.every(z => z.querySelector('a[download]')));
-  check('Jede Zeile reagiert auf einen Klick', fileRows.every(z => typeof z.onclick === 'function'));
-  check('Jede Datei lässt sich entfernen',
-    fileRows.every(z => z.querySelector('.xdel')));
-  // .xdel steht auf opacity 0 und wird erst beim Überfahren eingeblendet.
-  const cssText = fs.readFileSync(path.join(__dirname, 'public', 'style.css'), 'utf8');
-  const fadeInRule = (cssText.match(/^[^{}]*\.xdel[^{}]*\{[^}]*opacity: *1[^}]*\}/m) || [''])[0];
-  ['.lrow', '.trow', '.arow'].forEach(kind =>
-    check(`Löschkreuz wird in ${kind} eingeblendet`,
-      fadeInRule.includes(`${kind}:hover`), fadeInRule || '(keine Regel gefunden)'));
-  check('In der Bewertungszeile gibt es kein Löschkreuz mehr',
-    !fadeInRule.includes('.rrow:hover'), fadeInRule);
-  check('Ohne Überfahren sind die Kreuze immer sichtbar',
-    /@media \(hover: none\)[^}]*\.xdel[^}]*opacity: *1/.test(cssText.replace(/\s+/g, ' ')));
+  const escape = (el) => el?.dispatchEvent(new wb.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  const openPreviews = (x) => x.document.querySelectorAll('#atts .apreview:not([hidden])').length;
+  check('Alle Dateien werden als Kacheln gezeigt', fileTiles.length === 4, `${fileTiles.length}`);
+  check('Name und Größe stehen an der Kachel',
+    text(fileTiles[0], '.aname') === 'notiz.txt' && text(fileTiles[3], '.ameta') === '5,0 MB',
+    `${text(fileTiles[0], '.aname')} · ${text(fileTiles[3], '.ameta')}`);
+  check('Jede Kachel ist ein Knopf', fileTiles.every(z => z.querySelector('.aface')?.tagName === 'BUTTON'));
+  // Wirft nicht bei fehlenden Teilen: ein Rueckbau soll Pruefungen rot machen, nicht den Lauf abbrechen.
+  const menuOf = (z) => {
+    z?.querySelector('.amore')?.click();
+    const out = [...wb.document.querySelectorAll('.fmenu .fmenu-item')].map(e => ({ text: e.textContent,
+      href: e.getAttribute('href') || '', download: e.hasAttribute('download') }));
+    escape(wb.document.activeElement);
+    return out;
+  };
+  const fileMenus = fileTiles.map(menuOf);
+  check('Jede Datei lässt sich über ihr Menü herunterladen',
+    fileMenus.length === 4 && fileMenus.every(m => m.some(e => e.download && /^\/api\/attachments\/\d+\/raw$/.test(e.href))),
+    fileMenus.map(m => m.map(e => e.href).join(',')).join(' | '));
+  check('Jede Datei lässt sich über ihr Menü entfernen',
+    fileMenus.every(m => m.some(e => e.text === DE_FILES['entry.deleteFile'])));
   check('Der Ladeverweis zeigt nicht auf inline',
-    fileRows.every(z => !/inline=1/.test(z.querySelector('a[download]')?.getAttribute('href') || '')));
-  check('Ansehbares kündigt das Aufklappen an',
-    fileRows.slice(0, 3).every(z => text(z, '.ago') === '▸'),
-    fileRows.map(z => text(z, '.ago')).join(' '));
-  check('Nicht Ansehbares kündigt das Herunterladen an', text(fileRows[3], '.ago') === '↓');
+    fileMenus.every(m => m.every(e => !/inline=1/.test(e.href))));
+  // Zeilenaktionen im Eintrag stehen immer da; keine Regel blendet `.mact` aus.
+  const cssText = fs.readFileSync(path.join(__dirname, 'public', 'style.css'), 'utf8');
+  const hiddenRule = (cssText.match(/^[^{}]*\.mact[^{}]*\{[^}]*opacity: *0[;\s}][^}]*\}/m) || [''])[0];
+  ['.lrow', '.trow'].forEach(kind =>
+    check(`Der Papierkorb in ${kind} steht ohne Überfahren da`,
+      !hiddenRule && !cssText.includes(`${kind}:hover .mact`), hiddenRule || '(keine Regel blendet aus)'));
+  check('In der Bewertungszeile gibt es kein Löschkreuz mehr',
+    !cssText.includes('.rrow:hover'), '');
+  check('Das alte Löschkreuz `.xdel` gibt es nicht mehr', !/xdel/.test(cssText));
+  check('Lesbares kündigt das Aufklappen an, ein Bild das Vollbild, der Rest ein Menü',
+    faceAt(0)?.getAttribute('aria-expanded') === 'false' && faceAt(2)?.getAttribute('aria-expanded') === 'false' &&
+    !faceAt(1)?.hasAttribute('aria-expanded') && !faceAt(1)?.hasAttribute('aria-haspopup') &&
+    faceAt(3)?.getAttribute('aria-haspopup') === 'menu',
+    [0, 1, 2, 3].map(n => `${faceAt(n)?.getAttribute('aria-expanded')}/${faceAt(n)?.getAttribute('aria-haspopup')}`).join(' '));
 
   let loaded = 0;
-  const loadArrow = fileRows[3]?.querySelector('.adl');
-  if (loadArrow) loadArrow.click = () => { loaded++; };
-  else loaded = -1;   // ohne Pfeil wird die Pruefung rot, statt zu werfen
-  clickable(fileRows[3]);
-  check('Klick auf das Archiv lädt herunter', loaded === 1, `${loaded}`);
-  check('Und öffnet keine Vorschau', !wb.document.querySelector('#atts .apreview'));
+  const anchorClick = wb.HTMLAnchorElement.prototype.click;
+  wb.HTMLAnchorElement.prototype.click = function () { loaded++; };
+  faceAt(3)?.click();
+  check('Klick auf das Archiv öffnet sein Menü und lädt nicht herunter',
+    loaded === 0 && wb.document.querySelector('.fmenu-name')?.textContent === 'archiv.zip', `${loaded}`);
+  escape(wb.document.activeElement);
+  check('Und öffnet keine Vorschau', openPreviews(wb) === 0);
+  wb.HTMLAnchorElement.prototype.click = anchorClick;
 
-  clickable(fileRows[3], '.adl');
-  check('Klick auf den Ladepfeil löst die Zeile nicht doppelt aus', loaded === 1, `${loaded}`);
-  clickable(fileRows[3], '.xdel');
-  check('Klick auf das Löschkreuz löst die Zeile nicht aus', loaded === 1, `${loaded}`);
+  faceAt(1)?.click();
+  const imageV = wb.document.querySelector('.lightbox .lb-stage img');
+  check('Eine Bilddatei öffnet das Vollbild, keine Vorschau',
+    !!imageV && openPreviews(wb) === 0, String(!!imageV));
+  check('Das Vollbild fordert die Fassung mit 1.600 px an; ohne sie liefert der Server das Original zum Anzeigen',
+    /\/raw\?size=medium$/.test(imageV?.getAttribute('src') || ''), imageV?.getAttribute('src'));
+  wb.document.querySelector('.lightbox .close')?.click();
 
-  clickable(fileRows[1]);
-  await until(wb, shown('#atts .apreview'), 2000, 'die Bildvorschau');
-  const imageV = wb.document.querySelector('#atts .apreview img');
-  check('Bildvorschau benutzt ein img-Element', !!imageV);
-  check('Bildvorschau fordert inline an', /inline=1/.test(imageV?.getAttribute('src') || ''));
-  check('Bildvorschau öffnet kein iframe', !wb.document.querySelector('#atts .apreview iframe'));
-  const clickableRow = (n) => clickable([...wb.document.querySelectorAll('#atts .arow')][n]);
-  check('Offene Zeile ist als solche erkennbar',
-    !![...wb.document.querySelectorAll('#atts .arow')][1]?.classList.contains('open'));
-  clickableRow(1);
-  await until(wb, (x) => !x.document.querySelector('#atts .apreview') && openRequests(x) === 0,
-    2000, 'die geschlossene Vorschau');
-  check('Erneuter Klick klappt die Vorschau wieder zu', !wb.document.querySelector('#atts .apreview'));
-
-  clickableRow(2);
-  await until(wb, shown('#atts .apreview'), 2000, 'die PDF-Vorschau');
+  faceAt(2)?.click();
+  await until(wb, shown('#atts .apreview:not([hidden]) iframe'), 2000, 'die PDF-Vorschau');
   const pdfV = wb.document.querySelector('#atts .apreview iframe');
   check('PDF-Vorschau benutzt ein iframe', !!pdfV);
-  check('PDF-iframe ist gesandboxt', !!pdfV && pdfV.hasAttribute('sandbox'),
-    JSON.stringify(pdfV?.getAttribute('sandbox')));
-  check('Sandbox erlaubt Skript, sonst bleibt der Betrachter leer',
-    /allow-scripts/.test(pdfV?.getAttribute('sandbox') || ''),
-    JSON.stringify(pdfV?.getAttribute('sandbox')));
-  check('Sandbox erlaubt NICHT allow-same-origin',
-    !/allow-same-origin/.test(pdfV?.getAttribute('sandbox') || ''),
-    JSON.stringify(pdfV?.getAttribute('sandbox')));
+  check('PDF-iframe ohne sandbox-Attribut: Chrome und Edge sperren darin ihren Betrachter',
+    !!pdfV && !pdfV.hasAttribute('sandbox'), JSON.stringify(pdfV?.getAttribute('sandbox')));
   const newTabLink = wb.document.querySelector('#atts .apreview a[target="_blank"]');
   check('Es gibt den Weg in einen neuen Tab', !!newTabLink);
   // `!!newTabLink &&`: ohne Verweis wird die Pruefung rot, statt den Lauf abzubrechen.
@@ -225,14 +217,19 @@ async function run() {
     newTabLink ? newTabLink.getAttribute('rel') : '(kein Verweis)');
   check('Ein Hinweis erklärt das leere Fenster',
     /leer/i.test(wb.document.querySelector('#atts .apdf-hint')?.textContent || ''));
-  clickableRow(2);
+  check('Offene Kachel ist als solche erkennbar',
+    !![...wb.document.querySelectorAll('#atts .atile[data-file]')][2]?.classList.contains('open'));
+  faceAt(2)?.click();
+  await until(wb, (x) => openPreviews(x) === 0 && openRequests(x) === 0, 2000, 'die geschlossene Vorschau');
+  check('Erneuter Klick klappt die Vorschau wieder zu', openPreviews(wb) === 0);
 
-  clickableRow(0);
-  await until(wb, shown('#atts .apreview'), 2000, 'die Textvorschau');
+  faceAt(0)?.click();
+  await until(wb, shown('#atts .apreview:not([hidden]) .atext'), 2000, 'die Textvorschau');
   const textV = wb.document.querySelector('#atts .atext');
   check('Textvorschau steht im Dokument', !!textV && /Zweite Zeile/.test(textV.textContent));
   check('Textvorschau lädt keine Datei nach',
     !wb.document.querySelector('#atts .apreview img, #atts .apreview iframe'));
+  faceAt(0)?.click();
 
   const dangerous = buildDom(JSDOM, { hash: '#/item/1' });
   dangerous.w.fetch = (function (old) {
@@ -245,9 +242,8 @@ async function run() {
   })(dangerous.w.fetch);
   await until(dangerous.w, shown('#ratings'), 2000, 'die Detailansicht');
   await dangerous.w.renderDetail(1);
-  await until(dangerous.w, shown('#atts .arow'), 2000, 'die neu gezeichnete Dateiliste');
-  const gz = [...dangerous.w.document.querySelectorAll('#atts .arow')][0];
-  gz.onclick({ target: gz.querySelector('.aname') });
+  await until(dangerous.w, shown('#atts .atile[data-file]'), 2000, 'die neu gezeichneten Kacheln');
+  dangerous.w.document.querySelector('#atts .atile[data-file="41"] .aface')?.click();
   // Die gestellte Vorschau zaehlt nicht als offene Anfrage: gewartet wird auf ihren Text.
   await until(dangerous.w, shown('#atts .atext'), 2000, 'der gesetzte Vorschautext');
   check('Text, der wie HTML aussieht, wird nicht zu HTML',
@@ -497,15 +493,18 @@ async function run() {
   await until(eUm.w, shown('#filters'), 2000, 'die Uebersicht');
   await eUm.w.renderSystem();
   await until(eUm.w, shown('#acc-save'), 2000, 'die Karte des eigenen Zugangs');
-  setField(eUm.w.document, 'acc-old', 'altes-passwort');
   setField(eUm.w.document, 'acc-user', 'chefin2');
   eUm.w.document.getElementById('acc-save')
+    .dispatchEvent(new eUm.w.MouseEvent('click', { bubbles: true }));
+  await until(eUm.w, shown('#confirm-pass'), 2000, 'die Rueckfrage nach dem Passwort');
+  setField(eUm.w.document, 'confirm-pass', 'altes-passwort');
+  eUm.w.document.querySelector('.modal [data-yes]')
     .dispatchEvent(new eUm.w.MouseEvent('click', { bubbles: true }));
   await until(eUm.w, (x) => eUm.sent.some(r => r.method === 'PUT' && r.url === '/api/account') &&
     openRequests(x) === 0, 2000, 'die Antwort auf das Umbenennen');
   check('Das Umbenennen geht wirklich an den Server',
     eUm.sent.some(x => x.method === 'PUT' && x.url === '/api/account' &&
-                            x.body?.username === 'chefin2'),
+                            x.body?.username === 'chefin2' && x.body?.oldPassword === 'altes-passwort'),
     JSON.stringify(eUm.sent.slice(-2)));
   await eUm.w.renderList();
   await until(eUm.w, shown('#filters'), 2000, 'die Uebersicht');
@@ -547,22 +546,22 @@ async function run() {
   check('Die eigene Stimme ist gekennzeichnet',
     eVoteRows[0]?.querySelectorAll('.rvote.mine').length === 1,
     `${eVoteRows[0]?.querySelectorAll('.rvote.mine').length}`);
-  check('An jeder fremden Stimme steht ein ✕',
-    eVoteRows[0]?.querySelectorAll('.rvote .xdel').length === 4,
-    `${eVoteRows[0]?.querySelectorAll('.rvote .xdel').length}`);
-  check('Aber keins an der eigenen',
-    !eVoteRows[0]?.querySelector('.rvote.mine .xdel'));
+  check('An jeder fremden Stimme steht der Papierkorb',
+    eVoteRows[0]?.querySelectorAll('.rvote .mact.rm').length === 4,
+    `${eVoteRows[0]?.querySelectorAll('.rvote .mact.rm').length}`);
+  check('Aber keiner an der eigenen',
+    !eVoteRows[0]?.querySelector('.rvote.mine .mact.rm'));
   check('Und der freigegebene Grabsteinname steht auch hier nicht',
     !/deleted-4/.test(eView?.textContent || ''), eView?.textContent);
 
   /* ---- Fremde Stimme entfernen ---- */
-  const eX = eVoteRows[0]?.querySelectorAll('.rvote .xdel')[0];
+  const eX = eVoteRows[0]?.querySelectorAll('.rvote .mact.rm')[0];
   if (eX) {
     eX.dispatchEvent(new eMore.w.MouseEvent('click', { bubbles: true }));
     await until(eMore.w, (x) => x.document.querySelectorAll('.backdrop').length > 1,
       2000, 'die Rueckfrage zum Entfernen');
     const eQuestion = [...eDoc.querySelectorAll('.backdrop')].pop();
-    check('Das ✕ fragt vorher nach',
+    check('Der Papierkorb fragt vorher nach',
       !!eQuestion && eQuestion !== eView?.closest('.backdrop'),
       `${eDoc.querySelectorAll('.backdrop').length} Dialoge`);
     check('Die Frage nennt den Verfasser und sagt, was geschieht',
@@ -581,7 +580,7 @@ async function run() {
     ![...eDoc.querySelectorAll('.backdrop .rvote')]
       .some(z => /bert 4/.test(z.textContent)),
     JSON.stringify([...eDoc.querySelectorAll('.backdrop .rvote')].map(z => z.textContent)));
-  const eKreuz2 = [...eDoc.querySelectorAll('.backdrop .rvote .xdel')][0];
+  const eKreuz2 = [...eDoc.querySelectorAll('.backdrop .rvote .mact.rm')][0];
   const eVorCancel = eMore.sent.length;
   if (eKreuz2) {
     eKreuz2.dispatchEvent(new eMore.w.MouseEvent('click', { bubbles: true }));
@@ -687,22 +686,9 @@ async function run() {
   await sysSection(eSysUser.w, 'inventory');
   check('Ohne Adminrolle gibt es kein Anlegefeld',
     !eSysUser.w.document.getElementById('newcrit'));
-  check('Und die Zeilen tragen weder Griff noch ✎ noch ✕',
-    [...eSysUser.w.document.querySelectorAll('#mcrits .mrow')].length === 3 &&
-    ![...eSysUser.w.document.querySelectorAll('#mcrits .mrow')]
-      .some(z => z.querySelector('.grip') || z.querySelector('.ed') || z.querySelector('.rm')),
-    `${eSysUser.w.document.querySelectorAll('#mcrits .mrow .mact').length} Knoepfe`);
-  check('Die Kriterien selbst bleiben sichtbar',
-    /Zuerst/.test(eSysUser.w.document.getElementById('mcrits')?.textContent || ''));
-  check('Tags und Kategorien tragen seit 0.8.5 dasselbe Muster',
-    [...eSysUser.w.document.querySelectorAll('#mtags .mrow')].length > 0 &&
-    ![...eSysUser.w.document.querySelectorAll('#mtags .mrow')]
-      .some(z => z.querySelector('.ed') || z.querySelector('.rm')),
-    `${eSysUser.w.document.querySelectorAll('#mtags .mrow .mact').length} Knoepfe`);
-  check('Die Tagnamen selbst bleiben sichtbar',
-    [...eSysUser.w.document.querySelectorAll('#mtags .mrow .mname')]
-      .some(z => (z.textContent || '').trim().length > 0),
-    eSysUser.w.document.getElementById('mtags')?.textContent);
+  check('Und die Listen der Kriterien, Tags und Kategorien sieht er nicht',
+    !eSysUser.w.document.getElementById('mcrits') && !eSysUser.w.document.getElementById('mtags') &&
+    !eSysUser.w.document.getElementById('mcats'), eSysUser.w.location.hash);
   eSysUser.w.close();
 
   /* ---- Karte Zugaenge ---- */
@@ -734,7 +720,7 @@ async function run() {
     gvRows[1]?.innerHTML.slice(0, 90));
   check('Und kann dort alle drei Rollen vergeben',
     [...(gvRows[1]?.querySelectorAll('.user-role-sel option') || [])].map(o => o.value).join(',')
-      === 'user,admin,eigentuemer');
+      === 'user,admin,owner');
   check('Die Anlegezeile hat Name, Passwort und Rollenwahl',
     !!gvEig.w.document.getElementById('user-name') &&
     !!gvEig.w.document.getElementById('user-pass') &&
@@ -867,12 +853,11 @@ async function run() {
   check('Umschalten wird serverseitig gespeichert',
     zlSent?.body.timeline === true, JSON.stringify(zlSent?.body));
 
-  /* Linkzeilen und Suchanbieter stehen im Abschnitt „Bestand". */
-  await sysSection(sysZl.w, 'inventory');
+  /* Die Linkzeilen stehen in „Darstellung", die Suchmaschinen unter „Installation". */
   const lzLevels = [...sysZl.w.document.querySelectorAll('#lrows .pill')];
   check('Und es gibt Stufen für die sichtbaren Linkzeilen', lzLevels.length === 4, `${lzLevels.length}`);
   check('Die gespeicherte Stufe ist hervorgehoben',
-    lzLevels.find(b3 => b3.classList.contains('on'))?.textContent === '12 Zeilen',
+    lzLevels.find(b3 => b3.classList.contains('on'))?.textContent === '12',
     lzLevels.map(b3 => b3.textContent).join(' '));
   lzLevels[0].onclick();
   await until(sysZl.w, (x) => sysZl.sent.some(r => r.body?.linkRows !== undefined) &&
@@ -881,7 +866,8 @@ async function run() {
   check('Eine andere Stufe wird gespeichert', lzSent?.body.linkRows === 3,
     JSON.stringify(lzSent?.body));
 
-  const anbRows = [...sysZl.w.document.querySelectorAll('#engines .engine')];
+  await sysSection(sysZl.w, 'installation');
+  const anbRows = [...sysZl.w.document.querySelectorAll('#engines .engine:not(.engine-head)')];
   check('Die Verwaltungskarte zeigt alle neun Plätze', anbRows.length === 9, `${anbRows.length}`);
   check('Jede Zeile trägt Häkchen und Startknopf',
     anbRows.every(z => z.querySelector('input[type=checkbox]') && z.querySelector('.sdefault')));
@@ -937,7 +923,7 @@ async function run() {
     `${sysZl.w.document.getElementById('se-name-1')?.maxLength}`);
   setField(sysZl.w.document, 'se-name-2', 'Zweites Forum');
   setField(sysZl.w.document, 'se-vorlage-2', 'https://zwei.beispiel.de/?q=%s');
-  sysZl.w.document.getElementById('se-b-2').onclick();
+  sysZl.w.document.getElementById('se-save').onclick();
   await until(sysZl.w, (x) => sysZl.sent.some(r => r.body?.searchOwn !== undefined) &&
     openRequests(x) === 0, 2000, 'die gespeicherten eigenen Anbieter');
   const eigSent = sysZl.sent.filter(x => x.body && x.body.searchOwn !== undefined).pop();
@@ -949,12 +935,13 @@ async function run() {
     (eigSent?.body.searchOwn || []).length === 3,
     JSON.stringify(eigSent?.body.searchOwn));
 
+  await sysSection(sysZl.w, 'personal');
   const namesLevels = [...sysZl.w.document.querySelectorAll('#snames .pill')];
   check('Es gibt vier Stufen für die Zahl der Namen', namesLevels.length === 4, `${namesLevels.length}`);
   check('Die eingestellte Stufe ist hervorgehoben',
-    namesLevels.find(b3 => b3.classList.contains('on'))?.textContent === '3 Namen',
+    namesLevels.find(b3 => b3.classList.contains('on'))?.textContent === '3',
     namesLevels.map(b3 => b3.textContent).join(' '));
-  check('Die Einzahl steht in der Einzahl', namesLevels[0]?.textContent === '1 Name',
+  check('Die Felder nennen nur die Zahl; das Wort steht im Satz darueber', namesLevels[0]?.textContent === '1',
     namesLevels[0]?.textContent);
   namesLevels[0]?.onclick?.();
   await until(sysZl.w, (x) => sysZl.sent.some(r => r.body?.searchNames !== undefined) &&
@@ -1095,10 +1082,10 @@ async function run() {
   check('Der Überfahrtext nennt Suche und Startanbieter',
     /Suche nach/.test(searchRow?.title || '') && /Startpage/.test(searchRow?.title || ''),
     searchRow?.title);
-  check('Auch das Löschkreuz sagt, worum es geht',
-    /Suchbegriff/.test(searchRow?.querySelector('.xdel')?.getAttribute('title') || ''),
-    searchRow?.querySelector('.xdel')?.getAttribute('title'));
-  // Die Einblendregel fuer .xdel zaehlt die Zeilenarten einzeln auf; .lrow steht darin.
+  check('Auch der Papierkorb sagt, worum es geht',
+    /Suchbegriff/.test(searchRow?.querySelector('.mact.rm')?.getAttribute('title') || ''),
+    searchRow?.querySelector('.mact.rm')?.getAttribute('title'));
+  // `.lrow .mact` setzt den Papierkorb in die Spalte `del`.
   check('Die Suchzeile ist eine .lrow und damit von der Einblendregel erfasst',
     !!searchRow?.classList.contains('lrow'));
 
@@ -1190,9 +1177,9 @@ async function run() {
   // Aussage ueber sie wahr.
   check('Die Linkliste steht auch bei mehreren Zugaengen vollstaendig da',
     lvM.length === 8, `${lvM.length}`);
-  check('An einer Zeile des Eintragsverfassers steht kein Name',
-    lvM.slice(0, 4).every(z => !z.querySelector('.lfrom')),
-    lvM.slice(0, 4).map(z => lvName(z)).join(' | ') || '(kein Name -- richtig)');
+  check('Auch an einer Zeile des Eintragsverfassers steht der Name',
+    lvM.slice(0, 4).every(z => lvName(z) === '(bert)'),
+    lvM.slice(0, 4).map(z => lvName(z)).join(' | ') || '(kein Name)');
   check('An einer fremden Zeile steht er',
     lvName(lvM[5]) === '(chefin)', lvName(lvM[5]) || '(kein Name)');
   check('Eine herrenlose Zeile nennt ausdruecklich keinen Verfasser',
@@ -1207,19 +1194,22 @@ async function run() {
   check('Ohne Trennzeichen davor',
     lvM.every(z => !/^[·—-]/.test(lvName(z))),
     lvM.map(z => lvName(z)).filter(Boolean).join(' | '));
-  check('Name und Pfad stehen in derselben zweiten Zeile',
-    !!lvM[5].querySelector('.lbottom > .path') && !!lvM[5].querySelector('.lbottom > .lfrom'),
-    lvM[5].querySelector('.lurl')?.innerHTML);
-  check('Und bei der Suchzeile Anbieternamen und Name ebenso',
-    !!lvM[7].querySelector('.lbottom > .snames') && !!lvM[7].querySelector('.lbottom > .lfrom'),
-    lvM[7].querySelector('.lurl')?.innerHTML);
+  // Eigene Spalte vor ↗, wie `.afrom` an der Dateizeile.
+  const lvOwn = (z) => [...z.children].find(el => el.classList.contains('lfrom'));
+  check('Der Name steht in eigener Spalte vor ↗, nicht hinter dem Pfad',
+    !!lvOwn(lvM[5]) && lvOwn(lvM[5]).nextElementSibling?.classList.contains('go') &&
+    !!lvM[5].querySelector('.lbottom > .path') && !lvM[5].querySelector('.lbottom .lfrom'),
+    lvM[5].innerHTML.replace(/\s+/g, ' ').slice(0, 300));
+  check('Und bei der Suchzeile ebenso, die Anbieternamen bleiben unter der Suche',
+    !!lvOwn(lvM[7]) && !!lvM[7].querySelector('.lbottom > .snames') && !lvM[7].querySelector('.lbottom .lfrom'),
+    lvM[7].innerHTML.replace(/\s+/g, ' ').slice(0, 300));
 
   check('Der Ueberfahrtext nennt Eintrager und Datum',
     /Eingetragen von chefin am \d\d\.\d\d\.\d{4}/.test(lvM[5].title), lvM[5].title);
   check('Und was die Zeile sonst tut, steht weiterhin davor',
     lvM[5].title.startsWith('https://beispiel.de/5'), lvM[5].title);
-  check('An einer eigenen Zeile steht davon nichts',
-    !/Eingetragen von/.test(lvM[0].title), lvM[0].title);
+  check('Auch an ihr nennt der Ueberfahrtext Eintrager und Datum',
+    /Eingetragen von bert am \d\d\.\d\d\.\d{4}/.test(lvM[0].title), lvM[0].title);
 
   check('Aus einem Verfassernamen mit spitzen Klammern wird kein HTML',
     !lvMore.w.document.getElementById('boese-link') &&
@@ -1229,8 +1219,8 @@ async function run() {
     /^\(.*\)$/.test(lvName(lvM[4])), lvName(lvM[4]));
 
   check('Der Admin sieht an jeder Zeile ein Loeschkreuz',
-    lvM.every(z => !!z.querySelector('.xdel')),
-    `${lvM.filter(z => !!z.querySelector('.xdel')).length} von ${lvM.length}`);
+    lvM.every(z => !!z.querySelector('.mact.rm')),
+    `${lvM.filter(z => !!z.querySelector('.mact.rm')).length} von ${lvM.length}`);
   lvMore.w.close();
 
   /* Erste Gegenlage: ein Zugang; die Schwelle steht in multipleUsers(). */
@@ -1247,8 +1237,8 @@ async function run() {
     lvE.every(z => !/Eingetragen von/.test(z.title)),
     lvE.map(z => z.title).filter(t => /Eingetragen/.test(t)).join(' | ') || '(nichts -- richtig)');
   check('Das Loeschkreuz steht davon unberuehrt weiterhin da',
-    lvE.every(z => !!z.querySelector('.xdel')),
-    `${lvE.filter(z => !!z.querySelector('.xdel')).length} von ${lvE.length}`);
+    lvE.every(z => !!z.querySelector('.mact.rm')),
+    `${lvE.filter(z => !!z.querySelector('.mact.rm')).length} von ${lvE.length}`);
   lvOne.w.close();
 
   /* Zweite Gegenlage: mehrere Zugaenge, ohne Adminrolle. */
@@ -1257,63 +1247,81 @@ async function run() {
   await until(lvUser.w, shown('#ratings'), 2000, 'die Detailansicht');
   const lvU = lvRows(lvUser.w);
   check('Ohne Adminrolle steht das Kreuz nur an der eigenen Zeile',
-    lvU.filter(z => !!z.querySelector('.xdel')).length === 1 && !!lvU[5].querySelector('.xdel'),
-    lvU.map((z, i) => (z.querySelector('.xdel') ? i : null)).filter(i => i !== null).join(', '));
+    lvU.filter(z => !!z.querySelector('.mact.rm')).length === 1 && !!lvU[5].querySelector('.mact.rm'),
+    lvU.map((z, i) => (z.querySelector('.mact.rm') ? i : null)).filter(i => i !== null).join(', '));
   check('Ein Name ohne Kreuz ist moeglich -- Anzeige und Recht sind getrennt',
-    !!lvU[7].querySelector('.lfrom') && !lvU[7].querySelector('.xdel'),
-    `${lvName(lvU[7])} / ${!!lvU[7].querySelector('.xdel')}`);
+    !!lvU[7].querySelector('.lfrom') && !lvU[7].querySelector('.mact.rm'),
+    `${lvName(lvU[7])} / ${!!lvU[7].querySelector('.mact.rm')}`);
   check('Die Zeilen ohne Kreuz sind sonst unversehrt',
     lvU.length === 8 && lvU.every(z => !!z.querySelector('.lurl') && !!z.querySelector('.go')),
     `${lvU.length}`);
   lvUser.w.close();
 
-  /* Ohne die Aufteilung der zweiten Zeile im Stylesheet verdraengt ein langer
-     Pfad den Namen. */
+  /* Ohne eigene Spalte verdraengt eine lange Adresse den Namen. */
   const cssL = fs.readFileSync(path.join(__dirname, 'public', 'style.css'), 'utf8').replace(/\s+/g, ' ');
   const ruleL = (choice) => (cssL.match(new RegExp(choice.replace(/[.>]/g, m => '\\' + m) + ' \\{[^}]*\\}')) || [''])[0];
   check('Die zweite Zeile der Linkzeile ist im Stylesheet ueberhaupt geregelt',
     ruleL('.lbottom').length > 0, '(keine Regel .lbottom)');
-  check('Sie stellt Pfad und Namen nebeneinander',
+  check('Sie bleibt eine Flex-Zeile',
     /display: flex/.test(ruleL('.lbottom')), ruleL('.lbottom') || '(keine Regel)');
   check('Der Pfad nimmt sich nur, was er braucht, und darf schrumpfen',
     /flex: 0 1 auto/.test(ruleL('.lbottom .path, .lbottom .snames')),
     ruleL('.lbottom .path, .lbottom .snames') || '(keine Regel)');
   check('Der Name nicht',
-    /flex: 0 0 auto/.test(ruleL('.lbottom .lfrom')),
-    ruleL('.lbottom .lfrom') || '(keine Regel)');
+    /flex-shrink: 0/.test(ruleL('.lrow .lfrom')),
+    ruleL('.lrow .lfrom') || '(keine Regel)');
+  const lvGrid = (cssL.match(/@supports \(grid-template-columns: subgrid\) \{ #links (.*?) \} \}/) || [])[1] || '';
+  const lvLines = [...((lvGrid.match(/^\{ display: grid; grid-template-columns: ([^;]+);/) || [])[1] || '')
+    .matchAll(/\[(\w+)\]/g)].map(x => x[1]);
+  const lvColumnOf = {};
+  for (const x of lvGrid.matchAll(/\.lrow \.(\w+) \{ grid-column: (\w+);/g)) lvColumnOf[x[1]] = x[2];
+  const lvOrders = lvM.map(z => [...z.children].map(el => lvLines.indexOf(lvColumnOf[el.classList[0]])));
+  check('Alle Linkzeilen stehen in denselben Spalten, in der Reihenfolge der Zeile',
+    /\.lrow \{ display: grid; grid-template-columns: subgrid; gap: 0; \}/.test(lvGrid) &&
+    lvLines.length === 6 && lvOrders.every(o => o.every((n, i) => n >= 0 && (i === 0 || n > o[i - 1]))),
+    `${lvLines.join(' ')} · ${lvOrders.map(o => o.join(',')).join(' | ')}`);
 
-  /* ---- Der Name an der Dateizeile ---- */
-  group('Der Name an der Dateizeile');
+  /* ---- Der Name an der Dateikachel ---- */
+  group('Der Name an der Dateikachel');
 
   /* Dieselbe Regel wie an der Linkzeile, mit eigenen Gegenlagen. */
-  const avRows = (window) => [...window.document.querySelectorAll('#atts .arow')];
-  const avName = (z) => z?.querySelector('.afrom')?.textContent || '';
+  const avRows = (window) => [...window.document.querySelectorAll('#atts .atile[data-file]')];
+  const avMeta = (z) => z?.querySelector('.ameta')?.textContent || '';
+  const avMenu = (window, z) => {
+    z?.querySelector('.amore')?.click();
+    const out = { head: window.document.querySelector('.fmenu-sub')?.textContent || '',
+      items: [...window.document.querySelectorAll('.fmenu .fmenu-item')].map(e => e.textContent) };
+    window.document.activeElement?.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    return out;
+  };
+  const avDelete = D.DE_TEXTS['entry.deleteFile'];
 
   const avMore = buildDom(JSDOM, { hash: '#/item/1',
     settings: { filters: null, userCount: 3 } });
   await until(avMore.w, shown('#ratings'), 2000, 'die Detailansicht');
   const avM = avRows(avMore.w);
-  check('Die Dateiliste steht bei mehreren Zugaengen vollstaendig da',
+  check('Die Kacheln stehen bei mehreren Zugaengen vollstaendig da',
     avM.length === 4, `${avM.length}`);
-  check('An einer Datei des Eintragsverfassers steht kein Name',
-    avM.slice(0, 2).every(z => !z.querySelector('.afrom')),
-    avM.slice(0, 2).map(z => avName(z)).join(' | ') || '(kein Name -- richtig)');
-  check('An einer fremden Datei steht er, in Klammern',
-    avName(avM[2]) === '(chefin)', avName(avM[2]) || '(kein Name)');
+  check('Auch an einer Datei des Eintragsverfassers steht der Name',
+    avM.slice(0, 2).every(z => avMeta(z).endsWith(' · bert')),
+    avM.slice(0, 2).map(z => avMeta(z)).join(' | ') || '(kein Name)');
+  check('An einer fremden Datei steht er hinter der Groesse',
+    avMeta(avM[2]) === '879 KB · chefin', avMeta(avM[2]) || '(kein Name)');
   check('Eine herrenlose Datei nennt ausdruecklich keinen Verfasser',
-    avName(avM[3]) === '(Ohne Verfasser)', avName(avM[3]) || '(kein Name)');
-  check('Er steht hinter der Groesse, nicht hinter dem Dateinamen',
-    !!avM[2].querySelector('.asize + .afrom'),
-    avM[2].innerHTML.slice(0, 200));
-  check('Der Ueberfahrtext nennt den Hochladenden und das Datum',
-    /Hochgeladen von chefin am \d\d\.\d\d\.\d{4}/.test(avM[2].title), avM[2].title);
-  check('Und was ein Klick tut, steht weiterhin davor',
-    /^Klicken zum/.test(avM[2].title), avM[2].title);
-  check('An einer eigenen Datei steht davon nichts',
-    !/Hochgeladen von/.test(avM[0].title), avM[0].title);
-  check('Der Admin sieht an jeder Datei ein Loeschkreuz',
-    avM.every(z => !!z.querySelector('.xdel')),
-    `${avM.filter(z => !!z.querySelector('.xdel')).length} von ${avM.length}`);
+    avMeta(avM[3]) === '5,0 MB · Ohne Verfasser', avMeta(avM[3]) || '(kein Name)');
+  check('Die Beschriftung der Kachel nennt ihn ebenso',
+    avM[2].querySelector('.aface')?.getAttribute('aria-label') === 'doku.pdf, PDF, 879 KB, chefin',
+    avM[2].querySelector('.aface')?.getAttribute('aria-label'));
+  const avHead = avMenu(avMore.w, avM[2]);
+  check('Der Kopf des Menues nennt den Hochladenden und das Datum',
+    /^Hochgeladen von chefin am \d\d\.\d\d\.\d{4}/.test(avHead.head), avHead.head);
+  const avHeadBert = avMenu(avMore.w, avM[0]);
+  check('Auch an der Datei des Eintragsverfassers',
+    /^Hochgeladen von bert am \d\d\.\d\d\.\d{4}/.test(avHeadBert.head), avHeadBert.head);
+  const avMenus = avM.map(z => avMenu(avMore.w, z).items);
+  check('Der Admin kann jede Datei loeschen',
+    avMenus.every(items => items.includes(avDelete)),
+    `${avMenus.filter(items => items.includes(avDelete)).length} von ${avM.length}`);
   avMore.w.close();
 
   // Erste Gegenlage: ein Zugang.
@@ -1324,11 +1332,11 @@ async function run() {
   check('Auch bei einem einzigen Zugang stehen alle Dateien da',
     avE.length === 4, `${avE.length}`);
   check('Aber an keiner steht ein Name',
-    avE.every(z => !z.querySelector('.afrom')),
-    avE.map(z => avName(z)).filter(Boolean).join(' | ') || '(kein Name -- richtig)');
-  check('Und im Ueberfahrtext steht auch kein Hochladender',
-    avE.every(z => !/Hochgeladen von/.test(z.title)),
-    avE.map(z => z.title).filter(t => /Hochgeladen/.test(t)).join(' | ') || '(nichts -- richtig)');
+    avE.every(z => !avMeta(z).includes(' · ')),
+    avE.map(z => avMeta(z)).join(' | '));
+  const avOneHead = avMenu(avOne.w, avE[2]);
+  check('Und der Kopf des Menues nennt keinen Hochladenden',
+    avOneHead.head === '' && avOneHead.items.length > 0, avOneHead.head || '(nichts -- richtig)');
   avOne.w.close();
 
   // Zweite Gegenlage: mehrere Zugaenge, ohne Adminrolle.
@@ -1336,21 +1344,24 @@ async function run() {
     settings: { filters: null, userCount: 3, isAdmin: false } });
   await until(avUser.w, shown('#ratings'), 2000, 'die Detailansicht');
   const avU = avRows(avUser.w);
-  check('Ohne Adminrolle steht das Kreuz nur an der eigenen Datei',
-    avU.filter(z => !!z.querySelector('.xdel')).length === 1 && !!avU[2].querySelector('.xdel'),
-    avU.map((z, i) => (z.querySelector('.xdel') ? i : null)).filter(i => i !== null).join(', '));
-  check('Ein Name ohne Kreuz ist auch hier moeglich',
-    !!avU[3].querySelector('.afrom') && !avU[3].querySelector('.xdel'),
-    `${avName(avU[3])} / ${!!avU[3].querySelector('.xdel')}`);
-  check('Die Zeilen ohne Kreuz sind sonst unversehrt',
-    avU.length === 4 && avU.every(z => !!z.querySelector('.aname') && !!z.querySelector('.adl')),
+  const avUserMenus = avU.map(z => avMenu(avUser.w, z).items);
+  check('Ohne Adminrolle steht „Datei loeschen" nur an der eigenen Datei',
+    avUserMenus.filter(items => items.includes(avDelete)).length === 1 && avUserMenus[2]?.includes(avDelete),
+    avUserMenus.map((items, i) => (items.includes(avDelete) ? i : null)).filter(i => i !== null).join(', '));
+  check('Ein Name ohne Loeschen ist auch hier moeglich',
+    avMeta(avU[3]).endsWith(' · Ohne Verfasser') && !avUserMenus[3]?.includes(avDelete),
+    `${avMeta(avU[3])} / ${avUserMenus[3]?.join(' ')}`);
+  check('Die Kacheln ohne Loeschen sind sonst unversehrt',
+    avU.length === 4 && avU.every(z => !!z.querySelector('.aname') && !!z.querySelector('.amore')) &&
+    avUserMenus.every(items => items.includes(D.DE_TEXTS['entry.download'])),
     `${avU.length}`);
   avUser.w.close();
 
-  check('Der Name an der Dateizeile ist im Stylesheet ueberhaupt geregelt',
-    ruleL('.arow .afrom').length > 0, '(keine Regel .arow .afrom)');
-  check('Und er darf nicht schrumpfen',
-    /flex-shrink: 0/.test(ruleL('.arow .afrom')), ruleL('.arow .afrom') || '(keine Regel)');
+  check('Die Zeile unter dem Namen ist im Stylesheet ueberhaupt geregelt',
+    ruleL('.ameta').length > 0, '(keine Regel .ameta)');
+  check('Und sie bricht nicht um, sondern kuerzt am Ende',
+    /white-space: nowrap/.test(ruleL('.ameta')) && /text-overflow: ellipsis/.test(ruleL('.ameta')),
+    ruleL('.ameta') || '(keine Regel)');
 
   /* ---- Ziehen auf dem Finger ---- */
   group('Ziehen: Maus sofort, Finger erst nach Halten');
@@ -1358,8 +1369,9 @@ async function run() {
   const cssTxt = fs.readFileSync(path.join(__dirname, 'public', 'style.css'), 'utf8');
   const lockRules = (cssTxt.match(/[^\n]*touch-action: *none[^\n]*/g) || [])
     .filter(z => !z.trim().startsWith('/*') && !z.trim().startsWith('*'));
+  // Die Wellenform im Vollbild spult mit dem Finger; sie steht in keiner Liste.
   check('Keine Zeile sperrt das Scrollen über einer sortierbaren Liste',
-    lockRules.every(z => /focus-mode/.test(z)),
+    lockRules.every(z => /focus-mode|^\.lb-wave \{/.test(z)),
     JSON.stringify(lockRules));
 
   const cursorOn = (el, kind, x, y, type = 'mouse') => {
@@ -2089,10 +2101,15 @@ async function run() {
   const lb3 = wb.document.querySelector('.lightbox');
   const stage = lb3.querySelector('.lb-stage');
   const image = lb3.querySelector('.lb-stage img');
+  // Gezoomt wird erst, wenn das Original geladen ist; der Pruefstand meldet es von Hand.
+  const preload3 = lb3.querySelector('.lb-preload');
+  Object.defineProperty(preload3, 'naturalWidth', { configurable: true, get: () => 4000 });
+  image.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 300, x: 0, y: 0, right: 400, bottom: 300 });
   const tap = (type) => {
     const e = new wb.Event('pointerup', { bubbles: true });
     Object.defineProperty(e, 'pointerType', { value: type });
     image.dispatchEvent(e);
+    preload3.dispatchEvent(new wb.Event('load'));
   };
   tap('mouse');
   check('Mit der Maus zoomt ein Klick', stage.classList.contains('zoomed'));
@@ -2134,24 +2151,23 @@ async function run() {
   check('Ohne Bühne passiert nichts, statt zu stürzen',
     (() => { try { wb.centerStage(null); return true; } catch { return false; } })());
 
-  // Prueft, dass das Vollbild centerStage() nach dem Zoom wirklich aufruft.
+  // Prueft, dass der Knopf „100 %“ centerStage() wirklich aufruft.
   const lb4 = (wb.openLightbox(includingOriginal, 0, 'Mitte'), wb.document.querySelector('.lightbox'));
   await until(wb, (x) => x.document.querySelectorAll('.lightbox').length > 1,
     2000, 'das zweite Vollbild');
   const buehne4 = lb4.querySelector('.lb-stage'), bild4 = lb4.querySelector('.lb-stage img');
   ['scrollWidth', 'clientWidth', 'scrollHeight', 'clientHeight'].forEach((k, n) =>
     Object.defineProperty(buehne4, k, { value: [3000, 1000, 2400, 800][n], configurable: true }));
-  const mouseTap = (target) => {
-    const e = new wb.Event('pointerup', { bubbles: true });
-    Object.defineProperty(e, 'pointerType', { value: 'mouse' });
-    target.dispatchEvent(e);
-  };
-  mouseTap(bild4);
-  bild4.dispatchEvent(new wb.Event('load'));
-  check('Nach dem Zoom rückt die Bühne wirklich in die Mitte',
+  const preload4 = lb4.querySelector('.lb-preload');
+  Object.defineProperty(preload4, 'naturalWidth', { configurable: true, get: () => 3000 });
+  bild4.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 800, x: 0, y: 0, right: 1000, bottom: 800 });
+  const zoomButton = lb4.querySelector('.zoom');
+  zoomButton.click();
+  preload4.dispatchEvent(new wb.Event('load'));
+  check('Nach dem Knopf „100 %“ rückt die Bühne wirklich in die Mitte',
     buehne4.scrollLeft === 1000 && buehne4.scrollTop === 800,
     `${buehne4.scrollLeft}/${buehne4.scrollTop}`);
-  mouseTap(bild4);
+  zoomButton.click();
   buehne4.scrollLeft = 0; buehne4.scrollTop = 0;
   bild4.dispatchEvent(new wb.Event('load'));
   check('Ohne Zoom bleibt der Bildlauf unangetastet',
@@ -2909,7 +2925,7 @@ async function run() {
   {
     const quApp = fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8');
     const guard = (id, v) => new RegExp(
-      `const ${v} = document\\.getElementById\\('${id}'\\);[\\s\\S]{0,1200}?if \\(!${v}\\) return;`).test(quApp);
+      `const ${v} = document\\.getElementById\\('${id}'\\);[\\s\\S]{0,1200}?if \\(!${v} \\|\\| !here\\(\\)\\) return;`).test(quApp);
     check('Der Betrachter fragt erst, ob seine Ansicht noch steht', guard('viewer', 'v'));
     check('Und der Bilderstreifen ebenso', guard('thumbs', 'box'));
   }
@@ -2924,7 +2940,7 @@ async function run() {
       .map(m => [m[1], Number(m[2])]);
     /* Erst das Vorhandensein: bei null Stufen waere jede Verneinung darunter wahr. */
     check('Die Stapelordnung steht als Ganzes in :root',
-      zLevels.length === 11, `${zLevels.length} Stufen: ${zLevels.map(([n]) => n).join(' · ')}`);
+      zLevels.length === 12, `${zLevels.length} Stufen: ${zLevels.map(([n]) => n).join(' · ')}`);
     /* Reihenfolge in der Datei. */
     check('Und sie steht von unten nach oben, ohne Sprung zurueck',
       zLevels.every(([, w], i) => i === 0 || w > zLevels[i - 1][1]),
@@ -2965,7 +2981,8 @@ async function run() {
   check('Tags stehen zwischen Datum und Sternen', (() => {
     const children = [...trow.children].map(k => k.className.split(' ')[0]);
     return children.indexOf('ttags') > children.indexOf('tdate') &&
-           children.indexOf('ttags') < children.findIndex(c => c === 'stars' || c === 'star-row');
+           children.indexOf('ttags') < children.indexOf('tend') &&
+           !!trow.querySelector(':scope > .tend > :is(.stars, .star-row)');
   })(), [...trow.children].map(k => k.className).join(' | '));
   check('Ein Knopf legt neue Tags an', !!trow.querySelector('.ttag-add'));
   trow.querySelector('.ttag-add').onclick();

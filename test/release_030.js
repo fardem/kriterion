@@ -360,8 +360,8 @@ async function check0300() {
     const SENTENCE_EXCEPTIONS = [
       'docker compose exec kriterion node usertool.js password <name>',
       'docker compose exec kriterion node usertool.js twofactor <name>',
-      'https://forum.beispiel.de/suche?q=%s',
-      'site%3Aforum.beispiel.de',
+      'https://forum.example.com/search?q=%s',
+      'site%3Aforum.example.com',
       'Die Sprachdatei fehlt.'
     ];
     const gTexts = screenTextsFrom(gApp);
@@ -393,7 +393,7 @@ async function check0300() {
     check('Und es sind genau fuenf benannte Ausnahmen — zwei Befehle, zwei Adressen, ein Satz',
       SENTENCE_EXCEPTIONS.length === 5 &&
       SENTENCE_EXCEPTIONS.filter(x => x.startsWith('docker')).length === 2 &&
-      SENTENCE_EXCEPTIONS.filter(x => /beispiel\.de/.test(x)).length === 2,
+      SENTENCE_EXCEPTIONS.filter(x => /example\.com/.test(x)).length === 2,
       SENTENCE_EXCEPTIONS.join(' · '));
     check('„an", „aus" und „eingerichtet" kommen jetzt aus der Sprachdatei',
       /tH\('card\.on'\)/.test(gApp) && /tH\('card\.off'\)/.test(gApp) &&
@@ -616,7 +616,7 @@ async function check0301() {
       /\.trow-tags \.ttags \{ flex: 1 1 0; \}/.test(uNarrow));
     check('Und mit Tags bricht die Zeile vor den Sternen um',
       /\.trow-tags::after \{ content: ''; flex-basis: 100%; height: 0; order: 1; \}/.test(uNarrow) &&
-      /\.trow-tags \.tfrom, \.trow-tags \.stars \{ order: 2; \}/.test(uNarrow));
+      /\.trow-tags \.tfrom, \.trow-tags \.tend \{ order: 2; \}/.test(uNarrow));
     /* Am DOM geprueft: das Stilblatt allein bliebe gruen, wenn app.js die
        Klasse nie setzt. */
     const uDays = [
@@ -637,28 +637,30 @@ async function check0301() {
     /* Am Zeilenende stuende „mehr" hinter den Sternen, weg von den Tags, die es
        meint. */
     const uOrder = (r) => [...r.children].map(e =>
-      ['ttags', 'ttag-more', 'stars', 'tdate', 'tweek', 'tfrom', 'xdel']
+      ['ttags', 'ttag-more', 'tend', 'tdate', 'tweek', 'tfrom', 'mact']
         .find(n => e.classList.contains(n)) || e.className.split(' ')[0]);
     check('Und „mehr" steht zwischen den Tags und den Sternen',
       uRows.every(r => {
         const o = uOrder(r);
         return o.indexOf('ttags') >= 0 && o.indexOf('ttag-more') === o.indexOf('ttags') + 1 &&
-               o.indexOf('stars') > o.indexOf('ttag-more');
+               o.indexOf('tend') > o.indexOf('ttag-more');
       }), JSON.stringify(uOrder(uRows[2] || uRows[0])));
-    /* jsdom rechnet keine Hoehen; die Masse werden gesetzt. */
+    /* jsdom rechnet keine Hoehen; Hoehe und Lage der Tags werden gesetzt. */
     const uBox = uDom.w.document.createElement('div');
-    const uChild = uDom.w.document.createElement('span');
-    uBox.appendChild(uChild);
-    Object.defineProperty(uChild, 'offsetHeight', { value: 29, configurable: true });
-    Object.defineProperty(uBox, 'scrollHeight', { value: 120, configurable: true });
-    Object.defineProperty(uBox, 'clientHeight', { value: 29, configurable: true });
+    const uPlace = (tops) => uBox.replaceChildren(...tops.map(top => {
+      const tag = uDom.w.document.createElement('span');
+      Object.defineProperty(tag, 'offsetHeight', { value: 29, configurable: true });
+      Object.defineProperty(tag, 'offsetTop', { value: top, configurable: true });
+      return tag;
+    }));
+    uPlace([0, 35, 70]);
     const uTrimmed = uDom.w.limitCloud(uBox, 1);
     check('Eine Reihe begrenzt, und die Begrenzung meldet den Rest',
       uTrimmed === true && uBox.style.maxHeight === '29px' && uBox.style.overflow === 'hidden',
       `${uTrimmed} · ${uBox.style.maxHeight} · ${uBox.style.overflow}`);
     /* Eine feste Hoehe an einem Kasten, der hineinpasst, stoert, sobald ein Tag
        seine Hoehe aendert. */
-    Object.defineProperty(uBox, 'scrollHeight', { value: 29, configurable: true });
+    uPlace([0, 0]);
     const uEng = uDom.w.limitCloud(uBox, 1);
     uDom.w.limitCloud(uBox, 0);
     check('Und passt alles hinein, bleibt keine Grenze stehen',
@@ -680,7 +682,7 @@ async function check0301() {
     uDom.w.close();
   }
 
-  group('In der Zeile die Zahl, im Titel das Wort — 0.30.1');
+  group('Der Zaehler entsteht an einer Stelle, mit Zahl und Wort — 0.30.1');
   {
     const uCode = uApp.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
     check('Der Zaehler entsteht an EINER Stelle',
@@ -702,8 +704,8 @@ async function check0301() {
     /* Ohne geoeffneten Abschnitt steht die Karte nicht im Dokument. */
     await sysSection(uSys.w, 'inventory');
     const uTagRow = uSys.w.document.querySelector('#mtags .mrow .mcount');
-    check('Die Tagkarte zeigt zwei Zahlen ohne Wort',
-      !!uTagRow && /^\d+ · \d+$/.test(uTagRow.textContent.trim()),
+    check('Die Tagkarte zeigt zwei Zahlen mit Wort',
+      !!uTagRow && /^\d+ \S+ · \d+ \S+$/.test(uTagRow.textContent.trim()),
       uTagRow ? uTagRow.textContent.trim() : '(keine Zeile)');
     check('Und ihr Titel nennt beide Woerter',
       !!uTagRow && /\d+ .+ · \d+ .+/.test(uTagRow.getAttribute('title') || ''),
@@ -871,34 +873,33 @@ async function check0303() {
       /function cloudLine\(box\) \{/.test(wApp) &&
       (wApp.match(/firstElementChild;\s*\n\s*return first \? first\.offsetHeight/g) || []).length === 1,
       (wApp.match(/first\.offsetHeight[^\n]*/g) || ['(nicht gefunden)']).join(' | '));
-    check('Und beide Leser fragen dort',
-      /function limitCloud\(box, rows\) \{[\s\S]{0,400}?const height = cloudLine\(box\);/.test(wApp) &&
-      /function cloudRows\(box\) \{\s*\n\s*const height = cloudLine\(box\);/.test(wApp));
+    check('Und die Zeilen zaehlt EINE Stelle, die dort fragt; beide Leser fragen sie',
+      /function cloudTops\(box\) \{\s*\n\s*const height = cloudLine\(box\);/.test(wApp) &&
+      /function limitCloud\(box, rows\) \{\s*\n\s*const tops = rows \? cloudTops\(box\) : \[\];/.test(wApp) &&
+      /function cloudRows\(box\) \{\s*\n\s*return cloudTops\(box\)\.length;/.test(wApp));
 
-    /* jsdom rechnet keine Hoehen; wBox stellt einen Kasten mit festen Massen. */
+    /* jsdom rechnet keine Hoehen; wBox stellt einen Kasten mit Tags an festen Stellen. */
     const wEmpty = buildDom(JSDOMw, { tags: [] });
     await until(wEmpty.w, (x) => x.document.getElementById('count') && openRequests(x) === 0,
       2000, 'die Uebersicht');
     const wWindow = wEmpty.w;
-    const wBox = (high, full) => ({ firstElementChild: { offsetHeight: high }, scrollHeight: full });
+    const wBox = (high, tops) => ({ firstElementChild: { offsetHeight: high },
+      children: tops.map(offsetTop => ({ offsetTop })), style: {} });
+    const wRows = (n) => Array.from({ length: n }, (_, i) => i * 33);
     check('cloudRows zaehlt EINE Reihe als eine',
-      wWindow.cloudRows(wBox(27, 27)) === 1, String(wWindow.cloudRows(wBox(27, 27))));
+      wWindow.cloudRows(wBox(27, [0, 0, 0])) === 1, String(wWindow.cloudRows(wBox(27, [0, 0, 0]))));
     check('Und ZWEI Reihen als zwei — auch hinter einer Begrenzung',
-      wWindow.cloudRows(wBox(27, 60)) === 2, String(wWindow.cloudRows(wBox(27, 60))));
+      wWindow.cloudRows(wBox(27, [0, 0, 33])) === 2, String(wWindow.cloudRows(wBox(27, [0, 0, 33]))));
     check('Und dreissig Reihen als dreissig',
-      wWindow.cloudRows(wBox(27, 30 * 27 + 29 * 6)) === 30,
-      String(wWindow.cloudRows(wBox(27, 30 * 27 + 29 * 6))));
+      wWindow.cloudRows(wBox(27, wRows(30))) === 30, String(wWindow.cloudRows(wBox(27, wRows(30)))));
     /* Ein eingeklappter Block misst 0, seine Kinder stehen auf display: none. */
     check('Eine Wolke ohne messbare Hoehe meldet null Reihen',
-      wWindow.cloudRows(wBox(0, 0)) === 0 &&
-      wWindow.cloudRows({ firstElementChild: null, scrollHeight: 0 }) === 0);
-    /* limitCloud() setzt die Hoehe, cloudRows() liest sie zurueck. */
-    const wMeasure = { firstElementChild: { offsetHeight: 27 }, scrollHeight: 999,
-      clientHeight: 0, style: {} };
+      wWindow.cloudRows(wBox(0, [0, 0])) === 0 &&
+      wWindow.cloudRows({ firstElementChild: null, children: [] }) === 0);
+    const wMeasure = wBox(27, wRows(3));
     wWindow.limitCloud(wMeasure, 2);
-    check('Was die Begrenzung fuer zwei Reihen haelt, haelt der Zaehler ebenso',
-      wMeasure.style.maxHeight === '60px' &&
-      wWindow.cloudRows(wBox(27, parseInt(wMeasure.style.maxHeight, 10))) === 2,
+    check('Die Begrenzung auf zwei Reihen endet vor der dritten; der Zaehler sieht alle drei',
+      wMeasure.style.maxHeight === '60px' && wWindow.cloudRows(wMeasure) === 3,
       `Begrenzung ${wMeasure.style.maxHeight}`);
     wEmpty.w.close();
 

@@ -21,26 +21,25 @@ function runModule(name) {
   let report = null;
   try { report = JSON.parse(fs.readFileSync(where, 'utf8')); } catch {}
   if (!report) {
-    console.log(`\n  ✗ Das Modul ${name} hat keine Zahlen gemeldet` +
-      `\n      Rueckgabewert ${r.status}, Signal ${r.signal}`);
-    H.addCounters({ passedCount: 0, failed: 1, skipped: 0, stillPassed: 0,
-                    stillFailed: 0, groupsShown: 0, groupsStill: 0, times: [] });
+    driverRed(name, 'hat keine Zahlen gemeldet', `Rueckgabewert ${r.status}, Signal ${r.signal}`);
     REPORTS.push({ moduleName: name, cases: [], smtp: [],
                      abort: `kein Ergebnis (Code ${r.status}, Signal ${r.signal})` });
     return;
   }
   H.addCounters(report);
   REPORTS.push(report);
-  if (report.abort)
-    console.log(`\n  ✗ Das Modul ${name} ist abgebrochen: ${report.abort}`);
+  if (report.abort) driverRed(name, `ist abgebrochen: ${report.abort}`);
   /* test/frame.js schreibt die Meldung vor dem Aufraeumen; stirbt das Modul
      danach, zeigt nur der Rueckgabewert den Fehler. */
-  if (!report.abort && !report.failed && r.status !== 0) {
-    console.log(`\n  ✗ Das Modul ${name} meldet keinen Fehler, endete aber mit` +
-      ` Rueckgabewert ${r.status}, Signal ${r.signal}`);
-    H.addCounters({ passedCount: 0, failed: 1, skipped: 0, stillPassed: 0,
-                    stillFailed: 0, groupsShown: 0, groupsStill: 0, times: [] });
-  }
+  if (!report.abort && !report.failed && r.status !== 0)
+    driverRed(name, `meldet keinen Fehler, endete aber mit Rueckgabewert ${r.status}, Signal ${r.signal}`);
+}
+
+// Zaehlt wie eine rote Pruefung, mit dem Modul als Gruppe.
+function driverRed(name, text, hint = '') {
+  console.log(`\n  ✗ Das Modul ${name} ${text}${hint ? `\n      ${hint}` : ''}`);
+  H.addCounters({ passedCount: 0, failed: 1, skipped: 0, stillPassed: 0, stillFailed: 0,
+                  groupsShown: 0, groupsStill: 0, times: [], red: [{ group: `Modul ${name}`, name: text }] });
 }
 
 const MODULE = [
@@ -61,6 +60,29 @@ const MODULE = [
   'release_030',
   'release_031',
   'release_041',
+  'release_042',
+  'release_043',
+  'release_044',
+  'release_045',
+  'release_046',
+  'release_047',
+  'release_048',
+  'release_049',
+  'release_050',
+  'release_051',
+  'release_052',
+  'release_053',
+  'release_054',
+  'release_055',
+  'release_056',
+  'release_057',
+  'release_0571',
+  'release_0572',
+  'release_058',
+  'release_059',
+  'release_060',
+  'release_061',
+  'release_062',
   'selfcheck'
 ];
 

@@ -140,7 +140,20 @@ function buildDom(JSDOM, { withoutLanguage = false, settings = { filters: null }
   calculationEqual = undefined,
   /* Schnitt und Stimmenzahl je Kriterienzeile. */
   voteColumns = null,
-  entryMine = false } = {}) {
+  entryMine = false,
+  /* Anhaenge hinter den vier der Vorgabe. */
+  extraAttachments = [],
+  /* Fotos, Videos oder Audio hinter den zwei der Vorgabe. */
+  extraPhotos = [],
+  browserLanguages = ['de-DE', 'de'],
+  /* Ordner unter „Dateien", neueste oben wie am Server. */
+  folders = [],
+  /* Die Karte „Dokumente": Zustand und Ergebnis der Pruefung. */
+  documentServer = null, documentServerCheck = null,
+  /* Antwort von GET /api/maintenance; Loeschen und Zurueckholen nehmen die Namen heraus.
+     Die ersten `maintenanceRunning` Antworten melden die Pruefung als laufend. */
+  maintenance = null, maintenanceRunning = 0,
+  statsProxy = null } = {}) {
   // Kommt aus dem jsdom-Paket des Aufrufers; require liest nur den Modulcache.
   const { VirtualConsole } = require('jsdom');
   settings = { searchProviders: DOM_PROVIDER, searchNames: 3, ...settings };
@@ -270,15 +283,17 @@ function buildDom(JSDOM, { withoutLanguage = false, settings = { filters: null }
       files: 0, bytes: 512, daysOpen: 27 }
   ];
   // Grenzen beim Hochladen in MB, mit der Spanne des Servers.
-  const uploadLimitsMock = { photo: 30, commentImage: 20, video: 20, commentVideo: 20, attachment: 50,
-    ...(uploadLimits || {}) };
+  const uploadLimitsMock = { photo: 30, commentImage: 20, video: 20, commentVideo: 20, audio: 50, attachment: 50,
+    file: 2048, ...(uploadLimits || {}) };
   const UPLOAD_RANGES_MOCK = { photo: { min: 1, max: 50, fallback: 30 },
     commentImage: { min: 1, max: 50, fallback: 20 }, video: { min: 1, max: 100, fallback: 20 },
-    commentVideo: { min: 1, max: 100, fallback: 20 }, attachment: { min: 1, max: 100, fallback: 50 } };
+    commentVideo: { min: 1, max: 100, fallback: 20 }, audio: { min: 1, max: 100, fallback: 50 },
+    attachment: { min: 1, max: 100, fallback: 50 },
+    file: { min: 1, max: 4096, fallback: 2048 } };
   const backup = backupStatus || {
-    configured: true, root: '/backup', place: 'taeglich', filePath: '/backup/taeglich',
-    // Vorgabe ist die empfohlene Lage ausserhalb des Arbeitsordners.
-    inWorkDir: false,
+    configured: true, root: '/backup', filePath: '/backup',
+    // Vorgabe ist die empfohlene Lage ausserhalb des Projektordners, auf einem anderen Datentraeger.
+    inWorkDir: false, sameDisk: false,
     dbBytes: 52428800, durationSeconds: 1, reachable: true, number: 2,
     last: { file: 'kriterion-2026-08-20-03-00-00.sqlite', bytes: 52428800,
               at: '2026-08-20 03:00:00', daysAgo: 3, outdated: false },
@@ -286,7 +301,7 @@ function buildDom(JSDOM, { withoutLanguage = false, settings = { filters: null }
     /* Vorgabe wie bei einer frischen Installation: Schalter aus, 3 und 30,
        die Regel trifft nichts. */
     cleanup: {
-      an: false, keep: 3, days: 30,
+      an: false, keep: 3, days: 30, last: null,
       limits: { keep: { fallback: 3, min: 1, max: 20 },
                  days: { fallback: 30, min: 7, max: 365 } },
       reachable: true, matched: [], bytes: 0,
@@ -340,9 +355,9 @@ function buildDom(JSDOM, { withoutLanguage = false, settings = { filters: null }
     author: entryMine ? vChefin : vBert,
     /* Ein Bild und ein Video: beide Arten werden geprueft. */
     photos: [{ id: 5, mime_type: 'image/png', focus_x: 50, focus_y: 50, sort_order: 0,
-               kind: 'image', duration: null },
+               kind: 'image', duration: null, filename: 'Urlaub am Strand.png' },
              { id: 6, mime_type: 'video/mp4', focus_x: 50, focus_y: 50, sort_order: 1,
-               kind: 'video', duration: 42 }],
+               kind: 'video', duration: 42, filename: 'clip.mp4' }, ...extraPhotos],
     /* Sieben Adressen und eine Suchzeile; an der Suchzeile haengt die
        Pruefung der Kennzeichnung. */
     links: [
@@ -395,8 +410,10 @@ function buildDom(JSDOM, { withoutLanguage = false, settings = { filters: null }
       { id: 43, filename: 'doku.pdf', mime_type: 'application/pdf', size: 900000, sort_order: 2, preview: 'pdf',
         created_at: '2026-08-02 12:00:00', mine: true, author: vChefin },
       { id: 44, filename: 'archiv.zip', mime_type: 'application/zip', size: 5242880, sort_order: 3, preview: 'keine',
-        created_at: '2026-08-03 13:00:00', mine: false, author: null }
+        created_at: '2026-08-03 13:00:00', mine: false, author: null },
+      ...extraAttachments
     ],
+    folders,
     tags: tags.filter(t => t.assigned),
     // mine: ob der Testtag dem Abrufenden gehoert, wie am Server.
     testDays: dayInventory || [{ id: 3, day: '2026-08-01', rating: 4, mine: true, author: vChefin,
@@ -506,6 +523,8 @@ function buildDom(JSDOM, { withoutLanguage = false, settings = { filters: null }
     `<p class="version-row" id="version"></p></body></html>`,
     { runScripts: 'dangerously', url: `${BASE}/${hash}`, virtualConsole: silenceConsole });
   const w = dom.window;
+  // Die Einrichtung waehlt danach ihre Sprache vor; jsdom meldet sonst en-US.
+  Object.defineProperty(w.navigator, 'languages', { configurable: true, get: () => browserLanguages });
   const answer = async (url, opt = {}) => {
     const askedLanguage = Object.entries((opt && opt.headers) || {})
       .find(([h]) => h.toLowerCase() === 'accept-language');
@@ -740,6 +759,11 @@ function buildDom(JSDOM, { withoutLanguage = false, settings = { filters: null }
     };
     if (url === '/api/criteria') return give(withNames(criteria, criterionNames));
     if (url === '/api/criteria/order') return give(withNames(criteria, criterionNames));
+    if ((url === '/api/tags' || url === '/api/product-categories') && opt.method === 'POST') {
+      const name = String((opt.body ? JSON.parse(opt.body) : {}).name || '').trim();
+      const found = (url === '/api/tags' ? tags : categories).find(z => z.name.toLowerCase() === name.toLowerCase());
+      return found ? give({ ...found, existed: true }) : give({ id: 990, name, usage_count: 0 }, 201);
+    }
     if (url === '/api/tags') return give(tags);
     if (url === '/api/product-categories') return give(withNames(categories, categoryNames));
     /* Namenstafeln je Sprache, nur fuer Admins wie `namesAll()` in server.js. */
@@ -779,6 +803,13 @@ function buildDom(JSDOM, { withoutLanguage = false, settings = { filters: null }
         }
         return give({ uploadLimits: { ...uploadLimitsMock } });
       }
+      // Die Bitrate der Proxys: dieselbe Spanne und dieselbe Absage wie am Server.
+      if (sentBody.proxyRate !== undefined) {
+        const n = sentBody.proxyRate;
+        if (typeof n !== 'number' || n < 1 || n > 8 || Math.abs(n * 10 - Math.round(n * 10)) > 1e-9)
+          return give({ error: DE_TEXTS['server.proxyRate'].replace('{min}', '1').replace('{max}', '8') }, 400);
+        return give({ proxyRate: Math.round(n * 10) / 10 });
+      }
       /* Antwort in der neuen Sprache wie am Server: `localeOf(req)` liest den
          Schluessel aus derselben Anfrage. */
       if (typeof sentBody.language === 'string' && sentBody.language) {
@@ -810,6 +841,7 @@ function buildDom(JSDOM, { withoutLanguage = false, settings = { filters: null }
             categoryNames: namesTableMock(categories, categoryNames),
             criterionNames: namesTableMock(criteria, criterionNames) }) });
       }
+      if (Number.isInteger(sentBody.partialShare)) return give({ partialShare: sentBody.partialShare });
       /* Nur der geaenderte Wert; mehrere Karten lesen das Ergebnis. */
       return give({ convertImages });
     }
@@ -832,6 +864,13 @@ function buildDom(JSDOM, { withoutLanguage = false, settings = { filters: null }
         return m ? Number(decodeURIComponent(m[1])) : null;
       };
       const gr = backup.cleanup && backup.cleanup.limits;
+      /* Die Rueckfrage der Auswahl: frei wuerden die Dateien, die nur diese Backups nennen. */
+      const freedNames = (q.match(/(?:^|&)freed=([^&]*)/) || [])[1];
+      if (freedNames !== undefined) {
+        const names = new Set(decodeURIComponent(freedNames).split('|'));
+        return give({ ...backup, freed: cleanupCopies.filter(z => names.has(z.file))
+          .reduce((n, z) => n + ((z.files && z.files.onlyBytes) || 0), 0) });
+      }
       if (!gr || !q) return give(backup);
       const b = numberOut('keep'), t = numberOut('days');
       for (const [value, span, event] of [[b, gr.keep, 'Immer behalten'],
@@ -849,7 +888,7 @@ function buildDom(JSDOM, { withoutLanguage = false, settings = { filters: null }
       const names = new Set(matched.map(z => z.file));
       const oldNames = new Set((backup.cleanup.oldFiles || []).map(z => z.file));
       return give({ ...backup, cleanup: { ...backup.cleanup, keep, days,
-        files: cleanupCopies.map((z, i) => ({ ...z, nr: i + 1,
+        files: cleanupCopies.map((z, i) => ({ ...z, nr: i + 1, locked: i < backup.cleanup.keep,
           affected: names.has(z.file), outdated: oldNames.has(z.file) })),
         matched, bytes: matched.reduce((n, z) => n + z.bytes, 0),
         reason: matched.length ? '' : (cleanupCopies.length <= keep
@@ -860,15 +899,22 @@ function buildDom(JSDOM, { withoutLanguage = false, settings = { filters: null }
       if (settings.isOwner === false)
         return give({ error: DE_TEXTS['server.deniedOwner'] }, 403);
       const k = JSON.parse(opt.body || '{}');
-      if (k.kind !== 'rule' && k.kind !== 'outdated')
+      if (k.kind !== 'rule' && k.kind !== 'outdated' && k.kind !== 'selected')
         return give({ error: 'Diese Art des Aufräumens gibt es nicht.' }, 400);
       const a = backup.cleanup || {};
+      // Wie am Server: die `keep` juengsten sind gesperrt, ein unbekannter Name loescht nichts.
+      const chosen = new Set(k.kind === 'selected' ? k.names || [] : []);
+      if (k.kind === 'selected' && (!chosen.size || [...chosen].some(n =>
+        cleanupCopies.findIndex(z => z.file === n) < (a.keep ?? 3))))
+        return give({ error: DE_TEXTS['server.cleanupSelection'] }, 400);
       const outdatedFiles = k.kind === 'outdated'
         ? (a.oldFiles || [])
+        : k.kind === 'selected' ? cleanupCopies.filter(z => chosen.has(z.file))
         : cleanupCopies.slice(a.keep).filter(z => z.daysAgo > a.days);
       const names = new Set(outdatedFiles.map(z => z.file));
       for (let i = cleanupCopies.length - 1; i >= 0; i--)
         if (names.has(cleanupCopies[i].file)) cleanupCopies.splice(i, 1);
+      if (Array.isArray(a.files)) a.files = a.files.filter(z => !names.has(z.file));
       const bytes = outdatedFiles.reduce((n, z) => n + z.bytes, 0);
       backup.number = Math.max(0, (backup.number || 0) - outdatedFiles.length);
       if (k.kind === 'outdated') { backup.outdated = 0; a.oldCount = 0; a.oldBytes = 0;
@@ -881,32 +927,15 @@ function buildDom(JSDOM, { withoutLanguage = false, settings = { filters: null }
                    outdated: backup.outdated ?? 0,
                    cleanup: backup.cleanup });
     }
-    /* Beide Schreibwege aendern den Stand; sonst waere nicht zu erkennen, ob
-       die Karte neu gezeichnet wird. */
-    if (url === '/api/backup/dir' && opt.method === 'PUT') {
-      const place = String(JSON.parse(opt.body || '{}').place || '');
-      if (place.includes('..') || place.startsWith('/'))
-        return give({ error: 'Der Unterordner liegt im eingerichteten Backup-Ordner.' }, 400);
-      backup.place = place;
-      backup.filePath = place ? `/backup/${place}` : '/backup';
-      backup.error = null;
-      // changedAt und outdated wie am Server; ohne sie saehe die Karte nach
-      // dem Speichern harmloser aus als die Lage.
-      return give({ ok: true, place, filePath: backup.filePath, reachable: true,
-                   number: backup.number, last: backup.last,
-                   changedAt: backup.changedAt ?? null,
-                   outdated: backup.outdated ?? 0 });
-    }
     if (url === '/api/backup' && opt.method === 'POST') {
       const file = 'kriterion-2026-08-23-19-00-00.sqlite';
       backup.number = (backup.number || 0) + 1;
       backup.last = { file, bytes: 52428800, at: '2026-08-23 19:00:00', daysAgo: 0 };
       backup.reachable = true;
-      /* cleaned: null, denn die Aufraeumregel ist in der Prueflage aus. */
       return give({ ok: true, file, filePath: backup.filePath, bytes: 52428800, ms: 512,
                    reachable: true, number: backup.number, last: backup.last,
                    changedAt: backup.changedAt ?? null,
-                   outdated: backup.outdated ?? 0, cleaned: null });
+                   outdated: backup.outdated ?? 0 });
     }
     /* Beide Wege aendern die Liste; sonst bliebe unbemerkt, wenn die Karte
        nicht neu gezeichnet wird. */
@@ -1139,14 +1168,43 @@ function buildDom(JSDOM, { withoutLanguage = false, settings = { filters: null }
       }
       return give(example);
     }
+    if (/^\/api\/items\/\d+\/uploads$/.test(url) && opt.method === 'POST')
+      return give({ id: 'a'.repeat(32), received: 0 }, 201);
     if (url.startsWith('/api/items/1')) return give(example);
     // Endpunkte, die den ganzen Eintrag zurueckgeben.
     if (/^\/api\/comments\/\d+/.test(url) || /^\/api\/comment-images\/\d+$/.test(url) ||
         /^\/api\/items\/1\/comments$/.test(url))
       return give(example);
+    if (/^\/api\/attachments\/\d+\/waveform$/.test(url) && opt.method === 'PUT') {
+      const a = example.attachments.find(x => x.id === Number(url.split('/')[3]));
+      if (a) a.peaks = JSON.parse(opt.body || '{}').peaks;
+      return give(example);
+    }
     if (url.startsWith('/api/attachments/41/preview'))
       return give({ kind: 'text', text: 'Erste Zeile\nZweite Zeile', shortened: false });
     /* Nur fuer Admins, wie am Server. */
+    if (url === '/api/document-server') return give(documentServer || {
+      rows: [], secret: false, setup: 'server.docNoAddress', on: false });
+    if (url === '/api/document-server/check')
+      return give(documentServerCheck || { key: 'server.docNoAddress', values: {} });
+    if (url === '/api/maintenance' && maintenance)
+      return give(maintenanceRunning-- > 0 ? { ...maintenance, check: { running: true } } : maintenance);
+    if (url === '/api/files/unknown' && opt.method === 'DELETE' && maintenance) {
+      const names = JSON.parse(opt.body || '{}').names || [];
+      const gone = maintenance.unknown.filter(f => f.free && names.includes(f.name));
+      maintenance = { ...maintenance, unknown: maintenance.unknown.filter(f => !gone.includes(f)) };
+      return give({ removed: gone.length, bytes: gone.reduce((n, f) => n + f.size, 0), ...maintenance,
+        disk: { count: 4, bytes: 6144, uploadCount: 0, uploadBytes: 0, missing: 0, gone: 0,
+                unknownCount: maintenance.unknown.length, unknownBytes: 0, free: null } });
+    }
+    if (url === '/api/files/missing' && opt.method === 'POST' && maintenance) {
+      const names = JSON.parse(opt.body || '{}').names || [];
+      const back = maintenance.missing.filter(f => f.copy && names.includes(f.name));
+      maintenance = { ...maintenance, missing: maintenance.missing.filter(f => !back.includes(f)) };
+      return give({ restored: back.length, ...maintenance,
+        disk: { count: 4, bytes: 6144, uploadCount: 0, uploadBytes: 0, missing: maintenance.missing.length,
+                gone: 0, unknownCount: 0, unknownBytes: 0, free: null } });
+    }
     if (url === '/api/stats') {
       if (settings.isAdmin === false)
         return give({ error: 'Das verwaltet nur der Admin.' }, 403);
@@ -1172,7 +1230,10 @@ function buildDom(JSDOM, { withoutLanguage = false, settings = { filters: null }
         method: statsMethod === undefined
           ? { cipher: 'sqlcipher', keyBits: 256, journal: 'WAL', passwords: 'scrypt' }
           : statsMethod,
-        keyFromEnv: false, keyHex: 'ab'.repeat(32) });
+        keyFromEnv: false, keyHex: 'ab'.repeat(32),
+        proxy: statsProxy || { checked: true, quickSync: true, driver: 'Intel iHD driver - 25.2.3', reason: null,
+          detail: null, tmpfs: true, tmpTotal: 2147483648, tmpFree: 1610612736, ready: 3, failed: 0, bytes: 31457280,
+          waiting: 1 } });
     }
     return give({});
   };
@@ -1214,6 +1275,10 @@ async function openTagRow(w) {
   return w.document.getElementById('f-tagrow');
 }
 
+
+// Knopf der Richtung: das sichtbare Wort; flipSort() kehrt um.
+const sortWords = (w, id) => w.document.querySelector(`#${id} .sort-flip > span:not(.off)`)?.textContent ?? null;
+const flipSort = (w, id) => w.document.querySelector(`#${id} .sort-flip`)?.click();
 
 /* Wartet, bis der Debounce abgelaufen und keine Suchanfrage mehr unterwegs ist. */
 async function waitSearch(w, limitMs = 3000) {
@@ -1357,7 +1422,8 @@ async function sysPass(d) {
   const cards = [], pieces = [];
   const tab = [...d.w.document.querySelectorAll('.sys-tab')]
     .map(a => a.getAttribute('href'));
-  for (const address of tab) {
+  // Mit nur einem Abschnitt fehlt die Leiste; dann zaehlt der gezeigte.
+  for (const address of tab.length ? tab : [d.w.location.hash]) {
     d.w.history.replaceState(null, '', address);
     await d.w.renderSystem();
     await until(d.w, (x) => openRequests(x) === 0, 3000, `die Karten unter ${address}`);
@@ -1395,7 +1461,7 @@ async function sysPass(d) {
 return {
   DOM_PASSWORD, DOM_LOG, DOM_PROT_GROUPS, placeConfirm, confirmImDom,
   DOM_PROVIDER, MAIL_HINT_KEYS, DE_TEXTS, shows, buildDom, openTagRow,
-  waitSearch, until, UNTIL_STEP, openRequests, sysSection, pillName, pillMark,
+  waitSearch, until, UNTIL_STEP, openRequests, sysSection, pillName, pillMark, sortWords, flipSort,
   screenTextsFrom, serverTextsFrom, SCREEN_BAN, isAddress,
   screenViolations, sysPass, css123, regel123, withoutMedia
 };

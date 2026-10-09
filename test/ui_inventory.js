@@ -244,10 +244,8 @@ async function run() {
   const gwNDoc = gwOnlyRead.w.document;
   check('Ohne Adminrecht steht kein Eingabefeld da',
     gwNDoc.querySelectorAll('#mcrits .mweight-field').length === 0);
-  check('Das Gewicht selbst steht trotzdem an der Zeile',
-    equal([...gwNDoc.querySelectorAll('#mcrits .mweight-fixed')].map(z => z.textContent),
-           ['×1,5', '×1', '×0,5']),
-    JSON.stringify([...gwNDoc.querySelectorAll('#mcrits .mweight-fixed')].map(z => z.textContent)));
+  check('Und die Kriterienkarte sieht er gar nicht',
+    !gwNDoc.getElementById('mcrits'), gwOnlyRead.w.location.hash);
   gwOnlyRead.w.close();
 
   group('Der Umschalter der Vergleichsansicht');
@@ -890,7 +888,7 @@ async function run() {
   /* Sortieren und Ansichten teilen sich eine Zeile mit zwei Beschriftungen. */
   const ansRow = () => [...ansW.document.querySelectorAll('.frow')]
     .find(r => [...r.querySelectorAll('.eyebrow')].some(e => e.textContent === 'Ansichten'));
-  const ansPills = () => [...(ansRow()?.querySelectorAll('.pill') || [])]
+  const ansPills = () => [...(ansRow()?.querySelectorAll('.pill') || [])].filter(b => !b.closest('.sort-way'))
     .map(b => b.textContent.replace('✕', '').trim());
   const ansSettings = () => ansDom.sent.filter(g => g.url === '/api/settings' && g.method === 'PUT');
 
@@ -962,11 +960,9 @@ async function run() {
   /* Gespeichert ist title_asc; die Leiste zeigt es als Feld und Richtung. */
   check('Und die Sortierung steht auf der gespeicherten',
     aw.document.getElementById('f-sort')?.value === 'title'
-    && aw.document.getElementById('f-sort-dir')?.textContent === 'A → Z'
-    && aw.document.getElementById('f-sort-dir')?.disabled === false,
+    && D.sortWords(aw, 'f-sort-dir') === 'A → Z',
     `${aw.document.getElementById('f-sort')?.value} · ` +
-    `${aw.document.getElementById('f-sort-dir')?.textContent} · ` +
-    `${aw.document.getElementById('f-sort-dir')?.disabled}`);
+    `${D.sortWords(aw, 'f-sort-dir')}`);
   check('Und der Knopf ist danach als geltend markiert',
     awPill().classList.contains('on'), awPill().className);
   check('Und das Kreuz zum Leeren steht da, weil ein Begriff im Feld steht',
@@ -1037,9 +1033,9 @@ async function run() {
     `${ag.document.querySelectorAll('.card-title').length} Karten`);
   check('Und die uebrige Stellung der Ansicht gilt trotzdem',
     ag.document.getElementById('f-sort')?.value === 'title'
-    && ag.document.getElementById('f-sort-dir')?.textContent === 'A → Z',
+    && D.sortWords(ag, 'f-sort-dir') === 'A → Z',
     `${ag.document.getElementById('f-sort')?.value} · ` +
-    `${ag.document.getElementById('f-sort-dir')?.textContent}`);
+    `${D.sortWords(ag, 'f-sort-dir')}`);
   ag.close();
 
   group('Doppelte Eintraege beim Anlegen');
@@ -1077,8 +1073,9 @@ async function run() {
       await new Promise(r => setTimeout(r, 20));
       return;
     }
+    // Ohne Treffer bleibt die Zeile leer; die Pruefung danach meldet das.
     await until(dp, () => (old ? !old.isConnected : !!dpRow().firstChild), 2000,
-      'die neu gebildete Hinweiszeile');
+      'die neu gebildete Hinweiszeile').catch(() => {});
   };
   await dpType('bos', false);
   check('Unter vier Zeichen sagt sie nichts', dpRow().innerHTML === '', dpRow().textContent);
@@ -1089,9 +1086,8 @@ async function run() {
   check('Und die Schreibung spielt dabei keine Rolle',
     (await dpType('BOSCH')) === undefined && /Bosch GSR 18V-60/.test(dpRow().textContent),
     dpRow().textContent);
-  /* Leerzeichen und Strich meint beim Tippen niemand als Unterschied. */
-  await dpType('gsr18v');
-  check('Sonderzeichen fallen beim Vergleich weg',
+  await dpType('Akkuschrauber-bosch');
+  check('Satzzeichen trennen Woerter: „bosch“ nach dem Strich findet den Eintrag',
     /Bosch GSR 18V-60/.test(dpRow().textContent), dpRow().textContent);
   await dpType('Etwas ganz anderes', false);
   check('Ein Titel ohne Aehnlichkeit laesst die Zeile leer',
@@ -1130,7 +1126,7 @@ async function run() {
   dsTitle.value = 'bosch gsr';
   dsTitle.dispatchEvent(new ds.Event('input'));
   await until(ds, (x) => x.document.getElementById('nt-similar').firstChild, 2000,
-    'die Hinweiszeile');
+    'die Hinweiszeile').catch(() => {});
   check('Der Hinweis findet den Eintrag auch dann, wenn die Suche ihn ausblendet',
     /Bosch GSR 18V-60/.test(ds.document.getElementById('nt-similar').textContent),
     ds.document.getElementById('nt-similar').textContent);
@@ -1179,7 +1175,7 @@ async function run() {
     const d = buildDom(JSDOM, { statsExport,
       settings: { filters: null, isAdmin: true, isOwner: true } });
     await until(d.w, listReady, 2000, 'die Uebersicht');
-    await sysSection(d.w, 'database');
+    await sysSection(d.w, 'backup');
     await until(d.w, (x) => x.document.getElementById('ex-yes') && openRequests(x) === 0, 2000,
       'die Exportkarte');
     return d;
@@ -1187,7 +1183,7 @@ async function run() {
   const MB = 1024 * 1024;
   const exLower = { envelope: 1 * MB, photos: 10 * MB, videos: 4 * MB,
                     attachments: 2 * MB, commentImages: 1 * MB,
-                    warnFrom: 300 * MB, limit: 483183799, string: 536870888 };
+                    warnFrom: 300 * MB };
   const dEx = await exBuild(exLower);
   const exW = dEx.w;
   const exText = (id) => exW.document.getElementById(id)?.textContent || '';
@@ -1214,6 +1210,7 @@ async function run() {
     exW.exportSum(undefined, { withPhotos: true }) === 0,
     `${exW.exportSum(null, { withPhotos: true })}`);
 
+  await sysSection(exW, 'database');
   const exKv = [...exW.document.querySelectorAll('.sys-card .kv')]
     .map(z => [z.querySelector('.k')?.textContent, z.querySelector('.v')?.textContent]);
   const exRow = (name) => (exKv.find(z => z[0] === name) || [])[1];
@@ -1226,6 +1223,7 @@ async function run() {
     JSON.stringify([exRow('Datenbank'), exRow('Exportgröße (alles)')]));
   check('Und die Kommentarbilder haben endlich ihre eigene Zeile',
     /^3 · /.test(exRow('Kommentarbilder') || ''), exRow('Kommentarbilder'));
+  await sysSection(exW, 'backup');
 
   check('Der Knopf „Mit Fotos" nennt seine Groesse',
     exText('ex-gr-yes') === exW.fmtBytes(11 * MB), exText('ex-gr-yes'));
@@ -1274,7 +1272,7 @@ async function run() {
   /* Ohne diese Lage belegte „keine Warnung" nichts. */
   const exBig = { envelope: 20 * MB, photos: 900 * MB, videos: 200 * MB,
                     attachments: 400 * MB, commentImages: 10 * MB,
-                    warnFrom: 300 * MB, limit: 483183799, string: 536870888 };
+                    warnFrom: 300 * MB };
   const dExG = await exBuild(exBig);
   const exG = dExG.w;
   const warnText = exG.document.getElementById('ex-warn')?.textContent || '';
@@ -1285,15 +1283,14 @@ async function run() {
   check('Sie sagt an, dass es dauert und keinen Fortschritt gibt',
     /dauern/.test(warnText) && /Fortschrittsanzeige/.test(warnText), warnText.slice(0, 220));
   check('Und sie nennt keine Zahl mehr als Grenze',
-    !warnText.includes(exG.fmtBytes(exBig.string)) &&
-    !warnText.includes(exG.fmtBytes(exBig.limit)) &&
     !warnText.includes(exG.fmtBytes(exBig.warnFrom)), warnText.slice(0, 220));
   check('Sie verweist auf das Backup als den anderen Weg',
     /Backup/.test(warnText), warnText.slice(0, 200));
   check('Der Knopf bleibt trotzdem da und bleibt bedienbar',
     !!exG.document.getElementById('ex-yes') && !exG.document.getElementById('ex-yes').disabled);
+  // „vollstaendig" nur dort, wo die Wahl es zusagt: im Plan der Teile.
   check('Und die Warnung nennt den Ausweg — 0.22.0',
-    /In Teilen exportieren/.test(warnText) && /jeder Teil ist\s+eine vollständige Exportdatei/.test(warnText),
+    /In Teilen exportieren/.test(warnText) && !/vollständige Exportdatei/.test(warnText),
     warnText.slice(0, 260));
   /* Der Text bricht um; verglichen wird mit zusammengezogenen Leerzeichen. */
   const warnSmooth = warnText.replace(/\s+/g, ' ');
