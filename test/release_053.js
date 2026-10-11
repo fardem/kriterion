@@ -685,8 +685,8 @@ async function run() {
       !/^### (Hinzugefügt|Geändert|Behoben|Entfernt)/m.test(log), `${log.split('\n').length} Zeilen`);
     const older = ((log.match(/^## Older versions — 0\.10\.0 to 0\.41\.0\n\n((?:- 0\.[1-4]\d\.\d+: .*\n)+)/m) || [])[1] || '')
       .split('\n').filter(Boolean);
-    check('Ab 0.41.1 behaelt jede Version Ueberschrift und Fingerprint, 0.10.0 bis 0.41.0 stehen je in einer Zeile: 59 Abschnitte',
-      (log.match(/^## /gm) || []).length === 59 && (log.match(/^Fingerprint `/gm) || []).length === 42 && older.length === 88,
+    check('Ab 0.41.1 behaelt jede Version Ueberschrift und Fingerprint, 0.10.0 bis 0.41.0 stehen je in einer Zeile: 60 Abschnitte',
+      (log.match(/^## /gm) || []).length === 60 && (log.match(/^Fingerprint `/gm) || []).length === 43 && older.length === 88,
       `${(log.match(/^## /gm) || []).length} / ${(log.match(/^Fingerprint `/gm) || []).length} / ${older.length}`);
     const long = log.split('\n').filter(z => z.startsWith('- ') && z.length > 180);
     check('Jeder Punkt hat hoechstens 180 Zeichen', long.length === 0, long.map(z => `${z.length}: ${z.slice(0, 60)}`).join(' · '));

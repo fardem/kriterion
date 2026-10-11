@@ -630,7 +630,17 @@ async function run() {
       fs.mkdirSync(path.dirname(path.join(src, rel)), { recursive: true });
       fs.writeFileSync(path.join(src, rel), 'bleibt hier\n');
     }
+    fs.writeFileSync(path.join(src, '.gitignore'), 'node_modules/\n');
+    fs.mkdirSync(path.join(src, 'node_modules'));
     const Q = require(path.join(src, 'tools', 'publish.js'));
+    const setTest = (code) => {
+      const pkg = JSON.parse(fs.readFileSync(path.join(src, 'package.json'), 'utf8'));
+      fs.writeFileSync(path.join(src, 'package.json'), JSON.stringify({ ...pkg, scripts: { test: `node -e "${code}"` } }, null, 2) + '\n');
+    };
+    // Gruen nur, wenn der Export server.js und node_modules hat und nichts aus EXCLUDED.
+    const exportGreen = "const f=require('fs');process.exit(f.existsSync('server.js')&&f.existsSync('node_modules')&&" +
+      "!['Doku','CLAUDE.md','tools/ux','tools/publish.js'].some(n=>f.existsSync(n))?0:3)";
+    setTest(exportGreen);
     const setVersion = (v) => {
       const pkg = JSON.parse(fs.readFileSync(path.join(src, 'package.json'), 'utf8'));
       fs.writeFileSync(path.join(src, 'package.json'), JSON.stringify({ ...pkg, version: v }, null, 2) + '\n');
@@ -654,19 +664,29 @@ async function run() {
     const dry = run('--trocken');
     const first = run();
     const parentless = sh(src, 'log', '--format=%P', '-1', 'publish').stdout.trim();
-    const tagged = rev('v0.58.0^{commit}') === rev('refs/heads/publish');
+    const tagged = rev('0.58.0^{commit}') === rev('refs/heads/publish');
     const files = sh(src, 'ls-tree', '-r', '--name-only', 'publish').stdout.split('\n');
-    const pushed = sh(src, 'push', '-q', 'publish', 'publish:main', 'v0.58.0').status;
-    check('Ohne Gegenstelle Abbruch; leer: ein Commit ohne Elternteil mit Tag, ohne Doku/, CLAUDE.md und tools/ux',
+    const pushed = sh(src, 'push', '-q', 'publish', 'publish:main', '0.58.0').status;
+    check('Ohne Gegenstelle Abbruch; leer: npm test im Export gruen, ein Commit ohne Elternteil mit Tag 0.58.0, ohne Doku/, CLAUDE.md und tools/ux',
       noRemote.status === 1 && /keine Gegenstelle "publish"/.test(noRemote.text) && dry.status === 0 && /Trockenlauf/.test(dry.text) &&
       first.status === 0 && parentless === '' && tagged && pushed === 0 && files.includes('server.js') &&
       !files.some(f => /^(Doku\/|CLAUDE\.md|tools\/ux\/|tools\/publish\.js)/.test(f)) &&
-      first.text.includes('git push publish publish:main v0.58.0'), `${noRemote.status} ${dry.status} ${first.status} [${parentless}] ${first.text.slice(-300)}`);
+      /npm test im Export/.test(dry.text) && first.text.includes('git push publish publish:main 0.58.0') && rev('v0.58.0') === '',
+      `${noRemote.status} ${dry.status} ${first.status} [${parentless}] ${first.text.slice(-300)}`);
     const same = run();
     setVersion('0.58.1');
     changelog(['0.58.1', 'deadbeef'], ['0.58.0', 'abcdef12']);
     commitAll(src);
     const wrongPrint = run();
+    setTest('process.exit(3)');
+    changelog(['0.58.1', Q.fingerprint().value], ['0.58.0', 'abcdef12']);
+    commitAll(src);
+    const beforeRed = rev('refs/heads/publish');
+    const red = run();
+    check('Ein roter npm test im Export bricht ab: kein Commit, kein Tag',
+      red.status === 1 && /npm test im Export ist rot \(Status 3\)/.test(red.text) &&
+      rev('refs/heads/publish') === beforeRed && rev('0.58.1') === '', `${red.status} ${red.text.trim().slice(-200)}`);
+    setTest(exportGreen);
     changelog(['0.58.1', Q.fingerprint().value], ['0.58.0', 'abcdef12']);
     commitAll(src);
     const second = run();

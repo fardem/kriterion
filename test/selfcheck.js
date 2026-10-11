@@ -15,29 +15,42 @@ async function run() {
 
   const gpList = require('./counterproof').REGRESSIONS;
   // Mit jedem neuen Rueckbau in counterproof.js anheben.
-  check(`Es sind genau 2425 Rueckbauten`, gpList.length === 2425, `${gpList.length}`);
+  check(`Es sind genau 2430 Rueckbauten`, gpList.length === 2430, `${gpList.length}`);
   const gpTwice = gpList.map(r => r.nr).filter((n, i, a) => a.indexOf(n) !== i);
   check('Und keine Nummer steht zweimal', gpTwice.length === 0, gpTwice.join(' '));
   /* Jede Datei nur einmal lesen: ueber tausend Rueckbauten verteilen sich auf
      50 Dateien, counterproof.js allein misst 540 kB. */
-  const gpFail = [];
   const gpText = new Map();
+  let gpReads = 0;
   const gpFileText = (file) => {
-    if (!gpText.has(file)) gpText.set(file, fs.readFileSync(file, 'utf8'));
+    if (!gpText.has(file)) { gpText.set(file, fs.readFileSync(file, 'utf8')); gpReads++; }
     return gpText.get(file);
   };
-  for (const r of gpList) {
-    const file = path.join(__dirname, r.file);
-    if (!fs.existsSync(file)) { gpFail.push(`${r.nr}: ${r.file} gibt es nicht`); continue; }
-    if (r.copy) continue;
-    const n = gpFileText(file).split(r.search).length - 1;
-    if (n !== 1) gpFail.push(`${r.nr} (${r.file}): ${n} Treffer`);
-  }
+  // Ohne Doku/ ist es der veroeffentlichte Stand; dort fehlen die Dateien aus EXCLUDED in tools/publish.js.
+  const gpPublished = !fs.existsSync(path.join(__dirname, 'Doku'));
+  const gpTargets = (exists, published) => {
+    const fail = [];
+    for (const r of gpList) {
+      if (!exists(r.file)) { if (!published) fail.push(`${r.nr}: ${r.file} gibt es nicht`); continue; }
+      if (r.copy) continue;
+      const n = gpFileText(path.join(__dirname, r.file)).split(r.search).length - 1;
+      if (n !== 1) fail.push(`${r.nr} (${r.file}): ${n} Treffer`);
+    }
+    return fail;
+  };
+  const gpFail = gpTargets(f => fs.existsSync(path.join(__dirname, f)), gpPublished);
   // Belegt das einmalige Lesen je Datei. Neue Zieldateien in counterproof.js erhoehen die 54.
-  check('Der Waechter liest hoechstens vierundfuenfzig Dateien',
-    gpText.size <= 54, `${gpText.size} Dateien fuer ${gpList.length} Rueckbauten`);
+  check('Der Waechter liest hoechstens vierundfuenfzig Dateien, jede einmal',
+    gpText.size <= 54 && gpReads === gpText.size, `${gpText.size} Dateien, ${gpReads} gelesen, fuer ${gpList.length} Rueckbauten`);
   check('Jeder Suchtext kommt in seiner Datei genau einmal vor',
     gpFail.length === 0, gpFail.join(' · '));
+  const gpTool = path.join(__dirname, 'tools', 'publish.js');
+  if (fs.existsSync(gpTool)) {
+    const out = (f) => require(gpTool).EXCLUDED.some(x => f === x || f.startsWith(x + '/'));
+    const left = gpTargets(f => !out(f) && fs.existsSync(path.join(__dirname, f)), true);
+    check('Ohne die Dateien aus EXCLUDED meldet die Pruefung keine fehlende Datei',
+      gpList.some(r => out(r.file)) && left.length === 0, left.join(' · '));
+  }
   // Ein Ersatz gleich dem Suchtext baut nichts zurueck, und alles bliebe gruen.
   const gpEqual = gpList.filter(r => r.search !== undefined && r.search === r.replacement);
   check('Und kein Ersatz ist mit seinem Suchtext wortgleich',
@@ -68,8 +81,9 @@ async function run() {
   const gpTorn = [];
   let gpCompiled = 0;
   for (const r of gpList) {
-    if (r.replacement === undefined || !r.file.endsWith('.js')) continue;
-    const src = fs.readFileSync(path.join(__dirname, ...r.file.split('/')), 'utf8');
+    const file = path.join(__dirname, ...r.file.split('/'));
+    if (r.replacement === undefined || !r.file.endsWith('.js') || !fs.existsSync(file)) continue;
+    const src = fs.readFileSync(file, 'utf8');
     // Ein Suchtext, der nicht trifft, ist oben schon gemeldet.
     if (!src.includes(r.search)) continue;
     gpCompiled++;
@@ -329,7 +343,7 @@ async function run() {
   }
   // Mit jedem Rueckbau auf eine Pruefstandsdatei anheben.
   check('Der Waechter sieht die Rueckbauten auf Pruefstandsdateien',
-    rpChecked === 43, `${rpChecked} Rueckbauten`);
+    rpChecked === 44, `${rpChecked} Rueckbauten`);
   check('Und jeder ihrer Namen steht in der Zieldatei, im Rahmen oder im Suchtext',
     rpStrange.length === 0, rpStrange.slice(0, 6).join(' · '));
 
@@ -376,13 +390,13 @@ async function run() {
       ['test/release_057.js', 7],
       ['test/release_0571.js', 10],
       ['test/release_0572.js', 8],
-      ['test/release_058.js', 12],
+      ['test/release_058.js', 13],
       ['test/release_059.js', 10],
       ['test/release_060.js', 9],
       ['test/release_061.js', 13],
       ['test/release_062.js', 6],
       ['test/roundtrip.js', 1303],
-      ['test/selfcheck.js', 85],
+      ['test/selfcheck.js', 86],
       ['test/source.js', 218],
       ['test/ui_entry.js', 263],
       ['test/ui_export.js', 186],
@@ -414,7 +428,7 @@ async function run() {
       ['public/theme.js', 2],
       ['public/style.css', 569],
     ];
-    const COMMENT_TOTAL = { comment: 7614, code: 103386 };
+    const COMMENT_TOTAL = { comment: 7616, code: 103452 };
     // Ausgelieferte Dateien: Bloecke ueber drei Zeilen und Bloecke mit Betonung in Grossbuchstaben.
     const COMMENT_LIMITS = { longBlocks: 3, emphasis: 6 };
     check('Der Waechter sieht alle sechsundsechzig Dateien',

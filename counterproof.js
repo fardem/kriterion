@@ -7417,8 +7417,8 @@ const REGRESSIONS = [
   {
     nr: '1081', name: 'Der Waechter liest wieder je Rueckbau seine Datei neu',
     file: 'test/selfcheck.js',
-    search: "    const n = gpFileText(file).split(r.search).length - 1;",
-    replacement: "    gpText.delete(file);\n    const n = gpFileText(file).split(r.search).length - 1;",
+    search: "      const n = gpFileText(path.join(__dirname, r.file)).split(r.search).length - 1;",
+    replacement: "      gpText.delete(path.join(__dirname, r.file));\n      const n = gpFileText(path.join(__dirname, r.file)).split(r.search).length - 1;",
     expected: 'Die Gegenproben greifen'
   },
   {
@@ -16359,7 +16359,7 @@ const REGRESSIONS = [
   {
     nr: '2371', name: "Der Commit bekommt keinen Tag",
     file: 'tools/publish.js',
-    search: "  git('tag', '-a', `v${version}`, '-m', version, commit);\n",
+    search: "  git('tag', '-a', version, '-m', version, commit);\n",
     replacement: "",
     expected: "Veroeffentlichen: Gegenstelle, Version, CHANGELOG, Tag und Notizen"
   },
@@ -17447,6 +17447,41 @@ const REGRESSIONS = [
     search: "  const rate = Math.round((Number(a.frameRate) || 0) * (fields ? 2 : 1)) || '';",
     replacement: "  const rate = Number(a.frameRate) > 0 ? Math.round(a.frameRate * (fields ? 2 : 1)) : '';",
     expected: "Spalte „Art“: Aufloesung und Bildrate, etwa „H.264 · 1080p30 · 2:41“"
+  },
+  {
+    nr: '2527', name: "Im veroeffentlichten Stand melden die Gegenproben die fehlenden Ziele",
+    file: 'test/selfcheck.js',
+    search: "if (!published) fail.push(",
+    replacement: "fail.push(",
+    expected: "Die Gegenproben greifen"
+  },
+  {
+    nr: '2528', name: "Vor dem Commit laeuft kein npm test im Export",
+    file: 'tools/publish.js',
+    search: "    rot = pruefstand(index, path.join(ordner, 'export'));\n",
+    replacement: "",
+    expected: "Veroeffentlichen: Gegenstelle, Version, CHANGELOG, Tag und Notizen"
+  },
+  {
+    nr: '2529', name: "Ein roter npm test im Export bricht nicht ab",
+    file: 'tools/publish.js',
+    search: "  if (rot) abbruch(rot);",
+    replacement: "  if (false) abbruch(rot);",
+    expected: "Veroeffentlichen: Gegenstelle, Version, CHANGELOG, Tag und Notizen"
+  },
+  {
+    nr: '2530', name: "Der Export hat kein node_modules",
+    file: 'tools/publish.js',
+    search: "  if (fs.existsSync(module)) fs.symlinkSync(module, path.join(ziel, 'node_modules'), 'dir');\n",
+    replacement: "",
+    expected: "Veroeffentlichen: Gegenstelle, Version, CHANGELOG, Tag und Notizen"
+  },
+  {
+    nr: '2531', name: "Der Tag traegt wieder ein v vor der Version",
+    file: 'tools/publish.js',
+    search: "  git('tag', '-a', version, '-m', version, commit);",
+    replacement: "  git('tag', '-a', `v${version}`, '-m', version, commit);",
+    expected: "Veroeffentlichen: Gegenstelle, Version, CHANGELOG, Tag und Notizen"
   }
 ];
 

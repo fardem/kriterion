@@ -7,6 +7,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 > A box above the changes of a version means there is something to do when updating.
 > Yanked versions are marked `[YANKED]`.
 
+## [0.62.1] - 2026-10-11
+
+Fingerprint `15f13403` — previously `9c61c2fd`.
+
+### Fixed
+
+- `npm test` failed in the published repository with 2 of 8,717 checks: `test/selfcheck.js` read a development file that is not published.
+
 ## [0.62.0] - 2026-10-09
 
 Fingerprint `9c61c2fd` — previously `158d91ee`.
