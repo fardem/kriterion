@@ -7,6 +7,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 > A box above the changes of a version means there is something to do when updating.
 > Yanked versions are marked `[YANKED]`.
 
+## [0.62.3] - 2026-10-15
+
+Fingerprint `52edcf83` — previously `03503904`.
+
+> Installations from before 0.24.1: the first start rebuilds every table whose defaults are still German, such as `users` with `'aktiv'`, and needs free space for a copy of it. The log names each table and the rows corrected.
+
+### Fixed
+
+- Databases from before 0.24.1 gave new accounts the status `aktiv` and photos the type `bild`: ✓ on a request said "This user is not active.", and such photos did not count.
+- The start rebuilds these tables with the defaults of the schema and corrects rows with the old value. Links, sessions and photos stay; with a column missing, it rebuilds nothing.
+
 ## [0.62.2] - 2026-10-15
 
 Fingerprint `03503904` — previously `15f13403`.

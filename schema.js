@@ -647,4 +647,30 @@ function schemaDifferences(db) {
   return { differences, missingTables: [...wanted.keys()].filter(t => !present.has(t)) };
 }
 
-module.exports = { SCHEMA, schemaDifferences };
+// Nur Texte: Zahlen und Ausdruecke wie datetime('now') weichen oft nur in der Schreibweise ab.
+const isText = (v) => typeof v === 'string' && /^'.*'$/s.test(v);
+const unquote = (v) => v.slice(1, -1).replace(/''/g, "'");
+
+/* Tabellen, deren Vorgabewert fuer eine Spalte vom Schema abweicht, etwa 'aktiv' statt 'active':
+   die Umbenennung ins Englische hat Spalten und Werte umgestellt, die Vorgabewerte nicht. */
+function defaultDifferences(db) {
+  const reference = new Database(':memory:');
+  const out = [];
+  try {
+    reference.exec(SCHEMA);
+    const tables = reference.prepare(
+      "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").all();
+    for (const { name, sql } of tables) {
+      const wanted = new Map(reference.prepare(`PRAGMA table_info("${name}")`).all().map(c => [c.name, c.dflt_value]));
+      const present = db.prepare(`PRAGMA table_info("${name}")`).all();
+      const changed = present.filter(c => wanted.has(c.name) && isText(c.dflt_value) && isText(wanted.get(c.name)) &&
+        c.dflt_value !== wanted.get(c.name))
+        .map(c => ({ column: c.name, had: unquote(c.dflt_value), wanted: unquote(wanted.get(c.name)) }));
+      if (changed.length) out.push({ table: name, sql, columns: present.map(c => c.name), changed,
+        extra: present.filter(c => !wanted.has(c.name)).map(c => `"${c.name}" ${c.type}`) });
+    }
+  } finally { reference.close(); }
+  return out;
+}
+
+module.exports = { SCHEMA, schemaDifferences, defaultDifferences };

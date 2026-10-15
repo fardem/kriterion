@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3-multiple-ciphers');
 const { loadKey } = require('./keys');
-const { SCHEMA } = require('./schema');
+const { SCHEMA, defaultDifferences } = require('./schema');
 const { logLine, logWarn } = require('./log');
 // batchrun.js laedt diese Datei im eigenen Thread; Meldungen nur im Haupt-Thread.
 const { isMainThread } = require('worker_threads');
@@ -122,8 +122,8 @@ function warnIncompleteDatabase(findings) {
     rows.join('\n') + '\n' +
     '\n' +
     '  Restore the data directory from a backup. Nothing here adds a\n' +
-    '  missing column: this version creates the schema in full and never\n' +
-    '  changes an existing table.\n' +
+    '  missing column, and while one is missing the start rebuilds no\n' +
+    '  table.\n' +
     '\n' +
     '  THIS INSTANCE STARTS ANYWAY. Nothing is blocked and nothing is\n' +
     '  changed; but every page that reads one of the columns above fails\n' +
@@ -132,6 +132,46 @@ function warnIncompleteDatabase(findings) {
   );
 }
 if (isMainThread) warnIncompleteDatabase(incompleteDatabase());
+
+/* ---- Vorgabewerte aus der Zeit vor den englischen Namen ---- */
+function renewDefaults() {
+  const tables = defaultDifferences(db);
+  for (const t of tables) {
+    const fresh = `${t.table}_renewed`;
+    const columns = t.columns.map(c => `"${c}"`).join(', ');
+    const sequence = db.prepare('SELECT seq FROM sqlite_sequence WHERE name = ?').get(t.table);
+    const brokenBefore = db.pragma('foreign_key_check').length;
+    // Vor der Transaktion, darin wirkt das Pragma nicht; sonst loescht DROP TABLE Sitzungen und Links mit.
+    db.pragma('foreign_keys = OFF');
+    db.pragma('legacy_alter_table = ON');
+    try {
+      const rows = db.transaction(() => {
+        db.exec(t.sql.replace(/^(CREATE TABLE) "?\w+"?/, `$1 IF NOT EXISTS "${fresh}"`));
+        // Spalten, die nicht im Schema stehen, bleiben mit ihren Werten erhalten.
+        for (const c of t.extra) db.exec(`ALTER TABLE "${fresh}" ADD COLUMN ${c}`);
+        db.exec(`INSERT INTO "${fresh}" (${columns}) SELECT ${columns} FROM "${t.table}"`);
+        db.exec(`DROP TABLE "${t.table}"`);
+        db.exec(`ALTER TABLE "${fresh}" RENAME TO "${t.table}"`);
+        // Sonst vergaebe SQLite die Nummer einer geloeschten Zeile neu.
+        if (sequence) db.prepare('UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name = ?').run(sequence.seq, t.table);
+        const changes = t.changed.map(c =>
+          db.prepare(`UPDATE "${t.table}" SET "${c.column}" = ? WHERE "${c.column}" = ?`).run(c.wanted, c.had).changes);
+        if (db.pragma('foreign_key_check').length > brokenBefore) throw new Error('foreign key check failed');
+        return changes;
+      })();
+      logLine(`Database: table ${t.table} rebuilt with the defaults of the schema; ` +
+        t.changed.map((c, i) => `${c.column} '${c.had}' -> '${c.wanted}' in ${rows[i]} row(s)`).join(', ') + '.');
+    } catch (e) {
+      logWarn(`Database: table ${t.table} not rebuilt, it keeps its old defaults: ${e.message}`);
+    } finally {
+      db.pragma('legacy_alter_table = OFF');
+      db.pragma('foreign_keys = ON');
+    }
+  }
+  // Indizes aus dem Schema; DROP TABLE hat sie mitgenommen.
+  if (tables.length) db.exec(SCHEMA);
+}
+if (isMainThread && !incompleteDatabase().length) renewDefaults();
 
 /* Erst beim ersten Aufruf vorbereitet, weil db.prepare bei fehlender Spalte
    wirft und die Instanz sonst nicht startet; die Spaltenliste nicht an die

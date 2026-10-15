@@ -17545,6 +17545,62 @@ const REGRESSIONS = [
     search: "GPL** (`--enable-gpl` in the `Dockerfile`).",
     replacement: "GPL**.",
     expected: "Die Lizenz geht mit hinaus"
+  },
+  {
+    nr: '2541', name: "Der Start legt keine Tabelle mit alten Vorgabewerten neu an",
+    file: 'db.js',
+    search: "if (isMainThread && !incompleteDatabase().length) renewDefaults();",
+    replacement: "if (false) renewDefaults();",
+    expected: "Alte Vorgabewerte: der Start legt die Tabelle nach dem Schema neu an"
+  },
+  {
+    nr: '2542', name: "Zeilen mit dem alten Vorgabewert behalten ihn",
+    file: 'db.js',
+    search: "          db.prepare(`UPDATE \"${t.table}\" SET \"${c.column}\" = ? WHERE \"${c.column}\" = ?`).run(c.wanted, c.had).changes);",
+    replacement: "          0);",
+    expected: "Alte Vorgabewerte: der Start legt die Tabelle nach dem Schema neu an"
+  },
+  {
+    nr: '2543', name: "Beim Umbau bleiben die Fremdschluessel an",
+    file: 'db.js',
+    search: "Sitzungen und Links mit.\n    db.pragma('foreign_keys = OFF');",
+    replacement: "Sitzungen und Links mit.",
+    expected: "Alte Vorgabewerte: der Start legt die Tabelle nach dem Schema neu an"
+  },
+  {
+    nr: '2544', name: "Nach dem Umbau fehlen die Indizes aus dem Schema",
+    file: 'db.js',
+    search: "  if (tables.length) db.exec(SCHEMA);",
+    replacement: "",
+    expected: "Alte Vorgabewerte: der Start legt die Tabelle nach dem Schema neu an"
+  },
+  {
+    nr: '2545', name: "Nach dem Umbau vergibt AUTOINCREMENT eine alte Nummer neu",
+    file: 'db.js',
+    search: "        if (sequence) db.prepare('UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name = ?').run(sequence.seq, t.table);",
+    replacement: "",
+    expected: "Alte Vorgabewerte: der Start legt die Tabelle nach dem Schema neu an"
+  },
+  {
+    nr: '2546', name: "Der Start baut auch bei fehlender Spalte um",
+    file: 'db.js',
+    search: "if (isMainThread && !incompleteDatabase().length) renewDefaults();",
+    replacement: "if (isMainThread) renewDefaults();",
+    expected: "Alte Vorgabewerte: bei fehlender Spalte baut der Start nichts um"
+  },
+  {
+    nr: '2547', name: "Beim Umbau fallen Spalten ausserhalb des Schemas weg",
+    file: 'schema.js',
+    search: "      if (changed.length) out.push({ table: name, sql, columns: present.map(c => c.name), changed,",
+    replacement: "      if (changed.length) out.push({ table: name, sql, columns: present.filter(c => wanted.has(c.name)).map(c => c.name), changed,",
+    expected: "Alte Vorgabewerte: der Start legt die Tabelle nach dem Schema neu an"
+  },
+  {
+    nr: '2548', name: "Die neue Tabelle bekommt die Spalten ausserhalb des Schemas nicht",
+    file: 'db.js',
+    search: "        for (const c of t.extra) db.exec(`ALTER TABLE \"${fresh}\" ADD COLUMN ${c}`);",
+    replacement: "",
+    expected: "Alte Vorgabewerte: der Start legt die Tabelle nach dem Schema neu an"
   }
 ];
 

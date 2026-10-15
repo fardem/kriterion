@@ -1039,7 +1039,7 @@ async function run() {
         if (part.kind === CODE)
           for (const m of part.value.matchAll(/[A-Za-z_$][A-Za-z0-9_$]*/g)) benchNames.add(m[0]);
     check('Der Waechter sieht wirklich den ganzen Pruefstand',
-      benchNames.size > 2000 && BENCH.length === 47,
+      benchNames.size > 2000 && BENCH.length === 48,
       `${benchNames.size} Bezeichner aus ${BENCH.length} Dateien`);
 
     /* Keine Benennungen, sondern Gegenstaende von Pruefungen: abgelegte
@@ -1077,8 +1077,8 @@ async function run() {
     const readShipped = (f) => fs.readFileSync(path.join(__dirname, ...f.split('/')), 'utf8');
     const stWord = 'Stolper' + 'stein';
     const stAll = [...BENCH, ...SHIPPED];
-    check('Der Waechter sieht alle siebenundsechzig Dateien',
-      stAll.length === 67, `${stAll.length} Dateien`);
+    check('Der Waechter sieht alle achtundsechzig Dateien',
+      stAll.length === 68, `${stAll.length} Dateien`);
     /* Die SQL-Kommentare im SCHEMA von schema.js stehen in einem Template-String,
        den segment() als Text liefert; hier zaehlen sie als Kommentar. */
     const stSqlRow = /^\s*--/;
@@ -1969,8 +1969,8 @@ async function run() {
     // Feste Zahl: auf einer leeren Menge waere die Pruefung darueber immer gruen.
     const zpCount = zpFiles.reduce((n, f) =>
       n + (zpRead(f).match(/\blog(?:Line|Warn|Fail)\(/g) || []).length, 0);
-    check('Und es sind 88 Protokollzeilen in den sieben Dateien',
-      zpCount === 88, `${zpCount} Zeilen`);
+    check('Und es sind 90 Protokollzeilen in den sieben Dateien',
+      zpCount === 90, `${zpCount} Zeilen`);
     // Ohne TZ laeuft der Container auf UTC, und der Versatz waere immer +00:00.
     const zpCompose = fs.readFileSync(
       path.join(__dirname, 'docker-compose.example.yml'), 'utf8');
