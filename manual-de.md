@@ -486,7 +486,7 @@ ist.
   Audio die Länge, und Datum unter dem Namen. Der Typ ist Video, Bild, PDF,
   Word, Excel, PowerPoint, Text, Archiv oder Sonstige; bei einem Video stehen
   dort Codec, Auflösung mit Bildrate und Länge, etwa „H.265 · 1080p30 · 3:12“.
-  Die Zahl nennt die kürzere Bildseite, ab 2160 steht „4K“; „i“ steht bei
+  Die Zahl nennt die kürzere Bildseite, bei 4K etwa „2160p60“; „i“ steht bei
   Halbbildern mit deren Rate, etwa „1080i50“. Bei einem Bild stehen dort Format
   und Pixel wie angezeigt, etwa „PNG · 1920 × 1080“. Ohne gelesene Angaben
   steht dort „Bild“. Klick, Menü,

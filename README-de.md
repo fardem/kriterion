@@ -701,7 +701,7 @@ mit `trash` (Nummern aus dem Papierkorb) und `backup` (`name` des Backups und
 ## Wie dieser Code entstanden ist
 
 Geschrieben mit [Claude Code](https://claude.com/claude-code), August bis
-September 2026. Idee, Konzept und Entwurf:
+Oktober 2026. Idee, Konzept und Entwurf:
 [Faruk Demirtaş](https://github.com/fardem).
 
 ## Lizenz
@@ -723,3 +723,10 @@ der Rest CC0, 0BSD, BlueOak und Pakete mit einem Wahlrecht.
 Wer ein fertiges Image weitergibt, gibt libvips mit weiter: dann muss der
 LGPL-Text mitgehen und die Bibliothek austauschbar bleiben. Wer aus dem
 Repository baut, lädt `sharp` selbst über npm.
+
+**Das Image enthält außerdem ffmpeg, gebaut mit `libx264` und damit unter der
+GPL** (`--enable-gpl` im `Dockerfile`). Kriterion startet es als eigenes
+Programm und bleibt unter MIT. Wer ein fertiges Image weitergibt, gibt ffmpeg
+mit weiter: dann müssen der GPL-Text und der Quelltext von ffmpeg von
+ffmpeg.org mitgehen, in der Version aus `ARG FFMPEG`. Wer aus dem Repository
+baut, baut ffmpeg selbst.

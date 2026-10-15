@@ -169,14 +169,14 @@ async function run() {
       [{ width: 1280, height: 720, frameRate: 30, scanType: 'Progressive' }, '720p30'],
       [{ width: 1920, height: 1080, frameRate: 25, scanType: 'Interlaced' }, '1080i50'],
       [{ width: 1920, height: 1080, frameRate: 25, scanType: 'MBAFF' }, '1080i50'],
-      [{ width: 3840, height: 2160, frameRate: 59.94, scanType: null }, '4K60'],
-      [{ width: 7680, height: 4320, frameRate: 30 }, '8K30'],
+      [{ width: 3840, height: 2160, frameRate: 59.94, scanType: null }, '2160p60'],
+      [{ width: 7680, height: 4320, frameRate: 30 }, '4320p30'],
       [{ width: 1080, height: 1920, frameRate: 29.97 }, '1080p30'],
       [{ width: 1920, height: 1080 }, '1080p'],
       [{ width: 1920, height: 1080, frameRate: 0.1 }, '1080p'],
       [{}, '']];
     const got = cases.map(([a]) => w.videoFormat(a));
-    check('720p30, 1080i50 bei Halbbildern und MBAFF, 4K60 aus 59,94, 8K30, Hochformat nach der kuerzeren Seite, ohne Bildrate 1080p',
+    check('720p30, 1080i50 bei Halbbildern und MBAFF, 2160p60 aus 59,94, 4320p30, Hochformat nach der kuerzeren Seite, ohne Bildrate 1080p',
       got.every((x, i) => x === cases[i][1]), got.join(' | '));
     const cell = w.document.querySelector('.atile[data-file="61"] .akind')?.textContent;
     const label = w.document.querySelector('.atile[data-file="61"] .aface')?.getAttribute('aria-label') || '';

@@ -7,6 +7,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 > A box above the changes of a version means there is something to do when updating.
 > Yanked versions are marked `[YANKED]`.
 
+## [0.62.2] - 2026-10-15
+
+Fingerprint `03503904` — previously `15f13403`.
+
+### Changed
+
+- The "Type" column names 4K and 8K by their lines, such as "2160p30" and "4320p60", like "1080p30".
+- In the list under "Files", codec and resolution line up in each folder, so every "·" stands below the one above.
+- The README names ffmpeg in the Docker image, built with `libx264` under the GPL, and what to pass on with a built image.
+
+### Fixed
+
+- Approving a request could leave the account without a link while the request stayed open; every further ✓ said "This username already exists."
+- ✓ now creates account, link and removal of the request in one step. It continues such a half approval; a name that belongs to another account can only be rejected.
+
 ## [0.62.1] - 2026-10-11
 
 Fingerprint `15f13403` — previously `9c61c2fd`.

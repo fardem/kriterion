@@ -476,7 +476,7 @@ değişmez. Bununla ilgili ipucu, mod açık kaldıkça resmin altında durur.
   Tür şunlardan biridir: Video, Görsel, PDF, Word, Excel, PowerPoint, Metin,
   Arşiv ya da Diğer; bir videoda bu sütunda codec, kare hızıyla çözünürlük ve
   süre durur, örneğin “H.265 · 1080p30 · 3:12”. Sayı görüntünün kısa kenarıdır,
-  2160’tan itibaren “4K” yazar; geçmeli videoda “i” alan hızıyla durur, örneğin
+  4K’da örneğin “2160p60”; geçmeli videoda “i” alan hızıyla durur, örneğin
   “1080i50”. Bir görselde gösterildiği gibi biçim ve piksel durur, örneğin
   “PNG · 1920 × 1080”. Okunmuş bilgi yoksa orada “Görsel” yazar. Kapalıyken bloğun başlığı yalnızca sayıları ve
   boyutu gösterir, örneğin “3 klasör · 12 video · 9 görsel · 4 diğer ·

@@ -2155,6 +2155,8 @@ body .toast.top { top: calc(16px + env(safe-area-inset-top)); bottom: auto; }
   font-family: var(--mono); font-size: .7rem; color: var(--muted);
 }
 .alist .asize { text-align: right; }
+.alist .ak1 { display: inline-block; min-width: calc(var(--ak1, 0) * 1ch); }
+.alist .ak2 { display: inline-block; min-width: calc(var(--ak2, 0) * 1ch); }
 .alist .anote:not(:empty) {
   display: block; grid-column: 2 / -1; grid-row: 2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-family: var(--mono); font-size: .66rem; color: var(--faint);

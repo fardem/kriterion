@@ -701,7 +701,7 @@ değeri ve listedeki `file`) ile onları geri alır.
 
 ## Bu kod nasıl yazıldı
 
-Ağustos ile Eylül 2026 arasında
+Ağustos ile Ekim 2026 arasında
 [Claude Code](https://claude.com/claude-code) ile yazıldı. Fikir, konsept ve
 tasarım: [Faruk Demirtaş](https://github.com/fardem).
 
@@ -724,3 +724,10 @@ geri kalanı CC0, 0BSD, BlueOak ve lisans seçimi sunan paketler.
 libvips'i. Hazır bir image dağıtan kişi libvips'i de dağıtır: o zaman LGPL
 metni de verilmeli ve kütüphane değiştirilebilir kalmalıdır. Depodan derleyen
 kişi `sharp` paketini npm üzerinden kendisi indirir.
+
+**Image ayrıca ffmpeg içerir; `libx264` ile derlendiği için GPL
+kapsamındadır** (`Dockerfile` içinde `--enable-gpl`). Kriterion onu ayrı bir
+program olarak başlatır ve MIT lisansında kalır. Hazır bir image dağıtan kişi
+ffmpeg'i de dağıtır: o zaman GPL metni ve ffmpeg.org'dan `ARG FFMPEG` içindeki
+sürümün kaynak kodu da verilmelidir. Depodan derleyen kişi ffmpeg'i kendisi
+derler.

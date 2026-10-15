@@ -1517,11 +1517,8 @@ app.post('/api/requests/:id/approve', adminOnly, async (req, res) => {
   if (!a || !a.confirmed_at)
     return res.status(404).json({ error: t(localeOf(req), 'server.requestUnknown')});
   let created, token;
-  try {
-    created = await auth.createUser(a.username, null, 'user', true, req.user.id, a.email);
-    token = auth.createToken(created.id, 'invite', req.user.id);
-  } catch (e) { return res.status(400).json({ error: errorText(req, e) }); }
-  auth.removeRequest(a.id);
+  try { ({ created, token } = auth.approveRequest(a.id, req.user.id)); }
+  catch (e) { return res.status(400).json({ error: errorText(req, e) }); }
   /* Der Protokolleintrag nennt den neuen Zugang, nicht den Namen der Anfrage. */
   auth.log('request.approve', { actor: req.user.id, target: created.id });
   const v = await sendTokenLink({ username: created.username, email: created.email }, token, localeOf(req));

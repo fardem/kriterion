@@ -397,22 +397,22 @@ const REGRESSIONS = [
   {
     nr: '53', name: 'Die Rolle kommt aus dem Rumpf der Anfrage',
     file: 'server.js',
-    search: "    created = await auth.createUser(a.username, null, 'user', true, req.user.id, a.email);",
-    replacement: "    angelegt = await auth.createUser(a.username, null, (req.body || {}).rolle || 'user', true, req.user.id, a.email);",
+    search: "  try { ({ created, token } = auth.approveRequest(a.id, req.user.id)); }",
+    replacement: "  try { ({ created, token } = auth.approveRequest(a.id, req.user.id)); if ((req.body || {}).role) auth.setRole(created.id, req.body.role, req.user.id); }",
     expected: 'Die Selbstanmeldung: die Rolle ist immer user'
   },
   {
     nr: '54', name: 'Die Zeile bleibt nach der Freischaltung stehen',
-    file: 'server.js',
-    search: "  auth.removeRequest(a.id);\n  /* Der Protokolleintrag nennt den neuen Zugang",
-    replacement: "  /* Der Protokolleintrag nennt den neuen Zugang",
+    file: 'auth.js',
+    search: "    removeRequest(a.id);\n    return { created, token, continued: Boolean(half) };",
+    replacement: "    return { created, token, continued: Boolean(half) };",
     expected: 'Die Selbstanmeldung: die Freischaltung'
   },
   {
     nr: '55', name: 'Die Freischaltung erzeugt keinen Token',
-    file: 'server.js',
-    search: "    token = auth.createToken(created.id, 'invite', req.user.id);",
-    replacement: "    token = { klartext: 'x'.repeat(64), zweck: 'invite', tage: 7, id: angelegt.id, username: angelegt.username };",
+    file: 'auth.js',
+    search: "    const token = createToken(created.id, 'invite', actor);",
+    replacement: "    const token = { plain: 'x'.repeat(64), purpose: 'invite', days: 7, id: created.id, username: created.username };",
     expected: 'Die Selbstanmeldung: die Freischaltung'
   },
   {
@@ -10622,7 +10622,7 @@ const REGRESSIONS = [
   {
     nr: '1550', name: "Art zeigt wieder die Endung",
     file: 'public/app.js',
-    search: "kindCell: kindText(a), codec:",
+    search: "kindCell: kindParts(a), codec:",
     replacement: "kindCell: kind, codec:",
     expected: "Zeile: Art, Bearbeiten und Link"
   },
@@ -11406,7 +11406,7 @@ const REGRESSIONS = [
   {
     nr: '1662', name: "Bilder heissen in der Spalte „Typ“ nur „Bild“",
     file: 'public/app.js',
-    search: "  if (kind === 'image') return [codecName(a.codec), pixelText(a.width, a.height)].filter(Boolean).join(' · ') || t(KIND_WORDS.image);\n",
+    search: "  if (kind === 'image') {\n    const parts = [codecName(a.codec), pixelText(a.width, a.height)].filter(Boolean);\n    return parts.length ? parts : [t(KIND_WORDS.image)];\n  }\n",
     replacement: "",
     expected: "Bilder: Typ, Vorschaubild und Erweiterte Infos"
   },
@@ -17407,10 +17407,10 @@ const REGRESSIONS = [
     expected: "Spalte „Art“: Aufloesung und Bildrate, etwa „H.264 · 1080p30 · 2:41“"
   },
   {
-    nr: '2521', name: "4K heisst 2160p",
+    nr: '2521', name: "Ab 2160 Zeilen steht wieder „4K“",
     file: 'public/app.js',
-    search: "lines >= 4320 ? '8K' : lines >= 2160 ? '4K' : ",
-    replacement: "lines >= 4320 ? '8K' : ",
+    search: "  return `${lines}${fields ? 'i' : 'p'}${rate}`;",
+    replacement: "  return `${lines >= 2160 ? '4K' : lines + (fields ? 'i' : 'p')}${rate}`;",
     expected: "Spalte „Art“: Aufloesung und Bildrate, etwa „H.264 · 1080p30 · 2:41“"
   },
   {
@@ -17482,6 +17482,69 @@ const REGRESSIONS = [
     search: "  git('tag', '-a', version, '-m', version, commit);",
     replacement: "  git('tag', '-a', `v${version}`, '-m', version, commit);",
     expected: "Veroeffentlichen: Gegenstelle, Version, CHANGELOG, Tag und Notizen"
+  },
+  {
+    nr: '2532', name: "Nach npm test im Export stehen die letzten 12 Zeilen statt der Summe",
+    file: 'tools/publish.js',
+    search: "  const schluss = (ab < 0 ? zeilen.slice(-12) : zeilen.slice(ab, ab + 12)).join('\\n');",
+    replacement: "  const schluss = zeilen.slice(-12).join('\\n');",
+    expected: "Veroeffentlichen: Gegenstelle, Version, CHANGELOG, Tag und Notizen"
+  },
+  {
+    nr: '2533', name: "Freischalten schreibt ohne Transaktion",
+    file: 'auth.js',
+    search: "  return db.transaction(() => {\n    const a = getRequest(id);",
+    replacement: "  return (() => {\n    const a = getRequest(id);",
+    expected: "Freischalten: Zugang, Link und Anfrage in einer Transaktion"
+  },
+  {
+    nr: '2534', name: "Eine halbe Freischaltung wird nicht fortgesetzt",
+    file: 'auth.js',
+    search: "    const half = qHalfApproved.get(a.username, a.email, a.created_at);",
+    replacement: "    const half = null;",
+    expected: "Freischalten: eine halbe Freischaltung wird fortgesetzt, ein fremder Name abgewiesen"
+  },
+  {
+    nr: '2535', name: "Ein fremder Name meldet nur, dass es ihn gibt",
+    file: 'auth.js',
+    search: "        throw new Message('server.requestNameTaken');",
+    replacement: "        throw new Message('login.usernameTaken');",
+    expected: "Freischalten: eine halbe Freischaltung wird fortgesetzt, ein fremder Name abgewiesen"
+  },
+  {
+    nr: '2536', name: "Ein Zugang mit Passwort gilt als halbe Freischaltung",
+    file: 'auth.js',
+    search: "    WHERE username = ? COLLATE NOCASE AND email = ? COLLATE NOCASE AND password_hash = ''",
+    replacement: "    WHERE username = ? COLLATE NOCASE AND (email = ? COLLATE NOCASE OR 1)",
+    expected: "Freischalten: eine halbe Freischaltung wird fortgesetzt, ein fremder Name abgewiesen"
+  },
+  {
+    nr: '2537', name: "Codec und Aufloesung stehen ohne eigene Huelle",
+    file: 'public/app.js',
+    search: "          ? Object.assign(document.createElement('span'), { className: `ak${at + 1}`, textContent: part }) : part;",
+    replacement: "          ? part : part;",
+    expected: "Spalte „Typ“: 2160p30 statt 4K30, Codec und Aufloesung mit fester Breite je Ordner"
+  },
+  {
+    nr: '2538', name: "Die Breite wird nicht je Ordner gesetzt",
+    file: 'public/app.js',
+    search: "      alignKinds(grid);\n    };",
+    replacement: "    };",
+    expected: "Spalte „Typ“: 2160p30 statt 4K30, Codec und Aufloesung mit fester Breite je Ordner"
+  },
+  {
+    nr: '2539', name: "Die Huelle des Codecs hat keine Mindestbreite",
+    file: 'public/style.css',
+    search: ".alist .ak1 { display: inline-block; min-width: calc(var(--ak1, 0) * 1ch); }",
+    replacement: ".alist .ak1 { display: inline-block; }",
+    expected: "Spalte „Typ“: 2160p30 statt 4K30, Codec und Aufloesung mit fester Breite je Ordner"
+  },
+  {
+    nr: '2540', name: "Die englische README nennt die GPL von ffmpeg nicht",
+    file: 'README.md',
+    search: "GPL** (`--enable-gpl` in the `Dockerfile`).",
+    replacement: "GPL**.",
+    expected: "Die Lizenz geht mit hinaus"
   }
 ];
 

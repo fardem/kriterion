@@ -15,7 +15,7 @@ async function run() {
 
   const gpList = require('./counterproof').REGRESSIONS;
   // Mit jedem neuen Rueckbau in counterproof.js anheben.
-  check(`Es sind genau 2430 Rueckbauten`, gpList.length === 2430, `${gpList.length}`);
+  check(`Es sind genau 2439 Rueckbauten`, gpList.length === 2439, `${gpList.length}`);
   const gpTwice = gpList.map(r => r.nr).filter((n, i, a) => a.indexOf(n) !== i);
   check('Und keine Nummer steht zweimal', gpTwice.length === 0, gpTwice.join(' '));
   /* Jede Datei nur einmal lesen: ueber tausend Rueckbauten verteilen sich auf
@@ -395,6 +395,7 @@ async function run() {
       ['test/release_060.js', 9],
       ['test/release_061.js', 13],
       ['test/release_062.js', 6],
+      ['test/release_0622.js', 5],
       ['test/roundtrip.js', 1303],
       ['test/selfcheck.js', 86],
       ['test/source.js', 218],
@@ -408,7 +409,7 @@ async function run() {
       ['test/ui_translator.js', 24],
       ['counterproof.js', 339],
       ['server.js', 1141],
-      ['auth.js', 151],
+      ['auth.js', 155],
       ['db.js', 52],
       ['mail.js', 18],
       ['keys.js', 14],
@@ -424,15 +425,15 @@ async function run() {
       ['backup.js', 53],
       ['backuptool.js', 28],
       ['videoproxy.js', 25],
-      ['public/app.js', 1357],
+      ['public/app.js', 1359],
       ['public/theme.js', 2],
       ['public/style.css', 569],
     ];
-    const COMMENT_TOTAL = { comment: 7616, code: 103452 };
+    const COMMENT_TOTAL = { comment: 7627, code: 103735 };
     // Ausgelieferte Dateien: Bloecke ueber drei Zeilen und Bloecke mit Betonung in Grossbuchstaben.
     const COMMENT_LIMITS = { longBlocks: 3, emphasis: 6 };
-    check('Der Waechter sieht alle sechsundsechzig Dateien',
-      crAll.each.length === 66 && COMMENT_ROWS.length === 66,
+    check('Der Waechter sieht alle siebenundsechzig Dateien',
+      crAll.each.length === 67 && COMMENT_ROWS.length === 67,
       `${crAll.each.length} gemessen, ${COMMENT_ROWS.length} genannt`);
     const crWrong = [];
     for (let i = 0; i < COMMENT_ROWS.length; i++) {
@@ -805,6 +806,13 @@ async function run() {
     check('Und nennt die LGPL der Bildbibliothek',
       /LGPL/.test(rd) && /sharp-libvips/.test(rd),
       'LGPL oder sharp-libvips fehlt im Abschnitt');
+    const ffmpegGpl = ['README.md', 'README-de.md', 'README-tr.md'].filter(f => {
+      const text = fs.readFileSync(path.join(__dirname, f), 'utf8');
+      return /`libx264`/.test(text) && /`--enable-gpl`/.test(text) && /`ARG FFMPEG`/.test(text);
+    });
+    check('Und nennt ffmpeg mit libx264 unter der GPL, in drei Sprachen',
+      ffmpegGpl.length === 3 && /--enable-gpl --enable-libx264/.test(fs.readFileSync(path.join(__dirname, 'Dockerfile'), 'utf8')),
+      ffmpegGpl.join(' ') || 'kein Absatz');
 
     // Zeitraum statt Versionsnummer; geprueft wird die Form, nicht der Monat.
     check('Und sagt, wie der Code entstanden ist',

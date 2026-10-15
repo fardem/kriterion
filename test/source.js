@@ -1039,7 +1039,7 @@ async function run() {
         if (part.kind === CODE)
           for (const m of part.value.matchAll(/[A-Za-z_$][A-Za-z0-9_$]*/g)) benchNames.add(m[0]);
     check('Der Waechter sieht wirklich den ganzen Pruefstand',
-      benchNames.size > 2000 && BENCH.length === 46,
+      benchNames.size > 2000 && BENCH.length === 47,
       `${benchNames.size} Bezeichner aus ${BENCH.length} Dateien`);
 
     /* Keine Benennungen, sondern Gegenstaende von Pruefungen: abgelegte
@@ -1077,8 +1077,8 @@ async function run() {
     const readShipped = (f) => fs.readFileSync(path.join(__dirname, ...f.split('/')), 'utf8');
     const stWord = 'Stolper' + 'stein';
     const stAll = [...BENCH, ...SHIPPED];
-    check('Der Waechter sieht alle sechsundsechzig Dateien',
-      stAll.length === 66, `${stAll.length} Dateien`);
+    check('Der Waechter sieht alle siebenundsechzig Dateien',
+      stAll.length === 67, `${stAll.length} Dateien`);
     /* Die SQL-Kommentare im SCHEMA von schema.js stehen in einem Template-String,
        den segment() als Text liefert; hier zaehlen sie als Kommentar. */
     const stSqlRow = /^\s*--/;
@@ -1841,8 +1841,8 @@ async function run() {
       }
       if (has) ssCode++;
     }
-    check('Und es stehen genau 2269 Regelzeilen da',
-      ssCode === 2269, `${ssCode} Zeilen`);
+    check('Und es stehen genau 2271 Regelzeilen da',
+      ssCode === 2271, `${ssCode} Zeilen`);
     // Laenger als drei Zeilen darf nur eine Tabelle gemessener Werte sein.
     const ssLines = ssBlocks.map(b => b.split('\n').length);
     const ssOver = ssLines.filter(n => n > 3).length;

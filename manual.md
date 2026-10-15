@@ -479,7 +479,7 @@ image while the mode is open.
   are below the name. The type is Video, Image, PDF, Word, Excel, PowerPoint,
   Text, Archive or Other; for a video, codec, resolution with frame rate and
   length appear there, for example “H.265 · 1080p30 · 3:12”. The number is the
-  shorter side of the picture, from 2160 on it says “4K”; “i” stands for
+  shorter side of the picture, for 4K for example “2160p60”; “i” stands for
   interlaced video with its field rate, for example “1080i50”. For an image,
   format and pixels as displayed appear there, for example “PNG · 1920 × 1080”.
   Without details read from the file, it says “Image”. Click, menu, preview and

@@ -1876,6 +1876,7 @@
   "server.purposeUnknown": "There is no such purpose.",
   "server.ratingBeforeTest": "Nothing is rated before the test — this is set to “{testedNo}”.",
   "server.ratingUnknown": "{ratingOne} not found.",
+  "server.requestNameTaken": "This username already exists. This request can only be rejected.",
   "server.requestUnknown": "There is no such request.",
   "server.ruleDays": "“Delete when older than” must be a whole number from {min} to {max}.",
   "server.ruleKeep": "“Keep at least” must be a whole number from {min} to {max}.",

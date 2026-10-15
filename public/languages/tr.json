@@ -1876,6 +1876,7 @@
   "server.purposeUnknown": "Böyle bir amaç yok.",
   "server.ratingBeforeTest": "Testten önce değerlendirme yapılmaz — burada “{testedNo}” yazıyor.",
   "server.ratingUnknown": "{ratingOne} bulunamadı.",
+  "server.requestNameTaken": "Bu kullanıcı adı zaten var. Bu başvuru yalnızca reddedilebilir.",
   "server.requestUnknown": "Böyle bir başvuru yok.",
   "server.ruleDays": "“Şundan eskiyse sil”, {min} ile {max} arasında bir tam sayı olmalı.",
   "server.ruleKeep": "“En az korunacak”, {min} ile {max} arasında bir tam sayı olmalı.",

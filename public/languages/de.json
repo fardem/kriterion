@@ -1876,6 +1876,7 @@
   "server.purposeUnknown": "Diesen Zweck gibt es nicht.",
   "server.ratingBeforeTest": "Vor dem Test wird nicht bewertet — hier steht „{testedNo}“.",
   "server.ratingUnknown": "{ratingOne} nicht gefunden.",
+  "server.requestNameTaken": "Den Benutzernamen gibt es schon. Diese Anfrage lässt sich nur ablehnen.",
   "server.requestUnknown": "Diese Anfrage gibt es nicht.",
   "server.ruleDays": "„Löschen, wenn älter als“ muss eine ganze Zahl von {min} bis {max} sein.",
   "server.ruleKeep": "„Mindestens behalten“ muss eine ganze Zahl von {min} bis {max} sein.",

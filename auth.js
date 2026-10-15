@@ -233,10 +233,8 @@ const ownerCount = () => db.prepare(
   "SELECT COUNT(*) AS n FROM users WHERE role = 'owner' AND status = 'active'"
 ).get().n;
 
-// Ohne Passwort nur bei withoutPassword === true, nie durch ein fehlendes Passwort.
-async function createUser(name, password, role = 'user', withoutPassword = false, actor, address) {
-  if (withoutPassword === true) checkName(name);
-  else checkRules(name, password);
+// Rolle, Name und Adresse eines neuen Zugangs; den Namen selbst prueft vorher checkName() oder checkRules().
+function newUserFields(name, role, address) {
   if (!ROLES.includes(role)) throw new Message('login.roleUnknown');
   const clean = String(name).trim();
   if (db.prepare('SELECT 1 FROM users WHERE username = ? COLLATE NOCASE').get(clean))
@@ -247,13 +245,25 @@ async function createUser(name, password, role = 'user', withoutPassword = false
   if (mailAddress &&
       db.prepare('SELECT 1 FROM users WHERE email = ? COLLATE NOCASE').get(mailAddress))
     throw new Message('login.emailTaken');
-  const hash = withoutPassword === true ? '' : await hashPassword(password);
+  return { clean, mailAddress };
+}
+
+function insertUser({ clean, mailAddress }, hash, role, actor) {
   const acting = checkActor(actor);
   const r = db.prepare('INSERT INTO users (username, password_hash, role, email) VALUES (?, ?, ?, ?)')
     .run(clean, hash, role, mailAddress || null);
   log('user.new', { actor: acting, target: r.lastInsertRowid, detail: role });
   return { id: r.lastInsertRowid, username: clean, role: role,
            withoutPassword: hash === '', email: mailAddress };
+}
+
+// Ohne Passwort nur bei withoutPassword === true, nie durch ein fehlendes Passwort.
+async function createUser(name, password, role = 'user', withoutPassword = false, actor, address) {
+  if (withoutPassword === true) checkName(name);
+  else checkRules(name, password);
+  const fields = newUserFields(name, role, address);
+  const hash = withoutPassword === true ? '' : await hashPassword(password);
+  return insertUser(fields, hash, role, actor);
 }
 
 // Ohne das bisherige Passwort; fuer Admins und usertool.js.
@@ -722,6 +732,32 @@ const getRequest = (id) => db.prepare(
 const removeRequest = (id) =>
   db.prepare('DELETE FROM requests WHERE id = ?').run(Number(id) || 0).changes > 0;
 
+/* Zugang, Link und Entfernen der Anfrage in einer Transaktion: scheitert ein Schritt, bleibt
+   weder ein Zugang ohne Link noch eine Anfrage zu einem vorhandenen Namen zurueck. */
+const qHalfApproved = db.prepare(
+  `SELECT id, username, role, email FROM users
+    WHERE username = ? COLLATE NOCASE AND email = ? COLLATE NOCASE AND password_hash = ''
+      AND status = 'active' AND created_at >= ?`);
+function approveRequest(id, actor) {
+  return db.transaction(() => {
+    const a = getRequest(id);
+    if (!a || !a.confirmed_at) throw new Message('server.requestUnknown');
+    // Ein Zugang mit Name und Adresse der Anfrage, ohne Passwort und juenger als sie: eine fruehere Freischaltung.
+    const half = qHalfApproved.get(a.username, a.email, a.created_at);
+    let created;
+    if (half) created = { id: half.id, username: half.username, role: half.role, withoutPassword: true, email: half.email };
+    else {
+      if (db.prepare('SELECT 1 FROM users WHERE username = ? COLLATE NOCASE').get(a.username))
+        throw new Message('server.requestNameTaken');
+      checkName(a.username);
+      created = insertUser(newUserFields(a.username, 'user', a.email), '', 'user', actor);
+    }
+    const token = createToken(created.id, 'invite', actor);
+    removeRequest(a.id);
+    return { created, token, continued: Boolean(half) };
+  })();
+}
+
 /* ---- Sicherheitsprotokoll ---- */
 // Nur Zugaenge und Eingriffe in die ganze Instanz, keine Inhalte.
 const EVENTS = [
@@ -1125,7 +1161,7 @@ module.exports = {
   cleanupTokens, createToken, checkToken, redeemToken, startTokenDeadline,
   REQUEST_HOURS, REQUEST_CAP, REQUEST_NAME_MAX, REQUEST_MAIL_MAX,
   countRequests, cleanupRequests,
-  createRequest, confirmRequest, listRequests, getRequest, removeRequest,
+  createRequest, confirmRequest, listRequests, getRequest, removeRequest, approveRequest,
   EVENTS, DETAILS, LOG_LIMIT, LOG_GROUPS, FROM_HOST,
   log, cleanupLog, readLog,
   CONFIRM_PURPOSES, RELEASE_MS, createRelease, useRelease,

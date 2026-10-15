@@ -697,7 +697,7 @@ list) fetches them back.
 ## How this code was written
 
 Written with [Claude Code](https://claude.com/claude-code), August to
-September 2026. Idea, concept and design:
+October 2026. Idea, concept and design:
 [Faruk Demirtaş](https://github.com/fardem).
 
 ## Licence
@@ -719,3 +719,10 @@ the rest CC0, 0BSD, BlueOak and packages with a choice of licences.
 Anyone who passes on a built image also passes on libvips: the LGPL text must
 then go with it, and the library must stay replaceable. Anyone who builds from
 the repository downloads `sharp` via npm themselves.
+
+**The image also contains ffmpeg, built with `libx264` and therefore under the
+GPL** (`--enable-gpl` in the `Dockerfile`). Kriterion starts it as a separate
+program and stays under MIT. Anyone who passes on a built image also passes on
+ffmpeg: the GPL text must then go with it, together with the source code of
+ffmpeg from ffmpeg.org in the version from `ARG FFMPEG`. Anyone who builds from
+the repository builds ffmpeg themselves.

@@ -6412,20 +6412,24 @@ function kindOf(a) {
 }
 const pixelText = (w, h) => (w && h ? `${w} × ${h}` : '');
 // Ohne gelesene Angaben steht bei Bildern „Bild“.
-function kindText(a) {
+function kindParts(a) {
   const kind = kindOf(a);
-  if (kind === 'image') return [codecName(a.codec), pixelText(a.width, a.height)].filter(Boolean).join(' · ') || t(KIND_WORDS.image);
-  if (kind !== 'video' && kind !== 'audio') return t(KIND_WORDS[kind]);
+  if (kind === 'image') {
+    const parts = [codecName(a.codec), pixelText(a.width, a.height)].filter(Boolean);
+    return parts.length ? parts : [t(KIND_WORDS.image)];
+  }
+  if (kind !== 'video' && kind !== 'audio') return [t(KIND_WORDS[kind])];
   return [codecName(a.codec) || t(KIND_WORDS[kind]), kind === 'video' ? videoFormat(a) : '', durationText(a.duration)]
-    .filter(Boolean).join(' · ');
+    .filter(Boolean);
 }
+function kindText(a) { return kindParts(a).join(' · '); }
 // „1080p30“: Zeilen der kuerzeren Bildseite; bei Halbbildern nennt MediaInfo die Vollbilder, „i“ zaehlt die Halbbilder.
 function videoFormat(a) {
   const lines = Math.min(Number(a.width) || 0, Number(a.height) || 0);
   if (!lines) return '';
   const fields = /^(Interlaced|MBAFF|PAFF)$/i.test(a.scanType || '');
   const rate = Math.round((Number(a.frameRate) || 0) * (fields ? 2 : 1)) || '';
-  return `${lines >= 4320 ? '8K' : lines >= 2160 ? '4K' : lines + (fields ? 'i' : 'p')}${rate}`;
+  return `${lines}${fields ? 'i' : 'p'}${rate}`;
 }
 /* Namen von Videocodecs und Bildformaten wie in Datenblaettern; die Datenbank behaelt den
    Wortlaut von MediaInfo. `long`: mit dem Namen von MediaInfo in Klammern. */
@@ -9004,7 +9008,16 @@ async function renderDetail(id, termAddress, commentWanted, photoWanted = 0, fil
       nameBox.replaceChildren(...nameLines(name));
     }
     li.querySelector('.ameta').textContent = [size, meta].filter(Boolean).join(' · ');
-    li.querySelector('.akind').textContent = kindCell;
+    // Alle Teile ausser dem letzten in .ak1 und .ak2; alignKinds() gibt ihnen je Ordner eine Breite.
+    const parts = [].concat(kindCell), kindBox = li.querySelector('.akind');
+    if (kindBox.dataset.text !== parts.join(' · ')) {
+      kindBox.dataset.text = parts.join(' · ');
+      kindBox.replaceChildren(...parts.flatMap((part, at) => {
+        const cell = at < parts.length - 1
+          ? Object.assign(document.createElement('span'), { className: `ak${at + 1}`, textContent: part }) : part;
+        return at ? [' · ', cell] : [cell];
+      }));
+    }
     li.querySelector('.asize').textContent = size;
     li.querySelector('.adur').textContent = shown || '';
     li.querySelector('.adate').textContent = date;
@@ -9031,7 +9044,7 @@ async function renderDetail(id, termAddress, commentWanted, photoWanted = 0, fil
       picture: a.missing ? '' : a.preview === 'image' || ((video || audio) && a.still) || a.thumb ? fileTileSource(a) : coming,
       video: video || audio || /^video\//.test(a.mime_type || ''), badge: a.thumb ? kind : '',
       wave: audio && !a.missing ? wavePeaksOf(a) : undefined,
-      date: fmtDateOnly(a.created_at), from, kindCell: kindText(a), codec: video || image || audio ? codecName(a.codec) : '',
+      date: fmtDateOnly(a.created_at), from, kindCell: kindParts(a), codec: video || image || audio ? codecName(a.codec) : '',
       label: [a.filename, kind, video || audio ? codecName(a.codec) : image && a.codec ? kindText(a) : '', video ? videoFormat(a) : '', length,
         filesize(a.size), from, missing].filter(Boolean).join(', '),
       open: openPreview === a.id || lightboxFile === a.id });
@@ -9269,6 +9282,11 @@ async function renderDetail(id, termAddress, commentWanted, photoWanted = 0, fil
     const by = key === 'name' || key === 'type' ? (x, y) => byName(x.name, y.name) : (x, y) => sum(x) - sum(y);
     return folders.slice().sort((x, y) => (asc ? 1 : -1) * (by(x, y) || x.id - y.id));
   }
+  // Je Ordner bestimmt die laengste Angabe die Breite in Zeichen; die Spalte „Typ“ steht in var(--mono).
+  function alignKinds(grid) {
+    for (const k of ['ak1', 'ak2'])
+      grid.style.setProperty(`--${k}`, String(Math.max(0, ...[...grid.querySelectorAll(`.${k}`)].map(x => x.textContent.length))));
+  }
   function newKindHead(key) {
     const li = document.createElement('li');
     li.className = 'akindhead';
@@ -9326,12 +9344,15 @@ async function renderDetail(id, termAddress, commentWanted, photoWanted = 0, fil
       ...remote.filter(x => remoteGroup(x) === key).map(x => ['s' + x.id, li => fillRemoteTile(li, x)]),
       ...jobs.filter(u => jobGroup(u) === key).map(u => ['u' + u.no, li => fillUploadTile(li, u)]),
       ...(adds ? [[key ? `add-f${key}` : 'add', li => fillAddTile(li, taken)]] : [])];
-    const place = (grid, want) => want.forEach(([key, fill], at) => {
-      const li = old.get(key) || (key.startsWith('k') ? newKindHead(key) : newTile(key));
-      old.delete(key);
-      fill(li);
-      if (grid.children[at] !== li) grid.insertBefore(li, grid.children[at] || null);
-    });
+    const place = (grid, want) => {
+      want.forEach(([key, fill], at) => {
+        const li = old.get(key) || (key.startsWith('k') ? newKindHead(key) : newTile(key));
+        old.delete(key);
+        fill(li);
+        if (grid.children[at] !== li) grid.insertBefore(li, grid.children[at] || null);
+      });
+      alignKinds(grid);
+    };
     place(looseGroup.querySelector('.agrid'), tilesOf(0, true, true));
     const oldGroups = new Map([...folderBox.children].map(el => [Number(el.dataset.folder), el]));
     sortedFolders(folders).forEach((f, at) => {
